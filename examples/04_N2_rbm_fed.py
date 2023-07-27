@@ -11,6 +11,7 @@ import numpy as np
 import time
 import sys 
 sys.path.append("..")
+sys.path.append(".")
 import rbm, noci
 
 # set up the system with pyscf

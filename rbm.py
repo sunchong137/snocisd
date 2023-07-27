@@ -11,7 +11,11 @@ import numpy as np
 from scipy.optimize import minimize
 import slater, noci
 import itertools
-import time
+import optax
+import jax
+import jax.numpy as jnp
+from jax.config import config
+config.update("jax_debug_nans", True)
 
 
 def expand_vecs(params, hiddens=[0,1]):
@@ -46,9 +50,8 @@ def add_vec(param0, tvecs):
         The new set of vectors added to the old ones.
     NOTE: only for hiddens = [0, 1]
     '''
-    tvecs_n = np.asarray(tvecs) 
-    tvecs_n += param0 
-    return list(tvecs_n)
+    tvecs_n = jnp.asarray(tvecs) + param0 
+    return tvecs_n
 
 def tvecs_to_rotations(tvecs, tshape, normalize=True):
     '''
@@ -63,7 +66,7 @@ def tvecs_to_rotations(tvecs, tshape, normalize=True):
         if normalize:
             r = slater.normalize_rotmat(r)
         rmats.append(r)
-
+    rmats = jnp.array(rmats)
     return rmats
 
 
@@ -176,6 +179,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape, 
                               ao_ovlp=ao_ovlp, hmat=None, smat=None, 
                               tol=tol, MaxIter=MaxIter, disp=disp, method=method)
+        #TODO keep on debugging
         
         opt_rbms.append(w)
         de = e - E0
@@ -237,6 +241,11 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
         TODO store hmat and smat from fixed vectors to avoid recalculations.
     '''
 
+    mo_coeff = jnp.array(mo_coeff)
+    ao_ovlp = jnp.array(ao_ovlp)
+    h1e = jnp.array(h1e)
+    h2e = jnp.array(h2e)
+
     nvecs = len(tvecs)
     rmats = tvecs_to_rotations(tvecs, tshape, normalize=True)
     sdets = slater.gen_determinants(mo_coeff, rmats)
@@ -246,43 +255,71 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
     if smat is None: # construct previous overlap matrix
         smat = noci.full_ovlp_w_rotmat(rmats)
 
-    h_n = np.zeros((nvecs*2, nvecs*2))
-    s_n = np.zeros((nvecs*2, nvecs*2))
-    h_n[:nvecs, :nvecs] = np.copy(hmat)
-    s_n[:nvecs, :nvecs] = np.copy(smat)
+    h_n = jnp.zeros((nvecs*2, nvecs*2))
+    s_n = jnp.zeros((nvecs*2, nvecs*2))
+    h_n = h_n.at[:nvecs, :nvecs].set(jnp.copy(hmat))
+    s_n = s_n.at[:nvecs, :nvecs].set(jnp.copy(smat))
 
+    tvecs = jnp.array(tvecs)
     def cost_func(w):
         tvecs_n = add_vec(w, tvecs) # newly added Thouless vectors
         rmats_n = tvecs_to_rotations(tvecs_n, tshape, normalize=True)
         sdets_n = slater.gen_determinants(mo_coeff, rmats_n)
         hm, sm = _expand_hs(h_n, s_n, rmats_n, sdets_n, rmats, sdets, tshape, h1e, h2e, mo_coeff, ao_ovlp=ao_ovlp)
         e = noci.solve_lc_coeffs(hm, sm)
+
         return e
     
-    # optimize 
-    v = minimize(cost_func, vec0, method=method, tol=tol, options={"maxiter":MaxIter, "disp": disp}).x
-    energy = cost_func(v)
-    return energy, v
+    init_params = jnp.array(vec0)
+
+    def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
+        
+        opt_state = optimizer.init(params)
+
+        @jax.jit
+        def step(params, opt_state):
+            loss_value, grads = jax.value_and_grad(cost_func)(params)
+            updates, opt_state = optimizer.update(grads, opt_state, params)
+            params = optax.apply_updates(params, updates)
+            return params, opt_state, loss_value
+
+        for i in range(5000):
+            params, opt_state, loss_value = step(params, opt_state)
+            if i%100 == 0:
+                print(f'step {i}, loss: {loss_value}')
+     
+        return loss_value, params
+    
+    # optimize
+    learning_rate = 0.01
+    optimizer = optax.adam(learning_rate)
+    energy, vec = fit(init_params, optimizer)
+
+    #v = minimize(cost_func, vec0, method=method, tol=tol, options={"maxiter":MaxIter, "disp": disp}).x
+    #energy = cost_func(v)
+    
+    return energy, vec
 
 def _expand_hs(h_n, s_n, rmats_n, sdets_n, rmats, sdets, tshape, h1e, h2e, mo_coeff, ao_ovlp=None):
     '''
     Expand the 
     '''
     nvecs = len(rmats_n)
-    hm = np.copy(h_n)
-    sm = np.copy(s_n)
-    hm[nvecs:, nvecs:] = noci.full_hamilt_w_sdets(sdets_n, h1e, h2e, ao_ovlp=ao_ovlp)
-    sm[nvecs:, nvecs:] = noci.full_ovlp_w_rotmat(rmats_n)
+    hm = jnp.copy(h_n)
+    sm = jnp.copy(s_n)
+    # TODO avoid the following
+    hm = hm.at[nvecs:, nvecs:].set(noci.full_hamilt_w_sdets(sdets_n, h1e, h2e, ao_ovlp=ao_ovlp))
+    sm = sm.at[nvecs:, nvecs:].set(noci.full_ovlp_w_rotmat(rmats_n))
 
     # crossing terms
     for i in range(nvecs): # old vectors
         for j in range(nvecs): # new vectors
             _s = slater.ovlp_rotmat(rmats[i], rmats_n[j])
             _h = slater.trans_hamilt(sdets[i], sdets_n[j], h1e, h2e, ao_ovlp=ao_ovlp)
-            sm[i, nvecs+j] = _s 
-            sm[nvecs+j, i] = _s 
-            hm[i, nvecs+j] = _h 
-            hm[nvecs+j, i] = _h
+            sm = sm.at[i, nvecs+j].set(_s) 
+            sm = sm.at[nvecs+j, i].set(_s) 
+            hm = hm.at[i, nvecs+j].set(_h) 
+            hm = hm.at[nvecs+j, i].set(_h)
 
     return hm, sm
 

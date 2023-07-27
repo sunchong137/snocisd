@@ -6,6 +6,9 @@ import numpy as np
 import scipy.linalg as sla
 from scipy.optimize import minimize
 import slater
+import jax 
+import jax.numpy as jnp
+from jax.scipy import linalg as jsla
 
 
 def gen_thouless_random(nocc, nvir, max_nt):
@@ -208,12 +211,12 @@ def full_ovlp_w_rotmat(rmats, rmats2=None):
         rmats2 = rmats
 
     num_rot = len(rmats)
-    ovlp_all = np.zeros((num_rot, num_rot))
+    ovlp_all = jnp.zeros((num_rot, num_rot))
     for i in range(num_rot):
         for j in range(i+1):
             ovlp = slater.ovlp_rotmat(rmats[i], rmats2[j])
-            ovlp_all[i,j] = ovlp
-            ovlp_all[j,i] = ovlp.conj()
+            ovlp_all = ovlp_all.at[i,j].set(ovlp)
+            ovlp_all = ovlp_all.at[j,i].set(ovlp.conj())
 
     return ovlp_all
 
@@ -254,13 +257,14 @@ def full_hamilt_w_sdets_direct(dets, h1e, h2e, ao_ovlp=None, dets2=None):
 
     num_det = len(dets)
     # evaluate Hamiltonian
-    ham_mat = np.zeros((num_det, num_det))
+    ham_mat = jnp.zeros((num_det, num_det))
     for i in range(num_det):
         for j in range(i+1):
             det1 = dets[i]
             det2 = dets2[j] 
-            ham_mat[i, j] = slater.trans_hamilt(det1, det2, h1e, h2e, ao_ovlp=ao_ovlp)
-            ham_mat[j, i] = ham_mat[i, j].conj()
+            h = slater.trans_hamilt(det1, det2, h1e, h2e, ao_ovlp=ao_ovlp)
+            ham_mat = ham_mat.at[i, j].set(h)
+            ham_mat = ham_mat.at[j, i].set(h.conj())
     return ham_mat
 
 def full_hamilt_w_sdets_pyscf(dets, mf):
@@ -284,6 +288,11 @@ def full_hamilt_w_sdets_pyscf(dets, mf):
 
     return ham_mat
 
+def generalized_eigh(A, B):
+    L = jnp.linalg.cholesky(B)
+    L_inv = jnp.linalg.inv(L)
+    A_redo = L_inv.dot(A).dot(L_inv.T)
+    return jnp.linalg.eigh(A_redo)
 
 def solve_lc_coeffs(hmat, smat, return_vec=False):
     '''
@@ -300,15 +309,14 @@ def solve_lc_coeffs(hmat, smat, return_vec=False):
         A 1D numpy array of size (n**d,), linear combination coefficient
 
     '''
+    e, v = generalized_eigh(hmat, smat)
+
+    energy = e[0]
+    c = v[:, 0]
 
     if return_vec:
-        e, v = sla.eigh(hmat, b=smat, subset_by_index=[0,0])
-        energy = e[0]
-        c = v[:, 0]
         return energy, c
     else:
-        e = sla.eigh(hmat, b=smat, eigvals_only=True, subset_by_index=[0,0])
-        energy = e[0]   
         return energy
 
 

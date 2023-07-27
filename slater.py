@@ -8,6 +8,8 @@
 import numpy as np
 import time
 from numpy import einsum 
+import jax 
+import jax.numpy as jnp
 # from pyscf.lib import einsum
 
 
@@ -59,13 +61,13 @@ def normalize_rotmat_spinless(rmat, norm_all=True):
     This function is not costy.
     '''
 
-    rnorm = np.linalg.norm(rmat, axis=0)
-    rmat_n = np.divide(rmat, rnorm)
-    
+    rnorm = jnp.linalg.norm(rmat, axis=0)
+    rmat_n = jnp.divide(rmat, rnorm)
+
     if norm_all:
         nocc = rmat.shape[-1]
         r_norm = norm_rotmat_spinless(rmat_n)
-        rmat_n /= (r_norm ** (0.5/nocc))
+        rmat_n = rmat_n / (r_norm ** (0.5/nocc))
 
     return rmat_n
 
@@ -99,7 +101,7 @@ def normalize_rotmat(rmat):
         # normalize column-wise
         rmat_n_up = normalize_rotmat_spinless(rmat[0])
         rmat_n_dn = normalize_rotmat_spinless(rmat[1])
-        rmat_n = [rmat_n_up, rmat_n_dn]
+        rmat_n = jnp.array([rmat_n_up, rmat_n_dn])
 
     else:
         rmat_n = normalize_rotmat_spinless(rmat)
@@ -120,12 +122,10 @@ def gen_determinants(mo_coeff, rmats, normalize=False):
     num_rot = len(rmats)
     if normalize:
         for i in range(num_rot):
-            rmats[i] = normalize_rotmat(rmats[i])
+            rmats = rmats.at[i].set(normalize_rotmat(rmats[i]))
 
-    sdets = []
-    for iter in range(num_rot):
-        r = rmats[iter]
-        sdets.append(rotation(mo_coeff, r))
+    mo_coeff = jnp.array(mo_coeff)
+    sdets = jnp.einsum('sij, msjk -> msik', mo_coeff, rmats )
 
     return sdets
 
@@ -148,7 +148,7 @@ def thouless_to_rotation(tmat, normalize=False):
     Turn a Thouless matrix to a rotation matrix.
     NOTE: the rotation matrix is not normalized.
     '''
-    tmat = np.asarray(tmat)
+    tmat = jnp.array(tmat)
     ndim = tmat.ndim
     nocc = tmat.shape[-1]
     if ndim > 2: # two spins
@@ -178,18 +178,18 @@ def thouless_to_rotation_all(tmats, normalize=False):
 
 
 def _t2r_uhf(t, nocc, normalize=False):
-    t = np.asarray(t)
-    Imat = np.eye(nocc)
-    id = np.array([Imat, Imat])
-    rmat = np.concatenate([id, t], axis=1)
+    t = jnp.array(t)
+    Imat = jnp.eye(nocc)
+    id = jnp.array([Imat, Imat])
+    rmat = jnp.concatenate([id, t], axis=1)
     if normalize:
         rmat = normalize_rotmat(rmat)
     return rmat
 
 
 def _t2r_rhf(t, nocc, normalize=False):
-    Imat = np.eye(nocc)   
-    rmat = np.concatenate([Imat, t], axis=0)
+    Imat = jnp.eye(nocc)   
+    rmat = jnp.concatenate([Imat, t], axis=0)
     if normalize:
         rmat = normalize_rotmat(rmat)
     return rmat
@@ -216,8 +216,8 @@ def ovlp_sdet(sdet1, sdet2, ao_ovlp=None, tol=1e-10):
     return ovlp 
 
 def norm_rotmat_spinless(rmat):
-    ovlp_mat = np.dot(rmat.T.conj(), rmat)
-    ovlp = np.linalg.det(ovlp_mat) 
+    ovlp_mat = jnp.dot(rmat.T.conj(), rmat)
+    ovlp = jnp.linalg.det(ovlp_mat) 
     return ovlp
 
 def ovlp_rotmat(rmat1, rmat2, spin=True, tol=1e-10):
@@ -235,14 +235,14 @@ def ovlp_rotmat(rmat1, rmat2, spin=True, tol=1e-10):
         ndim = 3
 
     if ndim > 2: # two spins
-        ovlp = np.linalg.det(ovlp_mat[0]) * np.linalg.det(ovlp_mat[1])
+        ovlp = jnp.linalg.det(ovlp_mat[0]) * jnp.linalg.det(ovlp_mat[1])
     else: # one spin
-        ovlp = np.linalg.det(ovlp_mat) 
+        ovlp = jnp.linalg.det(ovlp_mat) 
         if spin:
             ovlp = ovlp ** 2
 
-    if (abs(ovlp) < tol):
-        print("WARNING: ovlp_rotmat overlap is too small: {:.2e}".format(ovlp))
+    # if (ovlp.astype(float) < tol):
+    #     print("WARNING: ovlp_rotmat overlap is too small: {:.2e}".format(ovlp))
 
     return ovlp 
 
@@ -253,11 +253,9 @@ def metric_sdet(sdet1, sdet2, ao_ovlp=None):
         A 2D array of size (Nocc x Nocc).
     '''
     if ao_ovlp is None:
-        ovlp_mat = np.array([sdet1[0].T.conj()@sdet2[0], sdet1[1].T.conj()@sdet2[1]])
+        ovlp_mat = jnp.array([sdet1[0].T.conj()@sdet2[0], sdet1[1].T.conj()@sdet2[1]])
     else:
-        ovlp_mat = np.array([sdet1[0].T.conj()@ao_ovlp@sdet2[0], sdet1[1].T.conj()@ao_ovlp@sdet2[1]])
-
-
+        ovlp_mat = jnp.array([sdet1[0].T.conj()@ao_ovlp@sdet2[0], sdet1[1].T.conj()@ao_ovlp@sdet2[1]])
     return ovlp_mat
 
 def metric_rotmat(rmat1, rmat2):
@@ -270,9 +268,9 @@ def metric_rotmat(rmat1, rmat2):
         ndim = 3
         
     if ndim > 2:
-        ovlp_mat = np.array([rmat1[0].T.conj()@rmat2[0], rmat1[1].T.conj()@rmat2[1]])
+        ovlp_mat = jnp.array([rmat1[0].T.conj()@rmat2[0], rmat1[1].T.conj()@rmat2[1]])
     else:
-        omat = np.dot(rmat1.T.conj(), rmat2)
+        omat = jnp.dot(rmat1.T.conj(), rmat2)
         ovlp_mat = omat
 
     return ovlp_mat
@@ -310,8 +308,8 @@ def make_trans_rdm1_spinless(s1, s2, omat, tol=1e-10, s_tol=1e-8):
         spinless density matrix
         reduced overlap
     '''
-    ovlp = np.linalg.det(omat)
-    inv = np.linalg.inv(omat)
+    ovlp = jnp.linalg.det(omat)
+    inv = jnp.linalg.inv(omat)
     dm = s2 @ inv @ s1.T.conj()
     rovlp = ovlp
 
@@ -348,10 +346,10 @@ def get_j(h2e, dm):
         dm_all = dm[0] + dm[1]
         # print(dm_all.shape)
         # print(h2e.shape)
-        jab = np.einsum('ijkl, lk -> ij', h2e, dm_all)
-        return np.array([jab, jab])
+        jab = jnp.einsum('ijkl, lk -> ij', h2e, dm_all)
+        return jnp.array([jab, jab])
     else:
-        return np.einsum('ijkl, lk -> ij', h2e, dm)
+        return jnp.einsum('ijkl, lk -> ij', h2e, dm)
 
 def get_k(h2e, dm):
     '''
@@ -363,15 +361,15 @@ def get_k(h2e, dm):
         ndim = 3
 
     if ndim > 2:    
-        return np.einsum('ijkl, njk -> nil', h2e, dm)
+        return jnp.einsum('ijkl, njk -> nil', h2e, dm)
     else:
-        return np.einsum('ijkl, jk -> il', h2e, dm)
+        return jnp.einsum('ijkl, jk -> il', h2e, dm)
     
 def get_jk(h2e, dm):
-    try:
-        ndim = dm.ndim
-    except:
-        ndim = 3
+
+    dm = jnp.array(dm)
+    ndim = dm.ndim
+
     J = get_j(h2e, dm)
     K = get_k(h2e, dm)
     if ndim > 2:
@@ -421,9 +419,18 @@ def trans_hamilt_all(dm, h1e, h2e, mo_coeff=None, get_grad=False):
         return hval, grad
     else:
         return hval
-    
 
 def trans_hamilt(sdet1, sdet2, h1e, h2e, ao_ovlp=None, 
+                          tol=1e-10, diag_tol=1e-8, mf=None):
+
+
+    ovlp_mat = metric_sdet(sdet1, sdet2, ao_ovlp=ao_ovlp)
+    dm, ovlp = make_trans_rdm1(sdet1, sdet2, ao_ovlp=ao_ovlp, omat=ovlp_mat)
+    E = trans_hamilt_dm(dm, ovlp, h1e, h2e) 
+
+    return E
+
+def trans_hamilt_singular(sdet1, sdet2, h1e, h2e, ao_ovlp=None, 
                           tol=1e-10, diag_tol=1e-8, mf=None):
     '''
     Evaluate <sdet1|H|sdet2>.
@@ -437,7 +444,7 @@ def trans_hamilt(sdet1, sdet2, h1e, h2e, ao_ovlp=None,
 
     # evaluate overlap and check singularity
     ovlp_mat = metric_sdet(sdet1, sdet2, ao_ovlp=ao_ovlp)
-    ovlp_u, ovlp_d = np.linalg.det(ovlp_mat)
+    ovlp_u, ovlp_d = jnp.linalg.det(ovlp_mat)
 
     if abs(ovlp_u) > tol and abs(ovlp_d) > tol:
 
@@ -539,18 +546,17 @@ def trans_hamilt_dm(dm, ovlp, h1e, h2e):
     Return:
         A scalar <Phi_1|H|Phi_2> (not the energy)
     '''
-    try: 
-        ndim = dm.ndim
-    except:
-        ndim = 3
- 
+
+    dm = jnp.array(dm)
     jk = get_jk(h2e, dm)
+    ndim = dm.ndim 
+
     if ndim > 2:
-        E1 = einsum('ij, nji -> ', h1e, dm)
-        E2 = np.einsum('nij, nji -> ', jk, dm)
+        E1 = jnp.einsum('ij, nji -> ', h1e, dm)
+        E2 = jnp.einsum('nij, nji -> ', jk, dm)
     else:
-        E1 = einsum('ij, ji -> ', h1e, dm)
-        E2 = np.einsum('ij, ji -> ', jk, dm)
+        E1 = jnp.einsum('ij, ji -> ', h1e, dm)
+        E2 = jnp.einsum('ij, ji -> ', jk, dm)
 
     E = (E1 + 0.5 * E2) * ovlp
 
