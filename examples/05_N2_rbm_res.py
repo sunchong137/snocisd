@@ -59,7 +59,7 @@ e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
-n_dets = 1
+n_dets = 2
 niter = 500
 tol = 1e-6
 

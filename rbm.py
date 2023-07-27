@@ -373,7 +373,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
                 break
             else:
                 loss_last = loss_value
-            if i%10 == 0:
+            if i%500 == 0:
                 print(f'step {i}, loss: {loss_value};')
 
         return loss_value, params
@@ -432,6 +432,8 @@ def energy_rbm(rbmvecs, mo_coeff, h1e, h2e, tshape, ao_ovlp=None, hiddens=[0,1])
     return e
 
 def rbm_energy_nograd(rmats, mo_coeff, h1e, h2e, ao_ovlp=None):
+
+    # TODO rewrite this as a giant einsum
 
     nt = len(rmats)
 
