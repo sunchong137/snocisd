@@ -163,7 +163,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     e_hf = E0
 
     opt_rbms = [] # optimized RBM vectors
-    opt_tvecs = [np.zeros(2*nvir*nocc)] # All Thouless vectors
+    opt_tvecs = jnp.array([np.zeros(2*nvir*nocc)]) # All Thouless vectors
 
     rmats = tvecs_to_rotations(opt_tvecs, tshape, normalize=True)
     sdets = slater.gen_determinants(mo_coeff, rmats)
@@ -186,21 +186,18 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         E0 = e
         print("Iter {}: energy lowered {}".format(iter+1, de))
         new_tvecs = add_vec(w, opt_tvecs) # new Thouless vectors from adding this RBM vector
-        opt_tvecs += new_tvecs
-    
+        opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
         # update hmat and smat
         lv = 2**iter
-        h_n = np.zeros((lv*2, lv*2))
-        s_n = np.zeros((lv*2, lv*2))
-        h_n[:lv, :lv] = np.copy(hmat)
-        s_n[:lv, :lv] = np.copy(smat)
+        h_n = jnp.zeros((lv*2, lv*2))
+        s_n = jnp.zeros((lv*2, lv*2))
+        h_n = h_n.at[:lv, :lv].set(hmat)
+        s_n = s_n.at[:lv, :lv].set(smat)
         rmats_n = tvecs_to_rotations(new_tvecs, tshape, normalize=True)
         sdets_n = slater.gen_determinants(mo_coeff, rmats_n)
         hmat, smat = _expand_hs(h_n, s_n, rmats_n, sdets_n, rmats, sdets, tshape, h1e, h2e, mo_coeff, ao_ovlp=ao_ovlp)
-        rmats += rmats_n 
-        sdets += sdets_n 
-    print("***Energy lowered after FED: {}".format(e-e_hf))
-   
+        rmats = jnp.vstack([rmats, rmats_n])
+        sdets = jnp.vstack([sdets, sdets_n])
 
     if nsweep > 0:
         if nvecs < 2:
@@ -283,7 +280,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        for i in range(5000):
+        for i in range(500):
             params, opt_state, loss_value = step(params, opt_state)
             if i%100 == 0:
                 print(f'step {i}, loss: {loss_value}')
