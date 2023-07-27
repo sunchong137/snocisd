@@ -6,6 +6,13 @@ import helpers, molecules, noci
 # import rbm_slow as rbm
 import rbm
 
+def test_expand_hiddens():
+    h = [0, 1]
+    rep = 3 
+    coeff = rbm.expand_hiddens(h, rep)
+    print(coeff)
+test_expand_hiddens()
+
 def test_params_to_rotations():
     nocc = 2
     nvir = 3
@@ -162,5 +169,3 @@ def test_rbm_fed():
     e_rbm = er + e_nuc
     assert e_rbm >= e_fci
     assert e_rbm <= e_hf
-
-test_rbm_fed()

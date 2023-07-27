@@ -3,7 +3,7 @@
 # Naming systems:
 # params: parameters of RBM, usually with the shape (nparam, lparam)
 # tvecs: the vector form of the Thouless matrices (flattened)
-# tmats: Thouless matrices 
+# tmats: Thouless matrices
 # rmats: rotation matrices of the MO coefficients (adding I on top of tmats)
 # sdets: MO coefficients of the Slater determinants
 
@@ -32,14 +32,14 @@ def expand_vecs(params, hiddens=[0,1]):
     if nparam == 0:
         return []
     params = np.asarray(params)
-    tvecs = [] 
+    tvecs = []
 
     for iter in itertools.product(hiddens, repeat=nparam):
         sum_coeff = np.asarray(iter)
         t = np.dot(sum_coeff, params)
         tvecs.append(t)
 
-    return tvecs  
+    return tvecs
 
 
 def add_vec(param0, tvecs):
@@ -50,7 +50,7 @@ def add_vec(param0, tvecs):
         The new set of vectors added to the old ones.
     NOTE: only for hiddens = [0, 1]
     '''
-    tvecs_n = jnp.asarray(tvecs) + param0 
+    tvecs_n = jnp.asarray(tvecs) + param0
     return tvecs_n
 
 def tvecs_to_rotations(tvecs, tshape, normalize=True):
@@ -84,22 +84,52 @@ def params_to_rotations(rbm_vecs, tshape, hiddens=[0,1], normalize=True):
     nvecs = len(rbm_vecs)
     if nvecs == 0:
         return []
-    rbm_vecs = np.asarray(rbm_vecs)
+    rbm_vecs = jnp.asarray(rbm_vecs)
     nvir, nocc = tshape
     rmats = []
 
+    #TODO use jnp.meshgrid to avoid loop
     for iter in itertools.product(hiddens, repeat=nvecs):
-        sum_coeff = np.asarray(iter)
-        t = np.dot(sum_coeff, rbm_vecs).reshape(2, nvir, nocc)
+        sum_coeff = jnp.asarray(iter)
+        t = jnp.dot(sum_coeff, rbm_vecs).reshape(2, nvir, nocc)
         r = slater.thouless_to_rotation(t) # put the identity operator on top
         if normalize:
             r = slater.normalize_rotmat(r)
         rmats.append(r)
+    rmats = jnp.array(rmats)
     return rmats
 
+def params_to_rmats(vecs, nvir, nocc, coeffs, normalize=False):
 
-def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, 
-            init_rbms=None, ao_ovlp=None, hiddens=[0,1],
+    vecs_all = jnp.dot(coeffs, vecs)
+    vecs_all = vecs_all.reshape(-1, nvir, nocc)
+    nvecs = vecs_all.shape[0]
+    I = jnp.eye(nocc)
+    Imats = jnp.tile(I, (nvecs)).T.reshape(nvecs, nocc, nocc) # 2 for spins
+    rmats = jnp.concatenate([Imats, vecs_all], axis=1)
+    rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
+    return rmats
+
+def expand_hiddens(hiddens, nvecs):
+    '''
+    Generate all possible combinations of the nvecs of hidden variables.
+    Args:
+        nvecs: number of RBM vectors
+        hiddens: values of hidden variables
+    Returns:
+        2D array.
+    '''
+    coeffs = []
+    for iter in itertools.product(hiddens, repeat=nvecs):
+        sum_coeff = np.asarray(iter)
+        coeffs.append(sum_coeff)
+      
+    coeffs = np.array(coeffs)
+   
+    return coeffs
+
+def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
+            init_params=None, ao_ovlp=None, hiddens=[0,1],
             tol=1e-6, MaxIter=100, disp=False, method="BFGS"):
     '''
     Optimize the RBM parameters all together.
@@ -109,39 +139,92 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
         nocc: int, number of occupied orbitals
         nvecs: int, number of rbm_vectors
     kwargs:
-        init_rbms: a list of vectors, initial guess of the RBM parameters.
+        init_params: a list of vectors, initial guess of the RBM parameters.
         ao_ovlp: 2D array, overlap matrix among atomic orbitals
         hiddens: hidden variables for RBM neural network.
     NOTE: hard to converge when optimizing all.
     '''
+
+    mo_coeff = jnp.array(mo_coeff)
+    h1e = jnp.array(h1e)
+    h2e = jnp.array(h2e)
+    if ao_ovlp is not None:
+        ao_ovlp = jnp.array(ao_ovlp)
+
     norb = h1e.shape[-1]
     nvir = norb - nocc
-    tshape = (nvir, nocc)
     lt = 2*nvir*nocc # 2 for spins
 
-    if init_rbms is None:
-        init_rbms = np.random.rand(nvecs, lt) 
+    # get expansion coefficients
+    coeff_hidden = expand_hiddens(hiddens, nvecs)
+    coeff_hidden = jnp.array(coeff_hidden)
 
-    init_rbms = init_rbms.flatten(order='C')
+    if init_params is None:
+        init_params = jnp.random.rand(nvecs, lt)
+
+    init_params = init_params.flatten(order='C')
+
+    # get combination coefficients
+
 
     def cost_func(w):
-        w_n = w.reshape(nvecs, lt)
-        rmats = params_to_rotations(w_n, tshape, hiddens=hiddens, normalize=True)
-        sdets = slater.gen_determinants(mo_coeff, rmats)
-        ham_mat = noci.full_hamilt_w_sdets(sdets, h1e, h2e, ao_ovlp=ao_ovlp)
-        ovlp_mat = noci.full_ovlp_w_rotmat(rmats)
-        e = noci.solve_lc_coeffs(ham_mat, ovlp_mat)
+        w_n = w.reshape(nvecs, -1)
+        rmats = params_to_rmats(w_n, nvir, nocc, coeff_hidden, normalize=False)
+        e = rbm_energy_nograd(rmats, mo_coeff, h1e, h2e, ao_ovlp=ao_ovlp)
         return e
-    
-    # optimize
 
-    params = minimize(cost_func, init_rbms, method=method, tol=tol, options={"maxiter":MaxIter, "disp": disp}).x
-    final_energy = cost_func(params)
-    
-    return final_energy, params
+    def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
+
+        opt_state = optimizer.init(params)
+
+        @jax.jit
+        def step(params, opt_state):
+            loss_value, grads = jax.value_and_grad(cost_func)(params)
+            updates, opt_state = optimizer.update(grads, opt_state, params)
+            params = optax.apply_updates(params, updates)
+            return params, opt_state, loss_value
+
+        loss_last = 0
+        for i in range(MaxIter):
+            params, opt_state, loss_value = step(params, opt_state)
+            dloss = loss_value - loss_last
+
+            if i > 1000 and abs(dloss) < tol:
+                print(f"Optimization converged after {i+1} steps.")
+                break
+            else:
+                loss_last = loss_value
+            if i%100 == 0:
+                print(f'step {i}, loss: {loss_value};')
+
+        return loss_value, params
+
+    # NOTE: schecule doesn't do too well
+    # Schedule learning rate
+    # schedule = optax.warmup_cosine_decay_schedule(
+    # init_value=1e-2,
+    # peak_value=1.0,
+    # warmup_steps=20,
+    # decay_steps=4000,
+    # end_value=1e-3,
+    # )
+
+    # optimizer = optax.chain(
+    # optax.clip(1.0),
+    # optax.adamw(learning_rate=schedule),
+    # )
+
+    optimizer = optax.adam(learning_rate=2e-2)
+    energy, vecs = fit(init_params, optimizer)
 
 
-def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, 
+    # params = minimize(cost_func, init_params, method=method, tol=tol, options={"maxiter":MaxIter, "disp": disp}).x
+    # final_energy = cost_func(params)
+
+    return energy, vecs
+
+
+def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
             init_rbms=None, ao_ovlp=None, hiddens=[0,1],
             nsweep=3, tol=1e-7, MaxIter=100, disp=False, method="BFGS"):
     '''
@@ -149,12 +232,18 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         nsweep: maximum number of sweeps
     Optimize the RBM parameters one by one.
     '''
+    mo_coeff = jnp.array(mo_coeff)
+    h1e = jnp.array(h1e)
+    h2e = jnp.array(h2e)
+    if ao_ovlp is not None:
+        ao_ovlp = jnp.array(ao_ovlp)
+
     norb = h1e.shape[-1]
     nvir = norb - nocc
     tshape = (nvir, nocc)
 
     if init_rbms is None:
-        init_rbms = np.random.rand(nvecs, 2*nvir*nocc) # 2 for spins
+        init_rbms = jnp.random.rand(nvecs, 2*nvir*nocc) # 2 for spins
 
     rot0_u = np.zeros((nvir+nocc, nocc))
     rot0_u[:nocc, :nocc] = np.eye(nocc)
@@ -174,17 +263,17 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
 
     print("Start RBM FED...")
     for iter in range(nvecs):
-    
+        print(f"*****Optimizing Determinant {iter+1}*****")
         w0 = init_rbms[iter]
-        e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape, 
-                              ao_ovlp=ao_ovlp, hmat=None, smat=None, 
+        e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape,
+                              ao_ovlp=ao_ovlp, hmat=None, smat=None,
                               tol=tol, MaxIter=MaxIter, disp=disp, method=method)
         #TODO keep on debugging
-        
+
         opt_rbms.append(w)
         de = e - E0
         E0 = e
-        print("Iter {}: energy lowered {}".format(iter+1, de))
+        print(f"##### Done optimizing determinant {iter+1}, energy lowered {de} #####")
         new_tvecs = add_vec(w, opt_tvecs) # new Thouless vectors from adding this RBM vector
         opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
         # update hmat and smat
@@ -204,7 +293,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
             print("WARNING: No sweeps needed for only one determinant!")
         else:
             print("Start sweeping...")
-           
+
             for isw in range(nsweep):
                 E_s = E0
                 print("Sweep {}".format(isw+1))
@@ -212,7 +301,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
                     # always pop the first vector and add the optimized to the end
                     w0 = opt_rbms.pop(0)
                     opt_vecs = expand_vecs(opt_rbms) # TODO not efficient
-                    e, w = opt_one_rbmvec(w0, opt_vecs, h1e, h2e, mo_coeff, tshape, 
+                    e, w = opt_one_rbmvec(w0, opt_vecs, h1e, h2e, mo_coeff, tshape,
                                         ao_ovlp=ao_ovlp, hmat=None, smat=None, tol=tol, MaxIter=MaxIter)
                     de = e - E0
                     E0 = e
@@ -224,7 +313,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     print("Total energy lowered: {}".format(e - e_hf))
     return e, opt_rbms
 
-def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None, 
+def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
                    hmat=None, smat=None, tol=1e-7, MaxIter=100, disp=False, method="BFGS"):
     '''
     Optimize one RBM vector with the other fixed.
@@ -235,13 +324,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
     Returns:
         float: energy
         1D array: optimized RBM vector.
-        TODO store hmat and smat from fixed vectors to avoid recalculations.
     '''
-
-    mo_coeff = jnp.array(mo_coeff)
-    ao_ovlp = jnp.array(ao_ovlp)
-    h1e = jnp.array(h1e)
-    h2e = jnp.array(h2e)
 
     nvecs = len(tvecs)
     rmats = tvecs_to_rotations(tvecs, tshape, normalize=True)
@@ -266,11 +349,11 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
         e = noci.solve_lc_coeffs(hm, sm)
 
         return e
-    
+
     init_params = jnp.array(vec0)
 
     def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
-        
+
         opt_state = optimizer.init(params)
 
         @jax.jit
@@ -280,26 +363,47 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        for i in range(500):
+        loss_last = 0
+        for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
-            if i%100 == 0:
-                print(f'step {i}, loss: {loss_value}')
-     
+            dloss = loss_value - loss_last
+
+            if i > 1000 and abs(dloss) < tol:
+                print(f"Optimization converged after {i+1} steps.")
+                break
+            else:
+                loss_last = loss_value
+            if i%10 == 0:
+                print(f'step {i}, loss: {loss_value};')
+
         return loss_value, params
-    
-    # optimize
-    learning_rate = 0.01
-    optimizer = optax.adam(learning_rate)
+
+    # NOTE: schecule doesn't do too well
+    # Schedule learning rate
+    # schedule = optax.warmup_cosine_decay_schedule(
+    # init_value=1e-2,
+    # peak_value=1.0,
+    # warmup_steps=20,
+    # decay_steps=4000,
+    # end_value=1e-3,
+    # )
+
+    # optimizer = optax.chain(
+    # optax.clip(1.0),
+    # optax.adamw(learning_rate=schedule),
+    # )
+
+    optimizer = optax.adam(learning_rate=2e-2)
     energy, vec = fit(init_params, optimizer)
 
     #v = minimize(cost_func, vec0, method=method, tol=tol, options={"maxiter":MaxIter, "disp": disp}).x
     #energy = cost_func(v)
-    
+
     return energy, vec
 
 def _expand_hs(h_n, s_n, rmats_n, sdets_n, rmats, sdets, tshape, h1e, h2e, mo_coeff, ao_ovlp=None):
     '''
-    Expand the 
+    Expand the
     '''
     nvecs = len(rmats_n)
     hm = jnp.copy(h_n)
@@ -313,9 +417,9 @@ def _expand_hs(h_n, s_n, rmats_n, sdets_n, rmats, sdets, tshape, h1e, h2e, mo_co
         for j in range(nvecs): # new vectors
             _s = slater.ovlp_rotmat(rmats[i], rmats_n[j])
             _h = slater.trans_hamilt(sdets[i], sdets_n[j], h1e, h2e, ao_ovlp=ao_ovlp)
-            sm = sm.at[i, nvecs+j].set(_s) 
-            sm = sm.at[nvecs+j, i].set(_s) 
-            hm = hm.at[i, nvecs+j].set(_h) 
+            sm = sm.at[i, nvecs+j].set(_s)
+            sm = sm.at[nvecs+j, i].set(_s)
+            hm = hm.at[i, nvecs+j].set(_h)
             hm = hm.at[nvecs+j, i].set(_h)
 
     return hm, sm
@@ -326,6 +430,30 @@ def energy_rbm(rbmvecs, mo_coeff, h1e, h2e, tshape, ao_ovlp=None, hiddens=[0,1])
     rmats = params_to_rotations(rbmvecs, tshape, hiddens=hiddens, normalize=True)
     e = noci.noci_energy(rmats, mo_coeff, h1e, h2e, ao_ovlp=ao_ovlp, include_hf=True)
     return e
+
+def rbm_energy_nograd(rmats, mo_coeff, h1e, h2e, ao_ovlp=None):
+
+    nt = len(rmats)
+
+    hmat = jnp.zeros((nt, nt))
+    smat = jnp.zeros((nt, nt))
+
+    for i in range(nt):
+        for j in range(i+1):
+            sdet1 = slater.rotation(mo_coeff, rmats[i])
+            sdet2 = slater.rotation(mo_coeff, rmats[j])
+            dm, ovlp = slater.make_trans_rdm1(sdet1, sdet2, ao_ovlp=ao_ovlp, return_ovlp=True)
+            jk = slater.get_jk(h2e, dm)
+            hval1 = jnp.einsum('ij, nji -> ', h1e, dm)
+            hval2 = jnp.einsum('nij, nji -> ', jk, dm)
+            hval = (hval1 + 0.5 * hval2) * ovlp
+            hmat = hmat.at[i, j].set(hval)
+            hmat = hmat.at[j, i].set(hval.conj()) 
+            smat = smat.at[i, j].set(ovlp)
+            smat = smat.at[j, i].set(ovlp.conj())
+
+    energy = noci.solve_lc_coeffs(hmat, smat, return_vec=False)
+    return energy
 
 if __name__ == "__main__":
     print("Main function:\n")

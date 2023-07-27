@@ -45,12 +45,13 @@ def rotation(mo_coeff, rotmat):
             ndim_r = 3 
 
         if ndim_r > 2:
-            mo_coeff_new = np.array([mo_coeff[0]@rotmat[0], mo_coeff[1]@rotmat[1]])
+            print
+            mo_coeff_new = jnp.array([mo_coeff[0]@rotmat[0], mo_coeff[1]@rotmat[1]])
         else: # spin-up and down use the same rotation matrix
-            mo_coeff_new = np.array([mo_coeff[0]@rotmat, mo_coeff[1]@rotmat])
+            mo_coeff_new = jnp.array([mo_coeff[0]@rotmat, mo_coeff[1]@rotmat])
 
     else: # one spin 
-        mo_coeff_new = np.dot(mo_coeff, rotmat)
+        mo_coeff_new = jnp.dot(mo_coeff, rotmat)
 
     return mo_coeff_new
 
@@ -252,6 +253,7 @@ def metric_sdet(sdet1, sdet2, ao_ovlp=None):
     Output:
         A 2D array of size (Nocc x Nocc).
     '''
+
     if ao_ovlp is None:
         ovlp_mat = jnp.array([sdet1[0].T.conj()@sdet2[0], sdet1[1].T.conj()@sdet2[1]])
     else:
@@ -275,7 +277,7 @@ def metric_rotmat(rmat1, rmat2):
 
     return ovlp_mat
 
-def make_trans_rdm1(sdet1, sdet2, ao_ovlp=None, omat=None, tol=1e-10, return_ovlp=True):
+def make_trans_rdm1(sdet1, sdet2, ao_ovlp=None, omat=None, return_ovlp=True):
     '''
     Evaluate the transition density matrix rho_{ij} = <Phi_1|a^\dag_i a_j|Phi_2>
     rho_{12} = C_2 M^-1 C_1^\dag
@@ -289,7 +291,7 @@ def make_trans_rdm1(sdet1, sdet2, ao_ovlp=None, omat=None, tol=1e-10, return_ovl
         omat = metric_sdet(sdet1, sdet2, ao_ovlp=ao_ovlp)
     dm_u, ou = make_trans_rdm1_spinless(sdet1[0], sdet2[0], omat[0])
     dm_d, od = make_trans_rdm1_spinless(sdet1[1], sdet2[1], omat[1])
-    dm = [dm_u, dm_d]
+    dm = jnp.array([dm_u, dm_d])
     ovlp = ou * od
 
     if return_ovlp:

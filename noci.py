@@ -177,6 +177,9 @@ def noci_energy_direct(rmats, mo_coeff, h1e, h2e, ao_ovlp=None, include_hf=False
         return energy, grad 
     else:
         return energy
+    
+
+
 
 def noci_energy_pyscf(rmats, mf, include_hf=False):
 
@@ -281,7 +284,7 @@ def full_hamilt_w_sdets_pyscf(dets, mf):
         for j in range(i+1):
             det1 = dets[i]
             det2 = dets[j] 
-            dm, ovlp = slater.make_trans_rdm1(det1, det2, ao_ovlp=ao_ovlp)
+            dm, ovlp = slater.make_trans_rdm1(det1, det2, ao_ovlp=ao_ovlp, return_ovlp=True)
             h = slater.trans_hamilt_pyscf(mf, dm, ovlp)
             ham_mat[i, j] = h
             ham_mat[j, i] = h.conj()

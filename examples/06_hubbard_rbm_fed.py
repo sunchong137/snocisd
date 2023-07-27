@@ -49,41 +49,41 @@ mo_coeff = mf.mo_coeff
 rdm = mf.make_rdm1()
 
 
-mycc = cc.CCSD(mf).run()  
-e_ccsd = mycc.e_tot
-print("CCSD: ", e_ccsd)
+# mycc = cc.CCSD(mf).run()  
+# e_ccsd = mycc.e_tot
+# print("CCSD: ", e_ccsd)
 
-t1 = time.time()
-myci = ci.CISD(mf).run()
-de = myci.e_corr
-e_cisd = e_hf + de
-t2 = time.time()
-
-
+# t1 = time.time()
+# myci = ci.CISD(mf).run()
+# de = myci.e_corr
+# e_cisd = e_hf + de
+# t2 = time.time()
 
 
-myci = fci.direct_spin0
-e_fci, c = myci.kernel(h1, eri, norb, norb)
-print("E FCI: ", e_fci)
+
+
+# myci = fci.direct_spin0
+# e_fci, c = myci.kernel(h1, eri, norb, norb)
+# print("E FCI: ", e_fci)
 
 # generate initial guess for thouless rotations
-n_dets = 3
+n_dets = 2
 nr = int((n_dets-1e-3)/2) + 1 
 t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=nr, zmax=2, zmin=0.5)[:n_dets]
-#t0 += noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.8
+t0 += noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) 
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
-nsweep=2
-niter=300
-ftol=1e-5
+nsweep=0
+niter=10000
+ftol=1e-20
 
 er, vecs = rbm.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_rbms=t0, ao_ovlp=ao_ovlp, nsweep=nsweep, tol=ftol, MaxIter=niter, disp=True)
 e_rbm = er + e_nuc
 
 print("Energy HF: ", e_hf)
 print("Energy rbm: ", e_rbm)
-print("Energy CISD: ", e_cisd)
-print("Energy CCSD: ", e_ccsd)
-print("Energy FCI: ", e_fci)
+# print("Energy CISD: ", e_cisd)
+# print("Energy CCSD: ", e_ccsd)
+# print("Energy FCI: ", e_fci)
