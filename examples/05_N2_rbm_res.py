@@ -10,7 +10,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 sys.path.append("..")
-import rbm, noci
+import rbm, noci, optrbm_all
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -59,7 +59,7 @@ e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
-n_dets = 2
+n_dets = 1
 niter = 500
 tol = 1e-6
 
@@ -67,7 +67,7 @@ t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
-er, vecs = rbm.rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, ao_ovlp=ao_ovlp, hiddens=[0,1], tol=tol, MaxIter=niter)
+er, vecs = optrbm_all.rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, ao_ovlp=ao_ovlp, hiddens=[0,1], tol=tol, MaxIter=niter)
 e_rbm = er + e_nuc
 print("E: ", e_rbm)
 

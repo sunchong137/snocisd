@@ -12,7 +12,7 @@ import time
 import sys 
 sys.path.append("..")
 sys.path.append(".")
-import rbm, noci
+import rbm, noci, optrbm_fed
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -71,7 +71,7 @@ nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
 t1 = time.time()
-er, vecs = rbm.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_rbms=t0, ao_ovlp=ao_ovlp, nsweep=0, tol=tol, MaxIter=MaxIter)
+er, vecs = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_rbms=t0, ao_ovlp=ao_ovlp, nsweep=0, tol=tol, MaxIter=MaxIter)
 t2 = time.time()
 print("Time used:", t2-t1)
 e_rbm = er + e_nuc
