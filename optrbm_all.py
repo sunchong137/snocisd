@@ -47,7 +47,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
     def cost_func(w):
         w_n = w.reshape(nvecs, -1)
         rmats = rbm.params_to_rmats(w_n, nvir, nocc, coeff_hidden, normalize=False)
-        e = rbm.rbm_energy_nograd(rmats, mo_coeff, h1e, h2e, ao_ovlp=ao_ovlp)
+        e = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e)
         return e
 
     def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:

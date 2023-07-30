@@ -57,10 +57,9 @@ h2e = mol.intor('int2e')
 mo_coeff = np.asarray(mf.mo_coeff)
 e_nuc = mf.energy_nuc()
 
-
 # generate initial guess for thouless rotations
-n_dets = 1
-niter = 500
+n_dets = 2
+niter = 5000
 tol = 1e-6
 
 t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)
