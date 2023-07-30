@@ -128,7 +128,10 @@ def overlap_all(metrics):
 
 def inverse_metrics(metrics):
     '''
-    TODO test
+    Args:
+        metrics: array of size (N, N, 2, nocc, nocc)
+    Returns:
+        array of size (N, N, 2, nocc, nocc)
     '''
     return jnp.linalg.inv(metrics)
 
@@ -146,11 +149,57 @@ def gen_sdets(mo_coeff, rmats):
 
 def trans_density_matrices(sdets, inv_metrics):
     '''
-    TODO implement
+    Evalute the transition density matrices.
+    Args:
+        sdets: array of size (N, 2, norb, nocc).
+        inv_metrics: inverse of the overlap metric, array of size (N, N, 2, nocc, nocc).
+    Returns:
+        array of size (N, N, 2, norb, norb).
+    TODO test
     '''
-    pass
+    return jnp.einsum("nsij, nmsjk, mskl -> mnsil", sdets, inv_metrics, sdets.conj())
+    
 
+def rbm_energies(h1e, h2e, trdms):
+    '''
+    Evaluate the energies.
+    Args:
+        h1e: array of size (norb, norb)
+        h2e: array of size (norb, norb, norb, norb)
+        trdms: array of size (N, N, 2, norb, norb)
+    Returns:
+        array of size (N, N), energies
+    '''
+    E1 = jnp.einsum("ij, nmsji -> nm", h1e, trdms)
 
+    J = jnp.einsum("ijkl, nmslk -> nmij", h2e, trdms)
+    E2J = jnp.einsum("nmij, nmsji -> nm", J, trdms)
+    E2J_n = jnp.einsum("ijkl, nmslk, nmrji -> nm", h1e, trdms, trdms)
+    print(E2J - E2J_n)
+    K = jnp.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
+    E2K = jnp.einsum("nmsij, nmsji ->nm", K, trdms)
+
+    E2 = E2J - E2K
+
+    E = E1 + 0.5*E2
+
+    return E
+
+def get_jk_all(h2e, trdm_all):
+    '''
+    Evaluate the JK terms.
+    Args:
+        h2e: array of size (norb, norb, norb, norb)
+        trdm_all: array of size (N, N, 2, norb, norb)
+    Returns
+        Array of size (N, N, 2, norb, norb)
+    '''
+
+    # J term
+    J = jnp.einsum("ijkl, nmslk -> nmij") # the two spins are summed together
+    K = jnp.einsum("ijkl, nmslk -> nmsij") # the two spins are retained
+
+    
 def rbm_energy_nograd(rmats, mo_coeff, h1e, h2e, ao_ovlp=None):
 
     # TODO rewrite this as a giant einsum
