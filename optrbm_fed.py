@@ -135,7 +135,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
 
     init_params = jnp.array(vec0)
 
-    def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
+    def fit(params: optax.Params, optimizer: optax.GradientTransformation, MaxIter=MaxIter) -> optax.Params:
 
         opt_state = optimizer.init(params)
 
@@ -152,8 +152,9 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
             dloss = loss_value - loss_last
 
             if i > 1000 and abs(dloss) < tol:
-                print(f"Optimization converged after {i+1} steps.")
-                break
+                a = 1
+                # print(f"Optimization converged after {i+1} steps.")
+                # break
             else:
                 loss_last = loss_value
             if i%500 == 0:
@@ -161,23 +162,30 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
 
         return loss_value, params
 
-    # NOTE: schecule doesn't do too well
-    # Schedule learning rate
+    # # NOTE: schecule doesn't do too well
+    # # Schedule learning rate
     # schedule = optax.warmup_cosine_decay_schedule(
-    # init_value=1e-2,
+    # init_value=0,
     # peak_value=1.0,
-    # warmup_steps=20,
-    # decay_steps=4000,
-    # end_value=1e-3,
+    # warmup_steps=100,
+    # decay_steps=1_000,
+    # end_value=1e-2,
     # )
 
     # optimizer = optax.chain(
-    # optax.clip(1.0),
+    # #optax.clip(1.0),
     # optax.adamw(learning_rate=schedule),
     # )
 
-    optimizer = optax.adam(learning_rate=2e-2)
-    energy, vec = fit(init_params, optimizer)
+    # TODO figure out learning rate
+    optimizer = optax.adam(learning_rate=1e-2)
+    energy, vec = fit(init_params, optimizer, MaxIter=int(MaxIter))
+
+    # optimizer2 = optax.adam(learning_rate=5e-3)
+    # energy, vec = fit(vec, optimizer2, MaxIter=int(MaxIter/3))
+
+    # optimizer2 = optax.adam(learning_rate=5e-4)
+    # energy, vec = fit(vec, optimizer2, MaxIter=int(MaxIter/3))
 
     #v = minimize(cost_func, vec0, method=method, tol=tol, options={"maxiter":MaxIter, "disp": disp}).x
     #energy = cost_func(v)

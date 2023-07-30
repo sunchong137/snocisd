@@ -14,8 +14,10 @@ from jax.scipy import linalg as jsla
 def gen_thouless_random(nocc, nvir, max_nt):
 
     tmats = []
+    tshape = (2, nvir, nocc)
     for i in range(max_nt):
         t = np.random.rand(2, nvir, nocc)
+        #t = np.random.normal(size=tshape)
         tmats.append(t)
 
     return np.asarray(tmats)

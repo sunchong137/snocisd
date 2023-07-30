@@ -23,6 +23,7 @@ N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
 mol.basis = "ccpvdz"
+mol.to_uncontracted_cartesian_basis=True
 mol.symmetry=1
 mol.build()
 
@@ -61,11 +62,13 @@ e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
-n_dets = 2
-MaxIter = 5000
+n_dets = 1
+MaxIter = 10000
 tol=1e-10
-t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
-#t0 += noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
+t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets+1]
+
+t0 = np.array([t0[0] + t0[1]])
+t0 += -noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)

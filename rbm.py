@@ -11,6 +11,8 @@ import numpy as np
 import slater, noci
 import itertools
 import jax.numpy as jnp
+from jax.config import config
+config.update("jax_enable_x64", True)
 
 
 
@@ -66,17 +68,6 @@ def tvecs_to_rotations(tvecs, tshape, normalize=True):
     return rmats
 
 
-def params_to_rmats(vecs, nvir, nocc, coeffs, normalize=False):
-
-    vecs_all = jnp.dot(coeffs, vecs)
-    vecs_all = vecs_all.reshape(-1, nvir, nocc)
-    nvecs = vecs_all.shape[0]
-    I = jnp.eye(nocc)
-    Imats = jnp.tile(I, (nvecs)).T.reshape(nvecs, nocc, nocc) # 2 for spins
-    rmats = jnp.concatenate([Imats, vecs_all], axis=1)
-    rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
-    return rmats
-
 def hiddens_to_coeffs(hiddens, nvecs):
     '''
     Generate all possible combinations of the nvecs of hidden variables.
@@ -94,6 +85,70 @@ def hiddens_to_coeffs(hiddens, nvecs):
     coeffs = np.array(coeffs)
    
     return coeffs
+
+def params_to_rmats(vecs, nvir, nocc, coeffs, normalize=False):
+
+    vecs_all = jnp.dot(coeffs, vecs)
+    vecs_all = vecs_all.reshape(-1, nvir, nocc)
+    nvecs = vecs_all.shape[0]
+    I = jnp.eye(nocc)
+    Imats = jnp.tile(I, (nvecs)).T.reshape(nvecs, nocc, nocc) # 2 for spins
+    rmats = jnp.concatenate([Imats, vecs_all], axis=1)
+    rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
+    return rmats
+
+# TODO implement normalization
+# def normalize_rmats_all(rmats):
+    
+#     norms = jnp.linalg.norm(rmats, axis=-1)
+#     rmat_n = jnp.divide(rmats, norms)
+#     return rmat_n
+
+def metrics_all(rmats):
+    '''
+    Evaluate the metrics among all rotation matrices.
+    Args:
+        rmats: array of size (N, 2, norb, nocc)
+    returns:
+        array of size (N, N, 2, nocc, nocc)
+    '''
+    return jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+
+def overlap_all(metrics):
+    '''
+    Args:
+        metrics: array of size (N, N, 2, nocc, nocc)
+    Returns:
+        array of size (N, N)
+    TODO test
+    '''
+    ovlp = jnp.linalg.det(metrics)
+    ovlp = jnp.prod(metrics, axis=-1)
+    return ovlp
+
+def inverse_metrics(metrics):
+    '''
+    TODO test
+    '''
+    return jnp.linalg.inv(metrics)
+
+def gen_sdets(mo_coeff, rmats):
+    '''
+    Generate the molecular orbital representations of determinants.
+    Args:
+        mo_coeff: array of size (2, norb, norb)
+        rmats: array of size (N, 2, norb, nocc)
+    Returns:
+        sdets: array of size (N, 2, norb, nocc)
+    TODO test
+    '''
+    return np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+
+def trans_density_matrices(sdets, inv_metrics):
+    '''
+    TODO implement
+    '''
+    pass
 
 
 def rbm_energy_nograd(rmats, mo_coeff, h1e, h2e, ao_ovlp=None):
