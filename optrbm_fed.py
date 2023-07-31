@@ -168,7 +168,7 @@ def _expand_hs(h_n, s_n, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     (fix, fix) is given by h_n and s_n
     we evaluate (n, fix) and (n, n)  
     '''
-    nvecs = len(rmats_n)
+    nvecs = len(rmats_fix)
     hm = jnp.copy(h_n)
     sm = jnp.copy(s_n)
 

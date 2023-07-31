@@ -49,6 +49,7 @@ def tvecs_to_rmats(tvecs, nvir, nocc):
     rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
     return rmats
 
+
 def params_to_rmats(vecs, nvir, nocc, coeffs):
 
     vecs_all = jnp.dot(coeffs, vecs)

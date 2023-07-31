@@ -64,8 +64,7 @@ niter = 1000
 t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 = t0.reshape(n_dets, -1)
 # RES HF
-E, rn = optdets.optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, 
-                tol=1e-8, MaxIter=niter)
+E, rn = optdets.optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, MaxIter=niter)
 e_noci = E + e_nuc
 print("Energy noci: ", e_noci)
 

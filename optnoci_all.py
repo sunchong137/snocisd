@@ -1,3 +1,4 @@
+import numpy as np
 import jax, optax
 import jax.numpy as jnp
 from jax.config import config
@@ -6,9 +7,8 @@ config.update("jax_enable_x64", True)
 import rbm
 
 
-def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
-                tol=1e-8, MaxIter=100):
-    '''
+def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=100):
+    ''' 
     Given a set of Thouless rotations, optimize the parameters.
     Res HF approach, all parameters are optimized simultaneously.
     Args:
@@ -26,7 +26,12 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     lt = 2*nvir*nocc # 2 for spins
 
     if init_tvecs is None:
-        init_tvecs = jnp.random.rand(nvecs, lt)
+        init_tvecs = np.random.rand(nvecs, lt)
+    init_tvecs = jnp.array(init_tvecs)
+    if nvecs is None:
+        nvecs = len(init_tvecs)
+    
+        
     init_tvecs = init_tvecs.flatten(order="C")
 
     # first construct the HF state
