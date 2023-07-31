@@ -3,14 +3,14 @@ Example from Carlos' paper J. Chem. Phys. 139, 204102 (2013)
 RHF: -108.9547
 CCSD: -109.2740
 CCSD(T): -109.2863
-TODO: PySCF and Gaussian gave different results...
+NOTE:  Carlos used Cartessian basis with Gaussian -> mol.cart = True
 '''
 
 from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 sys.path.append("..")
-import rbm, noci, optrbm_all
+import noci, optrbm_all
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -20,8 +20,8 @@ N   0   0   0
 N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
-mol.basis = "sto3g"
-mol.symmetry=1
+mol.basis = "ccpvdz"
+mol.cart=True
 mol.build()
 
 # Mean-field calculation
@@ -33,6 +33,8 @@ init_guess[0][0, 0] = 2
 mf.kernel(init_guess)
 e_hf = mf.energy_tot()
 print("UHF: ", e_hf)
+
+
 
 # # CCSD 
 # mycc = cc.CCSD(mf).run()  
@@ -57,12 +59,15 @@ h2e = mol.intor('int2e')
 mo_coeff = np.asarray(mf.mo_coeff)
 e_nuc = mf.energy_nuc()
 
+
 # generate initial guess for thouless rotations
-n_dets = 2
-niter = 5000
+n_dets = 4
+niter = 500
 tol = 1e-6
 
-t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)
+t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 += noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.1 # better to add noise
+
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF

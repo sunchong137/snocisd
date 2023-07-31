@@ -157,7 +157,7 @@ def trans_density_matrices(sdets, inv_metrics):
         array of size (N, N, 2, norb, norb).
     TODO test
     '''
-    return jnp.einsum("nsij, nmsjk, mslk -> mnsil", sdets, inv_metrics, sdets.conj())
+    return jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
     
 
 def gen_energies(h1e, h2e, trdms):

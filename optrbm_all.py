@@ -71,7 +71,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
                 break
             else:
                 loss_last = loss_value
-            if i%100 == 0:
+            if i%10 == 0:
                 print(f'step {i}, loss: {loss_value};')
 
         return loss_value, params
