@@ -73,36 +73,27 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=
     de_fed = E - e_hf  
     print("***Energy lowered after FED: {}".format(de_fed))
 
-    # # Start sweeping
-    # if nsweep > 0:
-    #     print("Start sweeping...")
-    #     sdets = slater.gen_determinants(mo_coeff, rmats_new)
-    #     hmat = noci.full_hamilt_w_sdets(sdets, h1e, h2e, ao_ovlp=ao_ovlp)
-    #     smat = noci.full_ovlp_w_rotmat(rmats_new) 
- 
-    #     for isw in range(nsweep):
-    #         print("Sweep {}".format(isw+1))
-    #         E_s = E0
-    #         for iter in range(num_t):
-    #             t0 = tmats0[iter]
-    #             rmats_new.pop(1)
-    #             hmat0 = np.delete(hmat, 1, axis=0)
-    #             hmat0 = np.delete(hmat0, 1, axis=1)
-    #             smat0 = np.delete(smat, 1, axis=0)
-    #             smat0 = np.delete(smat0, 1, axis=1)
-    #             E, t, hmat, smat = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, hmat=hmat0, smat=smat0, MaxIter=MaxIter)
-    #             de = E - E0
-    #             print("Iter {}: energy lowered {}".format(iter+1, de))
-    #             E0 = E
-    #             tmats0[iter] = np.copy(t)
-    #             r = slater.thouless_to_rotation(t, normalize=True)
-    #             rmats_new.append(r)
-    #         de_s = E - E_s 
-    #         print("***Energy lowered after Sweep {}: {}".format(isw+1, de_s))
+    # Start sweeping
+    if nsweep > 0:
+        print("Start sweeping...")
+        for isw in range(nsweep):
+            print("Sweep {}".format(isw+1))
+            E_s = E0
+            for iter in range(nvecs):
+                t0 = init_tvecs[iter]
+                rmats_new = jnp.delete(rmats_new, 1, axis=0)
+                hmat0, smat0= rbm.rbm_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
+                E, t, = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
+                                         hmat=hmat0, smat=smat0, MaxIter=MaxIter)
+                de = E - E0
+                print("Iter {}: energy lowered {}".format(iter+1, de))
+                E0 = E
+                init_tvecs = init_tvecs.at[iter].set(jnp.copy(t))
+                r = rbm.tvecs_to_rmats(jnp.array([t]), nvir, nocc)
+                rmats_new = jnp.vstack([rmats_new, r])
+            de_s = E - E_s 
+            print("***Energy lowered after Sweep {}: {}".format(isw+1, de_s))
 
-    # len_new_rots = len(rmats_new)
-    # if len_new_rots < num_t:
-    #     print("WARNING: only {} vectors are successfully optimized!".format(len_new_rots))
 
     de_tot = E - e_hf 
     print("SUMMARY: Total energy lowered {}".format(de_tot))
@@ -148,13 +139,6 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
         for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
 
-            # dloss = loss_value - loss_last
-            # if i > 1000 and abs(dloss) < tol:
-            #     a = 1
-            #     # print(f"Optimization converged after {i+1} steps.")
-            #     # break
-            # else:
-            #     loss_last = loss_value
             if i%500 == 0:
                 print(f'step {i}, loss: {loss_value};')
 

@@ -20,7 +20,7 @@ N   0   0   0
 N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
-mol.basis = "6-31g"
+mol.basis = "sto3g"
 mol.symmetry=1
 mol.build()
 
@@ -60,10 +60,11 @@ e_nuc = mf.energy_nuc()
 
 n_dets = 2
 niter = 1000
+nsweep = 2
 t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 = t0.reshape(n_dets, -1)
 # RES HF
-E, rn = optdets.optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, MaxIter=niter, nsweep=0)
+E, rn = optdets.optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, MaxIter=niter, nsweep=nsweep)
 e_noci = E + e_nuc
 print("E: ", e_noci)
 
