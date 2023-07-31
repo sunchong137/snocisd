@@ -9,11 +9,8 @@ config.update("jax_enable_x64", True)
 
 
 def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
-            init_params=None, hiddens=[0,1],
-            nsweep=3, tol=1e-7, MaxIter=100):
+            init_params=None, hiddens=[0,1], tol=1e-7, MaxIter=100):
     '''
-    Kwargs:
-        nsweep: maximum number of sweeps
     Optimize the RBM parameters one by one.
     '''
     mo_coeff = jnp.array(mo_coeff)
@@ -25,7 +22,8 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     tshape = (nvir, nocc)
 
     if init_params is None:
-        init_params = jnp.array(np.random.rand(nvecs, 2*nvir*nocc)) # 2 for spins
+        init_params = np.random.rand(nvecs, 2*nvir*nocc) # 2 for spins
+    init_params = jnp.array(init_params)
 
     rot0_u = jnp.zeros((nvir+nocc, nocc))
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
@@ -34,7 +32,6 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     E0 = rbm.rbm_energy(rot_hf, mo_coeff, h1e, h2e)
     e_hf = E0
 
-    opt_rbms = [] # optimized RBM vectors
     opt_tvecs = jnp.array([np.zeros(2*nvir*nocc)]) # All Thouless vectors
 
     rmats = rbm.tvecs_to_rmats(opt_tvecs, nvir, nocc)
@@ -46,8 +43,8 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         w0 = init_params[iter]
         e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape,
                               hmat=hmat, smat=smat, tol=tol, MaxIter=MaxIter)
-
-        opt_rbms.append(w)
+        
+        init_params = init_params.at[iter].set(jnp.copy(w))
         de = e - E0
         E0 = e
         print(f"##### Done optimizing determinant {iter+1}, energy lowered {de} #####")
@@ -63,33 +60,60 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         hmat, smat = _expand_hs(h_n, s_n, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
 
-    if nsweep > 0:
-        if nvecs < 2:
-            print("WARNING: No sweeps needed for only one determinant!")
-        else:
-            print("Start sweeping...")
-            # get expansion coefficients
-            coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
-            coeff_hidden = jnp.array(coeff_hidden)
-
-            for isw in range(nsweep):
-                E_s = E0
-                print("Sweep {}".format(isw+1))
-                for iter in range(nvecs):
-                    # always pop the first vector and add the optimized to the end
-                    w0 = opt_rbms.pop(0)
-                    fixed_vecs = rbm.expand_vecs(jnp.array(opt_rbms), coeff_hidden) 
-                    e, w = opt_one_rbmvec(w0, fixed_vecs, h1e, h2e, mo_coeff, tshape,
-                                          hmat=None, smat=None, tol=tol, MaxIter=MaxIter)
-                    de = e - E0
-                    E0 = e
-                    print("Iter {}: energy lowered {}".format(iter+1, de))
-                    opt_rbms.append(w)
-                de_s = e - E_s
-                print("***Energy lowered after Sweep {}: {}".format(isw+1, de_s))
-
     print("Total energy lowered: {}".format(e - e_hf))
-    return e, opt_rbms
+    return e, init_params
+
+
+def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1], 
+              tol=1e-7, nsweep=1, MaxIter=100):
+
+    nvecs = len(init_params)
+    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
+    coeff_hidden = jnp.array(coeff_hidden)
+
+    if nsweep < 1 or nvecs < 2:
+        print("Number of sweeps needs to be > 1!")
+        print("Number of new determinants needs to be > !")
+        print("No sweep performed.")
+        if E0 is None:
+            coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs)
+            coeff_hidden = jnp.array(coeff_hidden)
+            rmats = rbm.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
+            E0 = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e)
+        return E0, init_params
+    
+    mo_coeff = jnp.array(mo_coeff)
+    h1e = jnp.array(h1e)
+    h2e = jnp.array(h2e)
+
+    norb = h1e.shape[-1]
+    nvir = norb - nocc
+    tshape = (nvir, nocc)
+    if E0 is None:
+        rmats = rbm.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
+        E0 = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e)
+    
+    print("Start sweeping...")
+    for isw in range(nsweep):
+        E_s = E0
+        print("Sweep {}".format(isw+1))
+        for iter in range(nvecs):
+            # always pop the first vector and add the optimized to the end
+            w0 = init_params[iter]
+            new_params = np.delete(init_params, iter, axis=0)
+            fixed_vecs = rbm.expand_vecs(new_params, coeff_hidden) 
+            E, w = opt_one_rbmvec(w0, fixed_vecs, h1e, h2e, mo_coeff, tshape,
+                                hmat=None, smat=None, tol=tol, MaxIter=MaxIter)
+            de = E - E0
+            E0 = E
+            print("Iter {}: energy lowered {}".format(iter+1, de))
+            init_params = init_params.at[iter].set(jnp.copy(w))
+      
+        de_s = E - E_s
+        print("***Energy lowered after Sweep {}: {}".format(isw+1, de_s))
+    
+    return E, init_params
+
 
 def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, 
                    hmat=None, smat=None, tol=1e-7, MaxIter=100):

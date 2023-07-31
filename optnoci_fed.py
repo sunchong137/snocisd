@@ -92,8 +92,6 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
             E0 = rbm.rbm_energy(rmats_new, mo_coeff, h1e, h2e)
         return E0, init_tvecs
 
-
-
     mo_coeff = jnp.array(mo_coeff)
     h1e = jnp.array(h1e)
     h2e = jnp.array(h2e)

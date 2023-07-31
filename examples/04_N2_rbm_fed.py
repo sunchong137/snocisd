@@ -70,11 +70,12 @@ t0 += -noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
-t1 = time.time()
-er, vecs = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, nsweep=nsweep, tol=tol, MaxIter=MaxIter)
-t2 = time.time()
-print("Time used:", t2-t1)
-e_rbm = er + e_nuc
+# t1 = time.time()
+E0, vecs0 = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, tol=tol, MaxIter=MaxIter)
+E, vecs = optrbm_fed.rbm_sweep(h1e, h2e, mo_coeff, nocc, vecs0, tol=tol, E0=E0, nsweep=nsweep, MaxIter=MaxIter)
+# t2 = time.time()
+# print("Time used:", t2-t1)
+e_rbm = E + e_nuc
 print("E: ", e_rbm)
 
 
