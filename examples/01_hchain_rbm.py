@@ -3,8 +3,8 @@ import numpy as np
 import time
 import sys
 sys.path.append('../')
-import helpers, molecules, rbm, noci
-from pyscf import gto, scf, fci, cc
+import molecules, rbm, noci
+from pyscf import gto, scf, cc
 nH = 10
 a = 1.5
 # construct molecule
@@ -22,7 +22,7 @@ h2e = mol.intor('int2e')
 
 # Hartree-Fock
 init_guess = mf.get_init_guess()
-helpers.make_init_guess(init_guess)
+init_guess[0][0,0] = 10
 mf.init_guess = init_guess
 mf.kernel()
 occ = mf.get_occ()
