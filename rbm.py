@@ -197,7 +197,7 @@ def rbm_energy(rmats, mo_coeff, h1e, h2e):
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
     sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = jnp.einsum("nsij, nmsjk, mslk -> mnsil", sdets, inv_metrics, sdets.conj())
+    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
 
     # transition hamiltonian
     E1 = jnp.einsum("ij, nmsji -> nm", h1e, trdms)
