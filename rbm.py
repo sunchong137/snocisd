@@ -141,6 +141,37 @@ def gen_hmat(rmats1, rmats2, mo_coeff, h1e, h2e):
    
     return hmat, smat
 
+def solve_lc_coeffs(hmat, smat, return_vec=False):
+    '''
+    Solve the eigenvalue problem Hc = ESc. 
+    Using scipy function, 4x times faster.
+    Before: First solve S^-1/2 H S^-1/2 -> v, then c = S^-1/2 v
+    Args:
+        hmat: 2D numpy array of size (n**d, n**d)
+        smat: 2D numpy array of size (n**d, n**d)
+    Kwargs:
+        return_vec: whether to return the LC coefficients.
+    Returns:
+        double, ground state energy
+        A 1D numpy array of size (n**d,), linear combination coefficient
+
+    '''
+    e, v = generalized_eigh(hmat, smat)
+
+    energy = e[0]
+    c = v[:, 0]
+
+    if return_vec:
+        return energy, c
+    else:
+        return energy
+    
+def generalized_eigh(A, B):
+    L = jnp.linalg.cholesky(B)
+    L_inv = jnp.linalg.inv(L)
+    A_redo = L_inv.dot(A).dot(L_inv.T)
+    return jnp.linalg.eigh(A_redo)
+
 # def metrics_all(rmats):
 #     '''
 #     Evaluate the metrics among all rotation matrices.

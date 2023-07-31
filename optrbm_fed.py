@@ -1,5 +1,5 @@
 import numpy as np
-import slater, noci, rbm
+import slater, rbm
 import optax
 import jax
 import jax.numpy as jnp
@@ -26,14 +26,12 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     tshape = (nvir, nocc)
 
     if init_params is None:
-        init_params = np.random.rand(nvecs, 2*nvir*nocc) # 2 for spins
-        init_params = jnp.array(init_params)
+        init_params = jnp.array(np.random.rand(nvecs, 2*nvir*nocc)) # 2 for spins
 
     rot0_u = jnp.zeros((nvir+nocc, nocc))
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
     rot_hf = jnp.array([[rot0_u, rot0_u]]) # the HF state
     E0 = rbm.rbm_energy(rot_hf, mo_coeff, h1e, h2e)
-    #E0 = noci.noci_energy([rot_hf], mo_coeff, h1e, h2e, ao_ovlp=ao_ovlp, include_hf=True)
     e_hf = E0
 
     opt_rbms = [] # optimized RBM vectors
@@ -51,9 +49,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         print(f"*****Optimizing Determinant {iter+1}*****")
         w0 = init_params[iter]
         e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape,
-                              ao_ovlp=ao_ovlp, hmat=None, smat=None,
-                              tol=tol, MaxIter=MaxIter)
-        #TODO keep on debugging
+                              hmat=hmat, smat=smat, tol=tol, MaxIter=MaxIter)
 
         opt_rbms.append(w)
         de = e - E0
@@ -68,10 +64,8 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         h_n = h_n.at[:lv, :lv].set(hmat)
         s_n = s_n.at[:lv, :lv].set(smat)
         rmats_n = rbm.tvecs_to_rmats(new_tvecs, nvir, nocc)
-        sdets_n = slater.gen_determinants(mo_coeff, rmats_n, normalize=False)
-        hmat, smat = _expand_hs(h_n, s_n, rmats_n, rmats, h1e, h2e, mo_ceff)
+        hmat, smat = _expand_hs(h_n, s_n, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
-        sdets = jnp.vstack([sdets, sdets_n])
 
     if nsweep > 0:
         if nvecs < 2:
@@ -87,7 +81,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
                     w0 = opt_rbms.pop(0)
                     fixed_vecs = rbm.expand_vecs(opt_rbms, coeff_hidden) # TODO not efficient
                     e, w = opt_one_rbmvec(w0, fixed_vecs, h1e, h2e, mo_coeff, tshape,
-                                        ao_ovlp=ao_ovlp, hmat=None, smat=None, tol=tol, MaxIter=MaxIter)
+                                          hmat=None, smat=None, tol=tol, MaxIter=MaxIter)
                     de = e - E0
                     E0 = e
                     print("Iter {}: energy lowered {}".format(iter+1, de))
@@ -98,7 +92,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     print("Total energy lowered: {}".format(e - e_hf))
     return e, opt_rbms
 
-def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
+def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, 
                    hmat=None, smat=None, tol=1e-7, MaxIter=100):
     '''
     Optimize one RBM vector with the other fixed.
@@ -113,7 +107,6 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
     nvir, nocc = tshape
     nvecs = len(tvecs)
     rmats = rbm.tvecs_to_rmats(tvecs, nvir, nocc)
-    sdets = slater.gen_determinants(mo_coeff, rmats)
 
     if hmat is None: # assume smat is also None
         hmat, smat = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
@@ -127,10 +120,8 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
     def cost_func(w):
         tvecs_n = rbm.add_vec(w, tvecs) # newly added Thouless vectors
         rmats_n = rbm.tvecs_to_rmats(tvecs_n, nvir, nocc)
-        sdets_n = slater.gen_determinants(mo_coeff, rmats_n)
         hm, sm = _expand_hs(h_n, s_n, rmats_n, rmats, h1e, h2e, mo_coeff)
-        e = noci.solve_lc_coeffs(hm, sm)
-
+        e = rbm.solve_lc_coeffs(hm, sm)
         return e
 
     init_params = jnp.array(vec0)
@@ -146,17 +137,17 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        loss_last = 0
+        # loss_last = 0
         for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
-            dloss = loss_value - loss_last
 
-            if i > 1000 and abs(dloss) < tol:
-                a = 1
-                # print(f"Optimization converged after {i+1} steps.")
-                # break
-            else:
-                loss_last = loss_value
+            # dloss = loss_value - loss_last
+            # if i > 1000 and abs(dloss) < tol:
+            #     a = 1
+            #     # print(f"Optimization converged after {i+1} steps.")
+            #     # break
+            # else:
+            #     loss_last = loss_value
             if i%500 == 0:
                 print(f'step {i}, loss: {loss_value};')
 
@@ -166,6 +157,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
     optimizer = optax.adam(learning_rate=1e-2)
     energy, vec = fit(init_params, optimizer, MaxIter=int(MaxIter))
 
+    del fit # release memory
 
     return energy, vec
 
