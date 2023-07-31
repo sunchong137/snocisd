@@ -3,14 +3,14 @@ Example from Carlos' paper J. Chem. Phys. 139, 204102 (2013)
 RHF: -108.9547
 CCSD: -109.2740
 CCSD(T): -109.2863
-TODO: PySCF and Gaussian gave different results...
 '''
 
 from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 sys.path.append("../")
-import noci, optdets
+import noci
+import optnoci_fed as optdets
 
 # set up the system with pyscf
 bond_length = 1.09768

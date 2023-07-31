@@ -11,7 +11,7 @@ import time
 import sys 
 sys.path.append("..")
 sys.path.append(".")
-import rbm, noci, optrbm_fed
+import noci, optrbm_fed
 
 # set up the system with pyscf
 bond_length = 1.09768

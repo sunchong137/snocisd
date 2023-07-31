@@ -2,23 +2,8 @@ import numpy as np
 from scipy.optimize import minimize
 import slater, noci
 
-def optimize_res(tmats0, mo_coeff=None, h1e=None, h2e=None, ao_ovlp=None, mf=None, tol=1e-8, MaxIter=100):
-    if mf is None:
-        return optimize_res_direct(tmats0=tmats0, mo_coeff=mo_coeff, h1e=h1e, h2e=h2e, ao_ovlp=ao_ovlp, tol=tol, MaxIter=MaxIter)
-    else:
-        return optimize_res_pyscf(tmats0, mf, tol=tol, MaxIter=MaxIter)
-    
-def optimize_fed(tmats0, mo_coeff, h1e, h2e, ao_ovlp=None, 
-                 mf=None, tol=1e-8, MaxIter=100, nsweep=0):
-    if mf is None:
-        return optimize_fed_direct(tmats0=tmats0, mo_coeff=mo_coeff, h1e=h1e, 
-                                 h2e=h2e, ao_ovlp=ao_ovlp, tol=tol, MaxIter=MaxIter, 
-                                 nsweep=nsweep)
-    else:
-        return optimize_fed_pyscf(tmats0, mf, tol=tol, MaxIter=MaxIter, nsweep=0)
 
-
-def optimize_res_direct(tmats0, mo_coeff, h1e, h2e, ao_ovlp=None, tol=1e-8, MaxIter=100):
+def optimize_res(tmats0, mo_coeff, h1e, h2e, ao_ovlp=None, tol=1e-8, MaxIter=100):
     '''
     Given a set of Thouless rotations, optimize the parameters.
     Res HF approach, all parameters are optimized simultaneously.
@@ -51,7 +36,7 @@ def optimize_res_direct(tmats0, mo_coeff, h1e, h2e, ao_ovlp=None, tol=1e-8, MaxI
     return E, t_f
 
 
-def optimize_fed_direct(tmats0, mo_coeff, h1e, h2e, ao_ovlp=None, 
+def optimize_fed(tmats0, mo_coeff, h1e, h2e, ao_ovlp=None, 
                  tol=1e-8, MaxIter=100, nsweep=0):
     '''
     Given a set of Thouless rotations, optimize the parameters.
@@ -249,112 +234,3 @@ def _expand_hs(hn, sn, sdet0, sdets, h1e, h2e, mo_coeff, ao_ovlp=None):
     gradient /= lc.conj().T @ smat @ lc
 
     return energy, gradient, hmat, smat
-
-# NOTE the following functions call pyscf energy function, and are super slow...
-
-def optimize_res_pyscf(tmats0, mf, tol=1e-8, MaxIter=100):
-    '''
-    Evaluating energy using pyscf
-    '''
-
-    mo_coeff = np.asarray(mf.mo_coeff)
-
-    tmats0 = np.asarray(tmats0)
-    tshape = tmats0.shape
-    nvir, nocc = tmats0[0][0].shape # rmats[0] has two spins
-    rot0_u = np.zeros((nvir+nocc, nocc))
-    rot0_u[:nocc, :nocc] = np.eye(nocc)
-    rot_hf = np.array([rot0_u, rot0_u]) # the HF state
-    tmats0 = tmats0.flatten(order="C")
-    E0 = noci.noci_energy([rot_hf], mf=mf, include_hf=True)
-    def cost_func(t):
-        tmats = t.reshape(tshape)
-        rmats = slater.thouless_to_rotation_all(tmats, normalize=True) # a list
-        rmats = [rot_hf] + rmats
-        sdets = slater.gen_determinants(mo_coeff, rmats, normalize=False)
-        ham_mat = noci.full_hamilt_w_sdets(sdets, mf=mf)
-        ovlp_mat = noci.full_ovlp_w_rotmat(rmats)
-        e = noci.solve_lc_coeffs(ham_mat, ovlp_mat)
-        return e
-
-    t_vecs = minimize(cost_func, tmats0, method="BFGS", tol=tol, options={"maxiter":MaxIter, "disp": True}).x
-    E = cost_func(t_vecs)
-    de = E - E0
-    print("Total energy lowered: {}".format(de))
-    t_f = t_vecs.reshape(tshape)
-
-    return E, t_f
-
-
-def optimize_fed_pyscf(tmats0, mf, tol=1e-8, MaxIter=100, nsweep=0):
-    '''
-    Using pyscf mf object.
-    '''
-    mol = mf.mol
-    mo_coeff = np.asarray(mf.mo_coeff)
-    h1e = mf.get_hcore()
-    h2e = mol.intor('int2e')
-    ao_ovlp = mol.intor_symmetric ('int1e_ovlp')
-
-    nvir, nocc = tmats0[0][0].shape # rmats[0] has two spins
-    rot0_u = np.zeros((nvir+nocc, nocc))
-    rot0_u[:nocc, :nocc] = np.eye(nocc)
-    rot_hf = np.array([rot0_u, rot0_u]) # the HF state
-    rmats_new = [rot_hf]
-    # evaluate hmat and smat
-    sdets = slater.gen_determinants(mo_coeff, rmats_new)
-    hmat = noci.full_hamilt_w_sdets(sdets, mf=mf)
-    smat = noci.full_ovlp_w_rotmat(rmats_new)
-    e_hf = noci.solve_lc_coeffs(hmat, smat)
-    E0 = e_hf 
-    num_t = len(tmats0)
-    # Start optimization
-    print("Starting NOCI optimization with FED approach...")
-
-    for iter in range(num_t):
-        t0 = tmats0[iter]
-        smat0 = np.copy(smat)
-        hmat0 = np.copy(hmat)
-        E, t, hmat, smat = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, hmat=hmat0, smat=smat0, ao_ovlp=ao_ovlp, tol=tol, MaxIter=MaxIter)
-        de = E - E0
-        print("Iter {}: energy lowered {}".format(iter+1, de))
-        E0 = E
-        tmats0[iter] = np.copy(t)
-        r = slater.thouless_to_rotation(t, normalize=True)
-        rmats_new.append(r)
-    de_fed = E - e_hf  
-    print("***Energy lowered after FED: {}".format(de_fed))
-
-    # Start sweeping
-    if nsweep > 0:
-        print("Start sweeping...")
-        sdets = slater.gen_determinants(mo_coeff, rmats_new)
-        hmat = noci.full_hamilt_w_sdets(sdets, mf=mf)
-        smat = noci.full_ovlp_w_rotmat(rmats_new) 
- 
-        for isw in range(nsweep):
-            print("Sweep {}".format(isw+1))
-            E_s = E0
-            for iter in range(num_t):
-                t0 = tmats0[iter]
-                rmats_new.pop(1)
-                hmat0 = np.delete(hmat, 1, axis=0)
-                hmat0 = np.delete(hmat0, 1, axis=1)
-                smat0 = np.delete(smat, 1, axis=0)
-                smat0 = np.delete(smat0, 1, axis=1)
-                E, t, hmat, smat = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, hmat=hmat0, smat=smat0, ao_ovlp=ao_ovlp, tol=tol, MaxIter=MaxIter)
-                de = E - E0
-                print("Iter {}: energy lowered {}".format(iter+1, de))
-                E0 = E
-                tmats0[iter] = np.copy(t)
-                r = slater.thouless_to_rotation(t, normalize=True)
-                rmats_new.append(r)
-            de_s = E - E_s 
-            print("***Energy lowered after Sweep {}: {}".format(isw+1, de_s))
-
-    len_new_rots = len(rmats_new)
-    if len_new_rots < num_t:
-        print("WARNING: only {} vectors are successfully optimized!".format(len_new_rots))
-    de_tot = E - e_hf 
-    print("SUMMARY: Total energy lowered {}".format(de_tot))
-    return E, np.asarray(tmats0)
