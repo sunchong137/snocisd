@@ -64,7 +64,8 @@ nsweep = 2
 t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 = t0.reshape(n_dets, -1)
 # RES HF
-E, rn = optdets.optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, MaxIter=niter, nsweep=nsweep)
+E0, tn0 = optdets.optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, MaxIter=niter)
+E, tn = optdets.optimize_sweep(h1e, h2e, mo_coeff, nocc, tn0, MaxIter=niter, nsweep=nsweep, E0=E0)
 e_noci = E + e_nuc
 print("E: ", e_noci)
 
