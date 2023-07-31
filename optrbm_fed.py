@@ -37,12 +37,15 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     opt_rbms = [] # optimized RBM vectors
     opt_tvecs = jnp.array([np.zeros(2*nvir*nocc)]) # All Thouless vectors
 
-    rmats = rbm.tvecs_to_rotations(opt_tvecs, tshape, normalize=True)
+    rmats = rbm.tvecs_to_rmats(opt_tvecs, nvir, nocc)
     sdets = slater.gen_determinants(mo_coeff, rmats)
 
     hmat = noci.full_hamilt_w_sdets(sdets, h1e, h2e, ao_ovlp=ao_ovlp)
     smat = noci.full_ovlp_w_rotmat(rmats)
 
+    # get expansion coefficients
+    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs)
+    coeff_hidden = jnp.array(coeff_hidden)
 
     print("Start RBM FED...")
     for iter in range(nvecs):
@@ -65,7 +68,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         s_n = jnp.zeros((lv*2, lv*2))
         h_n = h_n.at[:lv, :lv].set(hmat)
         s_n = s_n.at[:lv, :lv].set(smat)
-        rmats_n = rbm.tvecs_to_rotations(new_tvecs, tshape, normalize=True)
+        rmats_n = rbm.tvecs_to_rmats(new_tvecs, nvir, nocc)
         sdets_n = slater.gen_determinants(mo_coeff, rmats_n)
         hmat, smat = _expand_hs(h_n, s_n, rmats_n, sdets_n, rmats, sdets, h1e, h2e, ao_ovlp=ao_ovlp)
         rmats = jnp.vstack([rmats, rmats_n])
@@ -83,7 +86,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
                 for iter in range(nvecs):
                     # always pop the first vector and add the optimized to the end
                     w0 = opt_rbms.pop(0)
-                    opt_vecs = rbm.expand_vecs(opt_rbms) # TODO not efficient
+                    opt_vecs = rbm.expand_vecs(opt_rbms, coeff_hidden) # TODO not efficient
                     e, w = opt_one_rbmvec(w0, opt_vecs, h1e, h2e, mo_coeff, tshape,
                                         ao_ovlp=ao_ovlp, hmat=None, smat=None, tol=tol, MaxIter=MaxIter)
                     de = e - E0
@@ -108,10 +111,11 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
         float: energy
         1D array: optimized RBM vector.
     '''
-
+    nvir, nocc = tshape
     nvecs = len(tvecs)
-    rmats = rbm.tvecs_to_rotations(tvecs, tshape, normalize=True)
+    rmats = rbm.tvecs_to_rmats(tvecs, nvir, nocc)
     sdets = slater.gen_determinants(mo_coeff, rmats)
+
 
     if hmat is None: # construct previous Hamiltonian matrix
         hmat = noci.full_hamilt_w_sdets(sdets, h1e, h2e, ao_ovlp=ao_ovlp)
@@ -126,7 +130,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, ao_ovlp=None,
     tvecs = jnp.array(tvecs)
     def cost_func(w):
         tvecs_n = rbm.add_vec(w, tvecs) # newly added Thouless vectors
-        rmats_n = rbm.tvecs_to_rotations(tvecs_n, tshape, normalize=True)
+        rmats_n = rbm.tvecs_to_rmats(tvecs_n, nvir, nocc)
         sdets_n = slater.gen_determinants(mo_coeff, rmats_n)
         hm, sm = _expand_hs(h_n, s_n, rmats_n, sdets_n, rmats, sdets, h1e, h2e, ao_ovlp=ao_ovlp)
         e = noci.solve_lc_coeffs(hm, sm)

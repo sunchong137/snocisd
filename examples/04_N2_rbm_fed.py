@@ -3,7 +3,6 @@ Example from Carlos' paper J. Chem. Phys. 139, 204102 (2013)
 RHF: -108.9547
 CCSD: -109.2740
 CCSD(T): -109.2863
-TODO: PySCF and Gaussian gave different results...
 '''
 
 from pyscf import gto, scf, cc
@@ -23,8 +22,7 @@ N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
 mol.basis = "ccpvdz"
-mol.to_uncontracted_cartesian_basis=True
-mol.symmetry=1
+mol.cart = True
 mol.build()
 
 # Mean-field calculation
