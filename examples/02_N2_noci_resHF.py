@@ -20,8 +20,8 @@ N   0   0   0
 N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
-mol.basis = "6-31g"
-mol.symmetry=1
+mol.basis = "ccpvdz"
+mol.cart = True
 mol.build()
 
 # Mean-field calculation
@@ -60,9 +60,12 @@ e_nuc = mf.energy_nuc()
 
 # generate initial guess for thouless rotations
 n_dets = 1
-t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)
+niter = 1000
+t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 = t0.reshape(n_dets, -1)
 # RES HF
-E, rn = optdets.optimize_res(t0, mo_coeff, h1e, h2e, ao_ovlp=ao_ovlp, tol=1e-5, MaxIter=2)
+E, rn = optdets.optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, 
+                tol=1e-8, MaxIter=niter)
 e_noci = E + e_nuc
 print("Energy noci: ", e_noci)
 

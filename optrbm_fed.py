@@ -30,6 +30,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     rot0_u = jnp.zeros((nvir+nocc, nocc))
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
     rot_hf = jnp.array([[rot0_u, rot0_u]]) # the HF state
+
     E0 = rbm.rbm_energy(rot_hf, mo_coeff, h1e, h2e)
     e_hf = E0
 
@@ -38,8 +39,6 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
 
     rmats = rbm.tvecs_to_rmats(opt_tvecs, nvir, nocc)
     hmat, smat = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
-
-
 
     print("Start RBM FED...")
     for iter in range(nvecs):

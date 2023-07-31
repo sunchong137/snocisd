@@ -6,19 +6,18 @@ from jax.config import config
 # config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
 
-def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
-            init_params=None, ao_ovlp=None, hiddens=[0,1],
-            tol=1e-6, MaxIter=100, **kwargs):
+def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, hiddens=[0,1],
+            tol=1e-6, MaxIter=1000, **kwargs):
     '''
     Optimize the RBM parameters all together.
     Args:
         h1e: 2D array, one-body Hamiltonian
         h2e: 4D array, two-body Hamiltonian
+        mo_coeff: array of size ()
         nocc: int, number of occupied orbitals
         nvecs: int, number of rbm_vectors
     kwargs:
         init_params: a list of vectors, initial guess of the RBM parameters.
-        ao_ovlp: 2D array, overlap matrix among atomic orbitals
         hiddens: hidden variables for RBM neural network.
     NOTE: hard to converge when optimizing all.
     '''
@@ -26,8 +25,6 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
     mo_coeff = jnp.array(mo_coeff)
     h1e = jnp.array(h1e)
     h2e = jnp.array(h2e)
-    if ao_ovlp is not None:
-        ao_ovlp = jnp.array(ao_ovlp)
 
     norb = h1e.shape[-1]
     nvir = norb - nocc
@@ -67,11 +64,11 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
             params, opt_state, loss_value = step(params, opt_state)
             dloss = loss_value - loss_last
 
-            if i > 1000 and abs(dloss) < tol:
-                print(f"Optimization converged after {i+1} steps.")
-                break
-            else:
-                loss_last = loss_value
+            # if i > 1000 and abs(dloss) < tol:
+            #     print(f"Optimization converged after {i+1} steps.")
+            #     break
+            # else:
+            #     loss_last = loss_value
             if i%10 == 0:
                 print(f'step {i}, loss: {loss_value};')
 

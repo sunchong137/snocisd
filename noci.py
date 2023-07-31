@@ -99,16 +99,8 @@ def gen_thouless_doubles(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
     tmats = np.asarray(tmats)
     return tmats
 
-def noci_energy(rmats, mo_coeff=None, h1e=None, h2e=None, ao_ovlp=None, mf=None, include_hf=False, rmats2=None):
-    
-    if mf is None:
-        return noci_energy_direct(rmats=rmats, mo_coeff=mo_coeff, h1e=h1e, 
-                                  h2e=h2e, ao_ovlp=ao_ovlp, include_hf=include_hf, rmats2=None)
-    else:
-        return noci_energy_pyscf(rmats, mf=mf, include_hf=include_hf)
 
-
-def noci_energy_direct(rmats, mo_coeff, h1e, h2e, ao_ovlp=None, include_hf=False, grad_idx=None, rmats2=None, **kwargs):
+def noci_energy(rmats, mo_coeff, h1e, h2e, ao_ovlp=None, include_hf=False, grad_idx=None, rmats2=None, **kwargs):
     '''
     Get the ground state energy with noci.
     Args:
@@ -180,29 +172,6 @@ def noci_energy_direct(rmats, mo_coeff, h1e, h2e, ao_ovlp=None, include_hf=False
     else:
         return energy
     
-
-
-
-def noci_energy_pyscf(rmats, mf, include_hf=False):
-
-    norb, nocc = rmats[0][0].shape
-
-    if not include_hf:
-        rot0_u = np.zeros((norb, nocc))
-        rot0_u[:nocc, :nocc] = np.eye(nocc)
-        rot_hf = np.array([rot0_u, rot0_u]) # the HF state
-        rmats_new = [rot_hf] + list(rmats)
-    else:
-        rmats_new = rmats
-    
-    mo_coeff = mf.mo_coeff
-
-    sdets = slater.gen_determinants(mo_coeff, rmats_new)
-    hmat = full_hamilt_w_sdets(sdets, mf=mf)
-    smat = full_ovlp_w_rotmat(rmats_new)
-    energy = solve_lc_coeffs(hmat, smat)
-
-    return energy
 
 def full_ovlp_w_rotmat(rmats, rmats2=None):
     '''
