@@ -72,7 +72,7 @@ nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
 t1 = time.time()
-er, vecs = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_rbms=t0, ao_ovlp=ao_ovlp, nsweep=0, tol=tol, MaxIter=MaxIter)
+er, vecs = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, ao_ovlp=ao_ovlp, nsweep=0, tol=tol, MaxIter=MaxIter)
 t2 = time.time()
 print("Time used:", t2-t1)
 e_rbm = er + e_nuc
