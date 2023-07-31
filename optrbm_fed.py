@@ -1,14 +1,15 @@
 import numpy as np
-import slater, rbm
+import rbm
 import optax
 import jax
 import jax.numpy as jnp
 from jax.config import config
-config.update("jax_debug_nans", True)
+# config.update("jax_debug_nans", True)
+config.update("jax_enable_x64", True)
 
 
 def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
-            init_params=None, ao_ovlp=None, hiddens=[0,1],
+            init_params=None, hiddens=[0,1],
             nsweep=3, tol=1e-7, MaxIter=100):
     '''
     Kwargs:
@@ -18,8 +19,6 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     mo_coeff = jnp.array(mo_coeff)
     h1e = jnp.array(h1e)
     h2e = jnp.array(h2e)
-    if ao_ovlp is not None:
-        ao_ovlp = jnp.array(ao_ovlp)
 
     norb = h1e.shape[-1]
     nvir = norb - nocc
@@ -40,9 +39,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
     rmats = rbm.tvecs_to_rmats(opt_tvecs, nvir, nocc)
     hmat, smat = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
-    # get expansion coefficients
-    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs)
-    coeff_hidden = jnp.array(coeff_hidden)
+
 
     print("Start RBM FED...")
     for iter in range(nvecs):
@@ -72,6 +69,9 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
             print("WARNING: No sweeps needed for only one determinant!")
         else:
             print("Start sweeping...")
+            # get expansion coefficients
+            coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
+            coeff_hidden = jnp.array(coeff_hidden)
 
             for isw in range(nsweep):
                 E_s = E0
@@ -79,7 +79,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
                 for iter in range(nvecs):
                     # always pop the first vector and add the optimized to the end
                     w0 = opt_rbms.pop(0)
-                    fixed_vecs = rbm.expand_vecs(opt_rbms, coeff_hidden) # TODO not efficient
+                    fixed_vecs = rbm.expand_vecs(jnp.array(opt_rbms), coeff_hidden) 
                     e, w = opt_one_rbmvec(w0, fixed_vecs, h1e, h2e, mo_coeff, tshape,
                                           hmat=None, smat=None, tol=tol, MaxIter=MaxIter)
                     de = e - E0

@@ -3,7 +3,8 @@ import optax
 import jax
 import jax.numpy as jnp
 from jax.config import config
-config.update("jax_debug_nans", True)
+# config.update("jax_debug_nans", True)
+config.update("jax_enable_x64", True)
 
 def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs,
             init_params=None, ao_ovlp=None, hiddens=[0,1],

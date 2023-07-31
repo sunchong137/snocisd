@@ -21,7 +21,7 @@ N   0   0   0
 N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
-mol.basis = "631g"
+mol.basis = "sto3g"
 mol.cart = True
 mol.build()
 
@@ -60,10 +60,10 @@ e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
-n_dets = 5
-MaxIter = 3000
+n_dets = 2
+MaxIter = 1000
 tol=1e-10
-nsweep=0
+nsweep=1
 t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 += -noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 
@@ -71,7 +71,7 @@ nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
 t1 = time.time()
-er, vecs = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, ao_ovlp=ao_ovlp, nsweep=nsweep, tol=tol, MaxIter=MaxIter)
+er, vecs = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, nsweep=nsweep, tol=tol, MaxIter=MaxIter)
 t2 = time.time()
 print("Time used:", t2-t1)
 e_rbm = er + e_nuc
