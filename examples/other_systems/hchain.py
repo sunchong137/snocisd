@@ -5,15 +5,22 @@ Optmizing the rotation matrices.
 import numpy as np
 from pyscf import gto, scf, fci, cc
 import sys
-sys.path.append("../")
-import molecules, noci
+
+
+def gen_geom_hchain(n, bond=0.8):
+    # generate geometry for hydrogen chain
+    # H2 bond length = 0.74 Angstrom
+    geom = []
+    for i in range(n):
+        geom.append(['H', .0, .0, i*bond])
+    return geom
 
 nH = 6
 a = 1.5
 
 # construct molecule
 mol = gto.Mole()
-mol.atom = molecules.gen_geom_hchain(nH, a)
+mol.atom = gen_geom_hchain(nH, a)
 mol.unit='angstrom'
 mol.basis = "sto3g"
 mol.build()
@@ -58,15 +65,3 @@ e_cc = e_hf + de
 # FCI
 myci = fci.FCI(mf)
 e_fci, c = myci.kernel()
-
-rot0_u = np.zeros((norb, nocc))
-rot0_u[:nocc, :nocc] = np.eye(nocc)
-r0 = np.zeros((nvir, nocc))
-# add new rotation matrices
-n_rot = None
-r_singles = noci.gen_thouless_singles(nocc, nvir, max_nt=n_rot, zmax=5, zmin=0.1)
-nr = 3
-rmats0 = np.random.rand(nr, 2, nvir, nocc)
-E, rn = noci.optimize_fed(rmats0, mo_coeff, h1e, h2e, ao_ovlp=ao_ovlp, tol=1e-6, MaxIter=80)
-e_noci = E + e_nuc
-print(e_hf, e_noci, e_cc, e_fci)

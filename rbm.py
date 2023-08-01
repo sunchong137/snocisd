@@ -8,7 +8,6 @@
 # sdets: MO coefficients of the Slater determinants
 
 import numpy as np
-import noci
 import itertools
 import jax.numpy as jnp
 from jax.config import config
@@ -78,6 +77,93 @@ def hiddens_to_coeffs(hiddens, nvecs):
     coeffs = np.array(coeffs)
     return coeffs
 
+def gen_thouless_random(nocc, nvir, max_nt):
+
+    tmats = []
+    for i in range(max_nt):
+        t = np.random.rand(2, nvir, nocc)
+        #t = np.random.normal(size=tshape)
+        tmats.append(t)
+
+    return np.asarray(tmats)
+
+def gen_thouless_singles(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
+    '''
+    Generate rotations for near singly excited state for spinless systems.
+    Input:
+        nocc: number of occupied orbitals.
+        nvir: number of virtual orbitals.
+    Kwargs:
+        max_nrot: maximum number of matrices to generate.
+    Returns:
+        A list of unnormalized Thouless parameters.
+    '''
+
+    if max_nt is None:
+        max_nt = nvir * nocc
+
+    # pick the excitations closest to the Fermi level    
+    sqrt_nt = int(np.sqrt(max_nt)) + 1
+    if nocc < nvir:
+        if nocc < sqrt_nt: 
+            d_occ = nocc 
+            d_vir = nvir  
+        else:
+            d_occ = sqrt_nt 
+            d_vir = sqrt_nt
+    else:
+        if nvir < sqrt_nt:
+            d_occ = nocc 
+            d_vir = nvir 
+        else:
+            d_occ = sqrt_nt 
+            d_vir = sqrt_nt
+
+    tmats = []
+    t0 = np.zeros((nvir, nocc))
+    k = 0
+    for i in range(d_occ): # occupied
+        for j in range(d_vir): # virtual
+            if k == max_nt:
+                break
+            tm = np.ones((nvir, nocc)) * zmin 
+            tm[j, nocc-i-1] = zmax
+            tmats.append(np.array([tm, t0]))
+            tmats.append(np.array([t0, tm]))
+            k += 1
+    tmats = np.asarray(tmats)
+    return tmats
+
+
+def gen_thouless_doubles(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
+    '''
+    Generate rotations for near doubly excited state for spinless systems.
+    Since (i -> a, j -> b) and (j -> a, i -> b) corresponds to the same determinant,
+    we do not allow cross excitation, i.e., for (i -> a, j -> b), i < j and a < b.
+
+    '''
+    if max_nt is None:
+        max_nt = int(nvir*(nvir-1)/2) * int(nocc*(nocc-1)/2)
+    max_nt = min(max_nt, int(nvir*(nvir-1)/2) * int(nocc*(nocc-1)/2))
+
+    tmats = []
+    k = 0
+    t0 = np.zeros((nvir, nocc))
+    for i in range(nocc-1): # top e occ
+        for j in range(i+1, nocc): # bot e occ
+            for a in range(1, nvir): # top e vir
+                for b in range(a): # bot e occ
+                    if k == max_nt:
+                        break
+                    tm = np.ones((nvir, nocc)) * zmin 
+                    tm[a, nocc-i-1] = zmax
+                    tm[b, nocc-j-1] = zmax # HOMO electron is further excited
+                    tmats.append([tm, t0])
+                    tmats.append([t0, tm])
+                    k += 1
+    tmats = np.asarray(tmats)
+    return tmats
+
 
 def rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=False):
     '''
@@ -108,7 +194,7 @@ def rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=False):
     if return_mats:
         return hmat, smat
     else:
-        energy = noci.solve_lc_coeffs(hmat, smat, return_vec=False)
+        energy = solve_lc_coeffs(hmat, smat, return_vec=False)
         return energy
 
 
@@ -206,112 +292,6 @@ def _expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
 
     return hm, sm
 
-# def metrics_all(rmats):
-#     '''
-#     Evaluate the metrics among all rotation matrices.
-#     Args:
-#         rmats: array of size (N, 2, norb, nocc)
-#     returns:
-#         array of size (N, N, 2, nocc, nocc)
-#     '''
-#     return jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
-
-# def overlap_all(metrics):
-#     '''
-#     Args:
-#         metrics: array of size (N, N, 2, nocc, nocc)
-#     Returns:
-#         array of size (N, N)
-#     TODO test
-#     '''
-#     ovlp = jnp.linalg.det(metrics)
-#     ovlp = jnp.prod(ovlp, axis=-1)
-#     return ovlp
-
-# def inverse_metrics(metrics):
-#     '''
-#     Args:
-#         metrics: array of size (N, N, 2, nocc, nocc)
-#     Returns:
-#         array of size (N, N, 2, nocc, nocc)
-#     '''
-#     return jnp.linalg.inv(metrics)
-
-# def gen_sdets(mo_coeff, rmats):
-#     '''
-#     Generate the molecular orbital representations of determinants.
-#     Args:
-#         mo_coeff: array of size (2, norb, norb)
-#         rmats: array of size (N, 2, norb, nocc)
-#     Returns:
-#         sdets: array of size (N, 2, norb, nocc)
-#     TODO test
-#     '''
-#     return np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-
-# def trans_density_matrices(sdets, inv_metrics):
-#     '''
-#     Evalute the transition density matrices.
-#     Args:
-#         sdets: array of size (N, 2, norb, nocc).
-#         inv_metrics: inverse of the overlap metric, array of size (N, N, 2, nocc, nocc).
-#     Returns:
-#         array of size (N, N, 2, norb, norb).
-#     TODO test
-#     '''
-#     return jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
-    
-
-# def gen_energies(h1e, h2e, trdms):
-#     '''
-#     Evaluate the energies.
-#     Args:
-#         h1e: array of size (norb, norb)
-#         h2e: array of size (norb, norb, norb, norb)
-#         trdms: array of size (N, N, 2, norb, norb)
-#     Returns:
-#         array of size (N, N), energies
-#     '''
-#     E1 = jnp.einsum("ij, nmsji -> nm", h1e, trdms)
-
-#     J = jnp.einsum("ijkl, nmslk -> nmij", h2e, trdms)
-#     E2J = jnp.einsum("nmij, nmsji -> nm", J, trdms)
-#     K = jnp.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
-#     E2K = jnp.einsum("nmsij, nmsji ->nm", K, trdms)
-
-#     E2 = E2J - E2K
-
-#     E = E1 + 0.5*E2
-
-#     return E
-
-
-
-# def rbm_energy_nograd(rmats, mo_coeff, h1e, h2e, ao_ovlp=None):
-
-#     # TODO rewrite this as a giant einsum
-
-#     nt = len(rmats)
-
-#     hmat = jnp.zeros((nt, nt))
-#     smat = jnp.zeros((nt, nt))
-
-#     for i in range(nt):
-#         for j in range(i+1):
-#             sdet1 = slater.rotation(mo_coeff, rmats[i])
-#             sdet2 = slater.rotation(mo_coeff, rmats[j])
-#             dm, ovlp = slater.make_trans_rdm1(sdet1, sdet2, ao_ovlp=ao_ovlp, return_ovlp=True)
-#             jk = slater.get_jk(h2e, dm)
-#             hval1 = jnp.einsum('ij, nji -> ', h1e, dm)
-#             hval2 = jnp.einsum('nij, nji -> ', jk, dm)
-#             hval = (hval1 + 0.5 * hval2) * ovlp
-#             hmat = hmat.at[i, j].set(hval)
-#             hmat = hmat.at[j, i].set(hval.conj()) 
-#             smat = smat.at[i, j].set(ovlp)
-#             smat = smat.at[j, i].set(ovlp.conj())
-
-#     energy = noci.solve_lc_coeffs(hmat, smat, return_vec=False)
-#     return energy
 
 if __name__ == "__main__":
     print("Main function:\n")

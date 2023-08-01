@@ -11,7 +11,7 @@ import time
 import sys 
 sys.path.append("..")
 sys.path.append(".")
-import noci, optrbm_fed
+import rbm, optrbm_fed
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -64,8 +64,8 @@ n_dets = 2
 MaxIter = 1000
 tol=1e-10
 nsweep=1
-t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
-t0 += -noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
+t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 += -rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)

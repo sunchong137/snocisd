@@ -10,7 +10,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 sys.path.append("..")
-import noci, optrbm_all
+import rbm, optrbm_all
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -65,8 +65,8 @@ n_dets = 4
 niter = 500
 tol = 1e-6
 
-t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
-t0 += noci.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.1 # better to add noise
+t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 += rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.1 # better to add noise
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
