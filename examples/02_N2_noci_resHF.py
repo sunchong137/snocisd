@@ -59,7 +59,7 @@ e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
-n_dets = 1
+n_dets = 14
 niter = 1000
 t0 = noci.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 = t0.reshape(n_dets, -1)

@@ -358,7 +358,6 @@ def noci_gradient_one_det(tmats, idx, h1e, h2e, mo_coeff, ao_ovlp=None, include_
 
     return grad
 
-
 def _gradient_element(dm, mo_vir, mo_occ, Eij, E0, heff):
     '''
     Evaluate <det_fix | (H - E0) b^\dag_p b_h |det0 > / <det_fix|det0>   

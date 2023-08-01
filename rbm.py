@@ -173,6 +173,39 @@ def generalized_eigh(A, B):
     A_redo = L_inv.dot(A).dot(L_inv.T)
     return jnp.linalg.eigh(A_redo)
 
+
+def _expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
+    '''
+    Expand the H matrix and S matrix
+    | (fix, fix)   (fix, n)|
+    | (n, fix)     (n, n)  |
+    (fix, fix) is given by h_n and s_n
+    we evaluate (n, fix) and (n, n)  
+    '''
+    n_fix = len(rmats_fix)
+    n_new = len(rmats_n)
+    n_tot = n_fix + n_new
+    
+    hm = jnp.zeros((n_tot, n_tot))
+    sm = jnp.zeros((n_tot, n_tot))
+    hm = hm.at[:n_fix, :n_fix].set(hmat0)
+    sm = sm.at[:n_fix, :n_fix].set(smat0)
+
+
+    # generate hmat and smat for the lower left block and upper right block
+    h_new, s_new = gen_hmat(rmats_n, rmats_fix, mo_coeff, h1e, h2e)
+    hm = hm.at[n_fix:, :n_fix].set(h_new)
+    hm = hm.at[:n_fix, n_fix:].set(h_new.T.conj())
+    sm = sm.at[n_fix:, :n_fix].set(s_new)
+    sm = sm.at[:n_fix, n_fix:].set(s_new.T.conj())
+
+    # generate hmat and smat for the lower diagonal block
+    h_new, s_new = rbm_energy(rmats_n, mo_coeff, h1e, h2e, return_mats=True)
+    hm = hm.at[n_fix:, n_fix:].set(h_new)
+    sm = sm.at[n_fix:, n_fix:].set(s_new)
+
+    return hm, sm
+
 # def metrics_all(rmats):
 #     '''
 #     Evaluate the metrics among all rotation matrices.

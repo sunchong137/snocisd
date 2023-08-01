@@ -1,3 +1,4 @@
+# hiddens are always [0, 1]
 import numpy as np
 import rbm
 import optax
@@ -9,7 +10,7 @@ config.update("jax_enable_x64", True)
 
 
 def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
-            init_params=None, hiddens=[0,1], tol=1e-7, MaxIter=100):
+            init_params=None, tol=1e-7, MaxIter=100):
     '''
     Optimize the RBM parameters one by one.
     '''
@@ -51,13 +52,8 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
         new_tvecs = rbm.add_vec(w, opt_tvecs) # new Thouless vectors from adding this RBM vector
         opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
         # update hmat and smat
-        lv = 2**iter
-        h_n = jnp.zeros((lv*2, lv*2))
-        s_n = jnp.zeros((lv*2, lv*2))
-        h_n = h_n.at[:lv, :lv].set(hmat)
-        s_n = s_n.at[:lv, :lv].set(smat)
         rmats_n = rbm.tvecs_to_rmats(new_tvecs, nvir, nocc)
-        hmat, smat = _expand_hs(h_n, s_n, rmats_n, rmats, h1e, h2e, mo_coeff)
+        hmat, smat = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
 
     print("Total energy lowered: {}".format(e - e_hf))
@@ -128,22 +124,16 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
         1D array: optimized RBM vector.
     '''
     nvir, nocc = tshape
-    nvecs = len(tvecs)
     rmats = rbm.tvecs_to_rmats(tvecs, nvir, nocc)
 
     if hmat is None: # assume smat is also None
         hmat, smat = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
-    h_n = jnp.zeros((nvecs*2, nvecs*2))
-    s_n = jnp.zeros((nvecs*2, nvecs*2))
-    h_n = h_n.at[:nvecs, :nvecs].set(jnp.copy(hmat))
-    s_n = s_n.at[:nvecs, :nvecs].set(jnp.copy(smat))
-
     tvecs = jnp.array(tvecs)
     def cost_func(w):
         tvecs_n = rbm.add_vec(w, tvecs) # newly added Thouless vectors
         rmats_n = rbm.tvecs_to_rmats(tvecs_n, nvir, nocc)
-        hm, sm = _expand_hs(h_n, s_n, rmats_n, rmats, h1e, h2e, mo_coeff)
+        hm, sm = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         e = rbm.solve_lc_coeffs(hm, sm)
         return e
 
@@ -184,28 +174,3 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
 
     return energy, vec
 
-def _expand_hs(h_n, s_n, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
-    '''
-    Expand the H matrix and S matrix
-    | (fix, fix)   (fix, n)|
-    | (n, fix)     (n, n)  |
-    (fix, fix) is given by h_n and s_n
-    we evaluate (n, fix) and (n, n)  
-    '''
-    nvecs = len(rmats_fix)
-    hm = jnp.copy(h_n)
-    sm = jnp.copy(s_n)
-
-    # generate hmat and smat for the lower left block and upper right block
-    h_new, s_new = rbm.gen_hmat(rmats_n, rmats_fix, mo_coeff, h1e, h2e)
-    hm = hm.at[nvecs:, :nvecs].set(h_new)
-    hm = hm.at[:nvecs, nvecs:].set(h_new.T.conj())
-    sm = sm.at[nvecs:, :nvecs].set(s_new)
-    sm = sm.at[:nvecs, nvecs:].set(s_new.T.conj())
-
-    # generate hmat and smat for the lower diagonal block
-    h_new, s_new = rbm.rbm_energy(rmats_n, mo_coeff, h1e, h2e, return_mats=True)
-    hm = hm.at[nvecs:, nvecs:].set(h_new)
-    sm = sm.at[nvecs:, nvecs:].set(s_new)
-
-    return hm, sm

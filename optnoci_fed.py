@@ -62,11 +62,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=
         E0 = E
         init_tvecs = init_tvecs.at[iter].set(jnp.copy(t))
         r = rbm.tvecs_to_rmats(jnp.array([t]), nvir, nocc) # TODO implement one vector case
-        h_n = jnp.zeros((iter+2, iter+2))
-        s_n = jnp.zeros((iter+2, iter+2))
-        h_n = h_n.at[:iter+1, :iter+1].set(hmat0)
-        s_n = s_n.at[:iter+1, :iter+1].set(smat0)
-        hmat, smat = _expand_hs(h_n, s_n, r, rmats_new, h1e, h2e, mo_coeff)
+        hmat, smat = rbm._expand_hs(hmat0, smat0, r, rmats_new, h1e, h2e, mo_coeff)
         rmats_new = jnp.vstack([rmats_new, r])
 
     de_fed = E - e_hf  
@@ -140,22 +136,17 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
 def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, MaxIter=100):
 
 
-    nvecs = len(rmats) + 1
+    # nvecs = len(rmats) + 1
     nvir, nocc = tshape
 
     if hmat is None:
         hmat, smat = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
-    h_n = jnp.zeros((nvecs, nvecs))
-    s_n = jnp.zeros((nvecs, nvecs))
-    h_n = h_n.at[:-1, :-1].set(jnp.copy(hmat))
-    s_n = s_n.at[:-1, :-1].set(jnp.copy(smat))
-
     def cost_func(t): 
         _t = jnp.array([t])
         # thouless to rotation
         r_n = rbm.tvecs_to_rmats(_t, nvir, nocc)
-        hm, sm = _expand_hs(h_n, s_n, r_n, rmats, h1e, h2e, mo_coeff)
+        hm, sm = rbm._expand_hs(hmat, smat, r_n, rmats, h1e, h2e, mo_coeff)
         energy = rbm.solve_lc_coeffs(hm, sm)
         return energy  
           
@@ -188,30 +179,3 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
     del fit # release memory
 
     return energy, vec
-
-
-def _expand_hs(h_n, s_n, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
-    '''
-    Expand the H matrix and S matrix
-    | (fix, fix)   (fix, n)|
-    | (n, fix)     (n, n)  |
-    (fix, fix) is given by h_n and s_n
-    we evaluate (n, fix) and (n, n)  
-    '''
-    nvecs = len(rmats_fix)
-    hm = jnp.copy(h_n)
-    sm = jnp.copy(s_n)
-
-    # generate hmat and smat for the lower left block and upper right block
-    h_new, s_new = rbm.gen_hmat(rmats_n, rmats_fix, mo_coeff, h1e, h2e)
-    hm = hm.at[nvecs:, :nvecs].set(h_new)
-    hm = hm.at[:nvecs, nvecs:].set(h_new.T.conj())
-    sm = sm.at[nvecs:, :nvecs].set(s_new)
-    sm = sm.at[:nvecs, nvecs:].set(s_new.T.conj())
-
-    # generate hmat and smat for the lower diagonal block
-    h_new, s_new = rbm.rbm_energy(rmats_n, mo_coeff, h1e, h2e, return_mats=True)
-    hm = hm.at[nvecs:, nvecs:].set(h_new)
-    sm = sm.at[nvecs:, nvecs:].set(s_new)
-
-    return hm, sm
