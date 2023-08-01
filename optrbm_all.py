@@ -7,7 +7,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, hiddens=[0,1],
-            tol=1e-6, MaxIter=1000, **kwargs):
+            MaxIter=1000):
     '''
     Optimize the RBM parameters all together.
     Args:
@@ -59,11 +59,10 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, hiddens=[0,1],
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        loss_last = 0
+        # loss_last = 0
         for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
-            dloss = loss_value - loss_last
-
+            # dloss = loss_value - loss_last
             # if i > 1000 and abs(dloss) < tol:
             #     print(f"Optimization converged after {i+1} steps.")
             #     break

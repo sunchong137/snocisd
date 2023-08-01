@@ -71,7 +71,7 @@ t0 += rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.1 # better to add n
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
-er, vecs = optrbm_all.rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, ao_ovlp=ao_ovlp, hiddens=[0,1], tol=tol, MaxIter=niter)
+er, vecs = optrbm_all.rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0,hiddens=[0,1], MaxIter=niter)
 e_rbm = er + e_nuc
 print("E: ", e_rbm)
 

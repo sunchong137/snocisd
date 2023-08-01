@@ -9,8 +9,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 
-def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs,
-            init_params=None, tol=1e-7, MaxIter=100):
+def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, tol=1e-7, MaxIter=100):
     '''
     Optimize the RBM parameters one by one.
     '''
