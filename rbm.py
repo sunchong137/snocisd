@@ -191,15 +191,17 @@ def rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None):
     E2 = E2J - E2K
 
     hmat = (E1 + 0.5*E2) * smat
+
     if return_mats:
         return hmat, smat
     else:
-        if lc_coeffs is not None:
+        if lc_coeffs is None:
+            energy = solve_lc_coeffs(hmat, smat, return_vec=False)
+        else:
             h = lc_coeffs.T.conj().dot(hmat).dot(lc_coeffs)
             s = lc_coeffs.T.conj().dot(smat).dot(lc_coeffs)
             energy = h / s
-        else:
-            energy = solve_lc_coeffs(hmat, smat, return_vec=False)
+            
         return energy
 
 

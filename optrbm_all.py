@@ -2,11 +2,12 @@ import rbm
 import optax
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jax.config import config
 # config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
 
-def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, hiddens=[0,1],
+def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hiddens=[0,1],
             MaxIter=1000):
     '''
     Optimize the RBM parameters all together.
@@ -38,15 +39,29 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, hiddens=[0,1],
         init_params = jnp.random.rand(nvecs, lt)
 
     init_params = init_params.flatten(order='C')
+    len_params = len(init_params)
 
-    # get combination coefficients
-
-
-    def cost_func(w):
+    def cost_func_no_bias(w):
         w_n = w.reshape(nvecs, -1)
         rmats = rbm.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
         e = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e)
         return e
+    
+    def cost_func_bias(v):
+        w_n = jnp.copy(v[:len_params]).reshape(nvecs, -1)
+        b_n = jnp.copy(v[len_params:])
+        rmats = rbm.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
+        lc_coeffs = jnp.exp(coeff_hidden.dot(b_n)) 
+        e = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, lc_coeffs=lc_coeffs)
+        return e
+    
+    if bias is None:
+        cost_func = cost_func_no_bias 
+        params0 = init_params
+    else:
+        bias = jnp.array(bias)
+        cost_func = cost_func_bias
+        params0 = jnp.concatenate([init_params, bias])
 
     def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
 
@@ -59,40 +74,14 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, hiddens=[0,1],
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        # loss_last = 0
         for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
-            # dloss = loss_value - loss_last
-            # if i > 1000 and abs(dloss) < tol:
-            #     print(f"Optimization converged after {i+1} steps.")
-            #     break
-            # else:
-            #     loss_last = loss_value
-            if i%10 == 0:
-                print(f'step {i}, loss: {loss_value};')
+            if (i+1)%2000 == 0:
+                print(f'step {i+1}, loss: {loss_value};')
 
         return loss_value, params
 
-    # NOTE: schecule doesn't do too well
-    # Schedule learning rate
-    # schedule = optax.warmup_cosine_decay_schedule(
-    # init_value=1e-2,
-    # peak_value=1.0,
-    # warmup_steps=20,
-    # decay_steps=4000,
-    # end_value=1e-3,
-    # )
-
-    # optimizer = optax.chain(
-    # optax.clip(1.0),
-    # optax.adamw(learning_rate=schedule),
-    # )
-
-    optimizer = optax.adam(learning_rate=2e-2)
-    energy, vecs = fit(init_params, optimizer)
-
-
-    # params = minimize(cost_func, init_params, method=method, tol=tol, options={"maxiter":MaxIter, "disp": disp}).x
-    # final_energy = cost_func(params)
+    optimizer = optax.adam(learning_rate=1e-2)
+    energy, vecs = fit(params0, optimizer)
 
     return energy, vecs
