@@ -7,11 +7,12 @@ CCSD(T): -109.2863
 
 from pyscf import gto, scf, cc
 import numpy as np
+from jax import numpy as jnp
 import time
 import sys 
 sys.path.append("..")
 sys.path.append(".")
-import rbm, optrbm_fed
+import rbm, opt_rbm_fed_wbias
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -69,12 +70,16 @@ t0 += -rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
+bias = np.random.rand(n_dets)
 # RES HF
 # t1 = time.time()
-E0, vecs0 = optrbm_fed.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, MaxIter=MaxIter)
-E, vecs = optrbm_fed.rbm_sweep(h1e, h2e, mo_coeff, nocc, vecs0, E0=E0, nsweep=nsweep, MaxIter=MaxIter)
+E0, vecs0, bias0 = opt_rbm_fed_wbias.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, bias=bias, MaxIter=MaxIter)
+E, vecs, bias_n = opt_rbm_fed_wbias.rbm_sweep(h1e, h2e, mo_coeff, nocc, vecs0, bias0, E0=E0, nsweep=nsweep, MaxIter=MaxIter)
 # t2 = time.time()
 # print("Time used:", t2-t1)
+hidden_coeffs = rbm.hiddens_to_coeffs([0, 1], n_dets)
+lc_coeffs = jnp.exp(hidden_coeffs.dot(bias_n))
+print(lc_coeffs)
 e_rbm = E + e_nuc
 print("E: ", e_rbm)
 

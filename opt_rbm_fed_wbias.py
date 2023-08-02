@@ -9,7 +9,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 
-def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, MaxIter=100):
+def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIter=100):
     '''
     Optimize the RBM parameters one by one.
     '''
@@ -23,7 +23,11 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, MaxIter=100):
 
     if init_params is None:
         init_params = np.random.rand(nvecs, 2*nvir*nocc) # 2 for spins
+    if bias is None:
+        bias = np.random.rand(nvecs)
+
     init_params = jnp.array(init_params)
+    bias = jnp.array(bias)
 
     rot0_u = jnp.zeros((nvir+nocc, nocc))
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
@@ -33,6 +37,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, MaxIter=100):
     e_hf = E0
 
     opt_tvecs = jnp.array([np.zeros(2*nvir*nocc)]) # All Thouless vectors
+    opt_lc = jnp.array([0]) # all optimized lc_coeffs (ln)
 
     rmats = rbm.tvecs_to_rmats(opt_tvecs, nvir, nocc)
     hmat, smat = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
@@ -41,25 +46,30 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, MaxIter=100):
     for iter in range(nvecs):
         print(f"*****Optimizing Determinant {iter+1}*****")
         w0 = init_params[iter]
-        e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape,
+        b0 = bias[iter]
+        e, v = opt_one_rbmvec(w0, b0, opt_tvecs, opt_lc, h1e, h2e, mo_coeff, tshape,
                               hmat=hmat, smat=smat,MaxIter=MaxIter)
-        
+        w = v[:-1]
+        b = v[-1]
         init_params = init_params.at[iter].set(jnp.copy(w))
+        bias = bias.at[iter].set(b)
         de = e - E0
         E0 = e
         print(f"##### Done optimizing determinant {iter+1}, energy lowered {de} #####")
         new_tvecs = rbm.add_vec(w, opt_tvecs) # new Thouless vectors from adding this RBM vector
         opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
+        opt_lc = jnp.concatenate([opt_lc, opt_lc + b])
         # update hmat and smat
         rmats_n = rbm.tvecs_to_rmats(new_tvecs, nvir, nocc)
         hmat, smat = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
 
+
     print("Total energy lowered: {}".format(e - e_hf))
-    return e, init_params
+    return e, init_params, bias
 
 
-def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1], 
+def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1], 
               nsweep=1, MaxIter=100):
 
     nvecs = len(init_params)
@@ -95,22 +105,26 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
         for iter in range(nvecs):
             # always pop the first vector and add the optimized to the end
             w0 = init_params[iter]
-            new_params = np.delete(init_params, iter, axis=0)
-            fixed_vecs = rbm.expand_vecs(new_params, coeff_hidden) 
-            E, w = opt_one_rbmvec(w0, fixed_vecs, h1e, h2e, mo_coeff, tshape,
+            b0 = bias[iter]
+            params_fix = jnp.delete(init_params, iter, axis=0)
+            bias_fix = jnp.delete(bias, iter, axis=0)
+            fixed_vecs = rbm.expand_vecs(params_fix, coeff_hidden) 
+            fixed_lc = rbm.expand_vecs(bias_fix, coeff_hidden) 
+            E, v = opt_one_rbmvec(w0, b0, fixed_vecs, fixed_lc, h1e, h2e, mo_coeff, tshape,
                                 hmat=None, smat=None, MaxIter=MaxIter)
             de = E - E0
             E0 = E
             print("Iter {}: energy lowered {}".format(iter+1, de))
-            init_params = init_params.at[iter].set(jnp.copy(w))
+            init_params = init_params.at[iter].set(jnp.copy(v[:-1]))
+            bias = bias.at[iter].set(v[-1])
       
         de_s = E - E_s
         print("***Energy lowered after Sweep {}: {}".format(isw+1, de_s))
     
-    return E, init_params
+    return E, init_params, bias
 
 
-def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, 
+def opt_one_rbmvec(vec0, bias0, tvecs, coeffs, h1e, h2e, mo_coeff, tshape, 
                    hmat=None, smat=None, MaxIter=100):
     '''
     Optimize one RBM vector with the other fixed.
@@ -129,14 +143,22 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
         hmat, smat = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     tvecs = jnp.array(tvecs)
-    def cost_func(w):
+
+    def cost_func(v):
+        w = v[:-1]
+        b = v[-1]
         tvecs_n = rbm.add_vec(w, tvecs) # newly added Thouless vectors
+        lc_n = coeffs + b
+        lc_coeffs = jnp.concatenate([coeffs, lc_n])
+        lc_coeffs = jnp.exp(lc_coeffs)
         rmats_n = rbm.tvecs_to_rmats(tvecs_n, nvir, nocc)
         hm, sm = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
-        e = rbm.solve_lc_coeffs(hm, sm)
+        h = lc_coeffs.conj().T.dot(hm).dot(lc_coeffs)
+        s = lc_coeffs.conj().T.dot(sm).dot(lc_coeffs)
+        e = h/s
         return e
 
-    init_params = jnp.array(vec0)
+    init_params = jnp.concatenate([vec0, jnp.array([bias0])])
 
     def fit(params: optax.Params, optimizer: optax.GradientTransformation, MaxIter=MaxIter) -> optax.Params:
 
