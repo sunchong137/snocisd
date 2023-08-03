@@ -62,7 +62,8 @@ e_nuc = mf.energy_nuc()
 
 # generate initial guess for thouless rotations
 n_nodes = 2
-niter = 20000
+niter = 2000
+print_step = 200
 tol = 1e-6
 
 t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_nodes, zmax=10, zmin=0.1)[:n_nodes]
@@ -73,7 +74,8 @@ bias = None
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
-er, vecs = optrbm_all.rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, bias=bias, hiddens=[0,1], MaxIter=niter)
+er, vecs = optrbm_all.rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, 
+                              init_params=t0, bias=bias, hiddens=[0,1], MaxIter=niter, print_step=print_step)
 # bias_f = vecs[-2:]
 # coeff = rbm.hiddens_to_coeffs([0,1], n_nodes)
 # lc = coeff.dot(bias_f)

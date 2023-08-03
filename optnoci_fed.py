@@ -6,7 +6,7 @@ config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
 import rbm
 
-def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=100):
+def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=100, print_step=1000):
     '''
     Given a set of Thouless rotations, optimize the parameters.
     Using FED (few-determinant) approach.
@@ -56,7 +56,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=
         smat0 = jnp.copy(smat)
         hmat0 = jnp.copy(hmat)
         E, t = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
-                                hmat=hmat0, smat=smat0, MaxIter=MaxIter)
+                                hmat=hmat0, smat=smat0, MaxIter=MaxIter, print_step=print_step)
         de = E - E0
         print("Iter {}: energy lowered {}".format(iter+1, de))
         E0 = E
@@ -71,7 +71,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=
     return E, init_tvecs.reshape(nvecs, -1)
 
 
-def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, E0=None):
+def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, E0=None, print_step=1000):
 
     nvecs = len(init_tvecs)
     if nsweep < 1 or nvecs < 2:
@@ -117,7 +117,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
             rmats_new = jnp.delete(rmats_new, 1, axis=0)
             hmat0, smat0= rbm.rbm_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
             E, t, = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
-                                    hmat=hmat0, smat=smat0, MaxIter=MaxIter)
+                                    hmat=hmat0, smat=smat0, MaxIter=MaxIter, print_step=print_step)
             de = E - E0
             print("Iter {}: energy lowered {}".format(iter+1, de))
             E0 = E
@@ -133,7 +133,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
 
     return E, init_tvecs.reshape(nvecs, -1)
 
-def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, MaxIter=100):
+def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, MaxIter=100, print_step=1000):
 
 
     # nvecs = len(rmats) + 1
@@ -167,8 +167,8 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
         for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
 
-            if i%500 == 0:
-                print(f'step {i}, loss: {loss_value};')
+            if (i+1) % print_step == 0:
+                print(f'step {i+1}, loss: {loss_value};')
 
         return loss_value, params
 

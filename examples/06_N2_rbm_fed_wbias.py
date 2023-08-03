@@ -63,6 +63,7 @@ e_nuc = mf.energy_nuc()
 # generate initial guess for thouless rotations
 n_dets = 2
 MaxIter = 5000
+print_step = 1000
 tol=1e-10
 nsweep=1
 t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
@@ -73,8 +74,10 @@ t0 = t0.reshape(nvecs, -1)
 bias = np.random.rand(n_dets)
 # RES HF
 # t1 = time.time()
-E0, vecs0, bias0 = opt_rbm_fed_wbias.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=t0, bias=bias, MaxIter=MaxIter)
-E, vecs, bias_n = opt_rbm_fed_wbias.rbm_sweep(h1e, h2e, mo_coeff, nocc, vecs0, bias0, E0=E0, nsweep=nsweep, MaxIter=MaxIter)
+E0, vecs0, bias0 = opt_rbm_fed_wbias.rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, 
+                                             init_params=t0, bias=bias, MaxIter=MaxIter, print_step=print_step)
+E, vecs, bias_n = opt_rbm_fed_wbias.rbm_sweep(h1e, h2e, mo_coeff, nocc, vecs0, bias0, 
+                                              E0=E0, nsweep=nsweep, MaxIter=MaxIter, print_step=print_step)
 # t2 = time.time()
 # print("Time used:", t2-t1)
 hidden_coeffs = rbm.hiddens_to_coeffs([0, 1], n_dets)

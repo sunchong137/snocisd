@@ -7,7 +7,7 @@ config.update("jax_enable_x64", True)
 import rbm
 
 
-def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=100):
+def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=5000, print_step=1000):
     ''' 
     Given a set of Thouless rotations, optimize the parameters.
     Res HF approach, all parameters are optimized simultaneously.
@@ -62,8 +62,8 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=
         for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
 
-            if i%500 == 0:
-                print(f'step {i}, loss: {loss_value};')
+            if (i+1) % print_step == 0:
+                print(f'step {i+1}, loss: {loss_value};')
 
         return loss_value, params
 

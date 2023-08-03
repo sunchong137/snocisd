@@ -52,7 +52,7 @@ norb = mol.nao # number of orbitals
 occ = mf.get_occ()
 nocc = int(np.sum(occ[0])) # number of occupied orbitals for spin up
 nvir = norb - nocc
-ao_ovlp = mol.intor_symmetric ('int1e_ovlp') # overlap matrix of AO orbitals
+# ao_ovlp = mol.intor_symmetric ('int1e_ovlp') # overlap matrix of AO orbitals
 h1e = mf.get_hcore()
 h2e = mol.intor('int2e')
 mo_coeff = np.asarray(mf.mo_coeff)
@@ -60,13 +60,15 @@ e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
-n_dets = 20
+n_dets = 2
 niter = 1000
+print_step = 500
 t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 = t0.reshape(n_dets, -1)
 # RES HF
 t1 = time.time()
-E, rn = optdets.optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, init_tvecs=t0, MaxIter=niter)
+E, rn = optdets.optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, 
+                             init_tvecs=t0, MaxIter=niter, print_step=print_step)
 t2 = time.time()
 print(f"Time used: {t2-t1}.")
 e_noci = E + e_nuc

@@ -8,7 +8,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hiddens=[0,1],
-            MaxIter=1000):
+            MaxIter=1000, print_step=1000):
     '''
     Optimize the RBM parameters all together.
     Args:
@@ -76,7 +76,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
 
         for i in range(MaxIter):
             params, opt_state, loss_value = step(params, opt_state)
-            if (i+1)%2000 == 0:
+            if (i+1) % print_step == 0:
                 print(f'step {i+1}, loss: {loss_value};')
 
         return loss_value, params

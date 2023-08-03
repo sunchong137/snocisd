@@ -9,7 +9,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 
-def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIter=100):
+def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIter=5000, print_step=1000):
     '''
     Optimize the RBM parameters one by one.
     '''
@@ -48,7 +48,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIte
         w0 = init_params[iter]
         b0 = bias[iter]
         e, v = opt_one_rbmvec(w0, b0, opt_tvecs, opt_lc, h1e, h2e, mo_coeff, tshape,
-                              hmat=hmat, smat=smat,MaxIter=MaxIter)
+                              hmat=hmat, smat=smat,MaxIter=MaxIter, print_step=print_step)
         w = v[:-1]
         b = v[-1]
         init_params = init_params.at[iter].set(jnp.copy(w))
@@ -70,7 +70,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIte
 
 
 def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1], 
-              nsweep=1, MaxIter=100):
+              nsweep=1, MaxIter=5000, print_step=1000):
 
     nvecs = len(init_params)
     coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
@@ -111,7 +111,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
             fixed_vecs = rbm.expand_vecs(params_fix, coeff_hidden) 
             fixed_lc = rbm.expand_vecs(bias_fix, coeff_hidden) 
             E, v = opt_one_rbmvec(w0, b0, fixed_vecs, fixed_lc, h1e, h2e, mo_coeff, tshape,
-                                hmat=None, smat=None, MaxIter=MaxIter)
+                                hmat=None, smat=None, MaxIter=MaxIter, print_step=print_step)
             de = E - E0
             E0 = E
             print("Iter {}: energy lowered {}".format(iter+1, de))
@@ -125,7 +125,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
 
 
 def opt_one_rbmvec(vec0, bias0, tvecs, coeffs, h1e, h2e, mo_coeff, tshape, 
-                   hmat=None, smat=None, MaxIter=100):
+                   hmat=None, smat=None, MaxIter=5000, print_step=1000):
     '''
     Optimize one RBM vector with the other fixed.
     Args:
@@ -182,8 +182,8 @@ def opt_one_rbmvec(vec0, bias0, tvecs, coeffs, h1e, h2e, mo_coeff, tshape,
             #     # break
             # else:
             #     loss_last = loss_value
-            if i%500 == 0:
-                print(f'step {i}, loss: {loss_value};')
+            if (i+1) % print_step == 0:
+                print(f'step {i+1}, loss: {loss_value};')
 
         return loss_value, params
 
