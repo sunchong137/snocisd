@@ -63,6 +63,8 @@ niter = 1000
 nsweep = 2
 print_step=200
 t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t_noise = rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets)
+t0 = t0 + t_noise * 0.5
 t0 = t0.reshape(n_dets, -1)
 # RES HF
 E0, tn0 = optdets.optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, 

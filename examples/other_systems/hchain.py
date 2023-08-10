@@ -56,7 +56,7 @@ diff = np.linalg.norm(dm[0] - dm[1])
 if diff < 1e-5:
     print("WARNING: converged to RHF solution.")
 
-# CISE
+# CCSD
 mycc = cc.UCCSD(mf)
 mycc.run()
 de = mycc.e_corr

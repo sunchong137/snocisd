@@ -60,7 +60,7 @@ def params_to_rmats(vecs, nvir, nocc, coeffs):
     rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
     return rmats
 
-def hiddens_to_coeffs(hiddens, nvecs):
+def hiddens_to_coeffs_general(hiddens, nvecs, order=None):
     '''
     Generate all possible combinations of the nvecs of hidden variables.
     Args:
@@ -76,6 +76,17 @@ def hiddens_to_coeffs(hiddens, nvecs):
       
     coeffs = np.array(coeffs)
     return coeffs
+
+def hiddens_to_coeffs(hiddens, nvecs, order=1):
+    import scipy 
+
+    truc = 0
+    for i in range(order+1):
+        truc += scipy.special.comb(nvecs, i)
+    truc = int(truc)
+    mat = np.array(np.indices(nvecs * (2,))).reshape(nvecs, -1)
+    res = mat[:, np.argsort(mat.sum(0)[::-1], kind='mergesort')].T[::-1]
+    return res[:truc]
 
 def gen_thouless_random(nocc, nvir, max_nt):
 

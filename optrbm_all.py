@@ -8,7 +8,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hiddens=[0,1],
-            MaxIter=1000, print_step=1000):
+            MaxIter=1000, print_step=1000, lrate=1e-2, truncate=None):
     '''
     Optimize the RBM parameters all together.
     Args:
@@ -32,7 +32,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
     lt = 2*nvir*nocc # 2 for spins
 
     # get expansion coefficients
-    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs)
+    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs, order=truncate)
     coeff_hidden = jnp.array(coeff_hidden)
 
     if init_params is None:
@@ -81,7 +81,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
 
         return loss_value, params
 
-    optimizer = optax.adam(learning_rate=1e-2)
+    optimizer = optax.adam(learning_rate=lrate)
     energy, vecs = fit(params0, optimizer)
 
     return energy, vecs

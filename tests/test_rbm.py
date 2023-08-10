@@ -31,3 +31,8 @@ def test_solve_lc():
     assert np.allclose(e, esla)
     assert np.allclose(e, e2)
     assert np.allclose(v, vsla)
+
+def test_hiddens():
+    nvecs = 4
+    print(rbm.trucated_hidden_coeffs(nvecs))
+
