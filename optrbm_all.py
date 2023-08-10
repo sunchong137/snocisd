@@ -63,25 +63,36 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
         cost_func = cost_func_bias
         params0 = jnp.concatenate([init_params, bias])
 
-    def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
+    def fit(params: optax.Params, Niter: int, lrate) -> optax.Params:
 
+        optimizer = optax.adam(learning_rate=lrate)
         opt_state = optimizer.init(params)
 
-        @jax.jit
+        @jax.jit 
         def step(params, opt_state):
             loss_value, grads = jax.value_and_grad(cost_func)(params)
             updates, opt_state = optimizer.update(grads, opt_state, params)
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        for i in range(MaxIter):
+        for i in range(Niter):
             params, opt_state, loss_value = step(params, opt_state)
+
             if (i+1) % print_step == 0:
-                print(f'step {i+1}, loss: {loss_value};')
+                print(f'step {i+1}, Energy: {loss_value};')
 
         return loss_value, params
 
-    optimizer = optax.adam(learning_rate=lrate)
-    energy, vecs = fit(params0, optimizer)
+    # schedule
+    niter1 = int(MaxIter / 1.5)
+    niter2 = MaxIter - niter1
+    lrate2 = lrate / 2.
+
+    # optimizer = optax.adam(learning_rate=lrate)
+    energy0, vecs = fit(init_params, niter1, lrate)
+    # print(f"Energy lowered: {energy0 - E0}")
+    print("Reducing the learning rate.")
+    energy, vecs = fit(vecs, niter2, lrate2)
+    # print(f"Energy lowered: {energy - energy0}")
 
     return energy, vecs

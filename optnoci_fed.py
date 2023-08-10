@@ -6,7 +6,8 @@ config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
 import rbm
 
-def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=100, print_step=1000):
+def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
+                 MaxIter=100, print_step=1000, lrate=1e-2):
     '''
     Given a set of Thouless rotations, optimize the parameters.
     Using FED (few-determinant) approach.
@@ -56,7 +57,8 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=
         smat0 = jnp.copy(smat)
         hmat0 = jnp.copy(hmat)
         E, t = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
-                                hmat=hmat0, smat=smat0, MaxIter=MaxIter, print_step=print_step)
+                                hmat=hmat0, smat=smat0, MaxIter=MaxIter, 
+                                print_step=print_step, lrate=lrate)
         de = E - E0
         print("Iter {}: energy lowered {}".format(iter+1, de))
         E0 = E
@@ -71,7 +73,8 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, MaxIter=
     return E, init_tvecs.reshape(nvecs, -1)
 
 
-def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, E0=None, print_step=1000):
+def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, E0=None, 
+                   print_step=1000, lrate=1e-2):
 
     nvecs = len(init_tvecs)
     if nsweep < 1 or nvecs < 2:
@@ -117,7 +120,8 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
             rmats_new = jnp.delete(rmats_new, 1, axis=0)
             hmat0, smat0= rbm.rbm_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
             E, t, = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
-                                    hmat=hmat0, smat=smat0, MaxIter=MaxIter, print_step=print_step)
+                                    hmat=hmat0, smat=smat0, MaxIter=MaxIter, 
+                                    print_step=print_step, lrate=lrate)
             de = E - E0
             print("Iter {}: energy lowered {}".format(iter+1, de))
             E0 = E
@@ -133,7 +137,8 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
 
     return E, init_tvecs.reshape(nvecs, -1)
 
-def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, MaxIter=100, print_step=1000):
+def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, 
+                     MaxIter=100, print_step=1000, lrate=1e-2):
 
 
     # nvecs = len(rmats) + 1
@@ -152,29 +157,36 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
           
     init_params = jnp.array(tvec0)
 
-    def fit(params: optax.Params, optimizer: optax.GradientTransformation, MaxIter=MaxIter) -> optax.Params:
 
+    def fit(params: optax.Params, Niter: int, lrate) -> optax.Params:
+
+        optimizer = optax.adam(learning_rate=lrate)
         opt_state = optimizer.init(params)
 
-        @jax.jit
+        @jax.jit 
         def step(params, opt_state):
             loss_value, grads = jax.value_and_grad(cost_func)(params)
             updates, opt_state = optimizer.update(grads, opt_state, params)
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        # loss_last = 0
-        for i in range(MaxIter):
+        for i in range(Niter):
             params, opt_state, loss_value = step(params, opt_state)
 
             if (i+1) % print_step == 0:
-                print(f'step {i+1}, loss: {loss_value};')
+                print(f'step {i+1}, Energy: {loss_value};')
 
         return loss_value, params
 
-    # TODO figure out learning rate
-    optimizer = optax.adam(learning_rate=1e-2)
-    energy, vec = fit(init_params, optimizer, MaxIter=int(MaxIter))
+    # schedule
+    niter1 = int(MaxIter / 1.5)
+    niter2 = MaxIter - niter1
+    lrate2 = lrate / 2.
+
+    # optimizer = optax.adam(learning_rate=lrate)
+    energy0, vec = fit(init_params, niter1, lrate)
+    print("Reducing Learning rate.")
+    energy, vec = fit(vec, niter2, lrate2)
 
     del fit # release memory
 

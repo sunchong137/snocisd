@@ -77,9 +77,12 @@ def hiddens_to_coeffs_general(hiddens, nvecs, order=None):
     coeffs = np.array(coeffs)
     return coeffs
 
-def hiddens_to_coeffs(hiddens, nvecs, order=1):
-    import scipy 
+def hiddens_to_coeffs(hiddens, nvecs, order=None):
 
+    if order is None:
+        order = nvecs
+
+    import scipy 
     truc = 0
     for i in range(order+1):
         truc += scipy.special.comb(nvecs, i)

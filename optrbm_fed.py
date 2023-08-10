@@ -9,7 +9,8 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 
-def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, MaxIter=100, print_step=1000):
+def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, 
+            MaxIter=100, print_step=1000, lrate=1e-2):
     '''
     Optimize the RBM parameters one by one.
     '''
@@ -42,7 +43,8 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, MaxIter=100, prin
         print(f"*****Optimizing Determinant {iter+1}*****")
         w0 = init_params[iter]
         e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape,
-                              hmat=hmat, smat=smat,MaxIter=MaxIter, print_step=print_step)
+                              hmat=hmat, smat=smat,MaxIter=MaxIter, 
+                              print_step=print_step, lrate=lrate)
         
         init_params = init_params.at[iter].set(jnp.copy(w))
         de = e - E0
@@ -60,7 +62,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, MaxIter=100, prin
 
 
 def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1], 
-              nsweep=1, MaxIter=100, print_step=1000):
+              nsweep=1, MaxIter=100, print_step=1000, lrate=1e-2):
 
     nvecs = len(init_params)
     coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
@@ -98,7 +100,8 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
             new_params = np.delete(init_params, iter, axis=0)
             fixed_vecs = rbm.expand_vecs(new_params, coeff_hidden) 
             E, w = opt_one_rbmvec(w0, fixed_vecs, h1e, h2e, mo_coeff, tshape,
-                                hmat=None, smat=None, MaxIter=MaxIter, print_step=print_step)
+                                hmat=None, smat=None, MaxIter=MaxIter, 
+                                print_step=print_step, lrate=lrate)
             de = E - E0
             E0 = E
             print("Iter {}: energy lowered {}".format(iter+1, de))
@@ -111,7 +114,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
 
 
 def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, 
-                   hmat=None, smat=None, MaxIter=100, print_step=1000):
+                   hmat=None, smat=None, MaxIter=100, print_step=1000, lrate=1e-2):
     '''
     Optimize one RBM vector with the other fixed.
     Args:
@@ -138,36 +141,36 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
 
     init_params = jnp.array(vec0)
 
-    def fit(params: optax.Params, optimizer: optax.GradientTransformation, MaxIter=MaxIter) -> optax.Params:
+    def fit(params: optax.Params, Niter: int, lrate) -> optax.Params:
 
+        optimizer = optax.adam(learning_rate=lrate)
         opt_state = optimizer.init(params)
 
-        @jax.jit
+        @jax.jit 
         def step(params, opt_state):
             loss_value, grads = jax.value_and_grad(cost_func)(params)
             updates, opt_state = optimizer.update(grads, opt_state, params)
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss_value
 
-        # loss_last = 0
-        for i in range(MaxIter):
+        for i in range(Niter):
             params, opt_state, loss_value = step(params, opt_state)
 
-            # dloss = loss_value - loss_last
-            # if i > 1000 and abs(dloss) < tol:
-            #     a = 1
-            #     # print(f"Optimization converged after {i+1} steps.")
-            #     # break
-            # else:
-            #     loss_last = loss_value
             if (i+1) % print_step == 0:
-                print(f'step {i+1}, loss: {loss_value};')
+                print(f'step {i+1}, Energy: {loss_value};')
 
         return loss_value, params
 
-    # TODO figure out learning rate
-    optimizer = optax.adam(learning_rate=1e-2)
-    energy, vec = fit(init_params, optimizer, MaxIter=int(MaxIter))
+    # schedule
+    niter1 = int(MaxIter / 1.5)
+    niter2 = MaxIter - niter1
+    lrate2 = lrate / 2.
+
+    # optimizer = optax.adam(learning_rate=lrate)
+    energy0, vec = fit(init_params, niter1, lrate)
+    print("Reducing Learning rate.")
+    energy, vec = fit(vec, niter2, lrate2)
+
 
     del fit # release memory
 

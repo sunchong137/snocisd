@@ -54,7 +54,7 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         optimizer = optax.adam(learning_rate=lrate)
         opt_state = optimizer.init(params)
 
-        @jax.jit
+        @jax.jit 
         def step(params, opt_state):
             loss_value, grads = jax.value_and_grad(cost_func)(params)
             updates, opt_state = optimizer.update(grads, opt_state, params)
@@ -65,7 +65,7 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
             params, opt_state, loss_value = step(params, opt_state)
 
             if (i+1) % print_step == 0:
-                print(f'step {i+1}, loss: {loss_value};')
+                print(f'step {i+1}, Energy: {loss_value};')
 
         return loss_value, params
 
