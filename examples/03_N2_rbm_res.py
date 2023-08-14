@@ -62,18 +62,18 @@ e_nuc = mf.energy_nuc()
 
 # generate initial guess for thouless rotations
 n_dets = 2
-niter = 1000
-print_step = 200
+niter = 8000
+print_step = 1000
 tol = 1e-6
 
-t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
-t0 += thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.1 # better to add noise
+t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
+# t0 += thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.1 # better to add noise
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)
 # RES HF
 er, vecs = optrbm_all.rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, 
-                              init_params=t0,hiddens=[0,1], MaxIter=niter, print_step=print_step)
+                              init_params=t0, hiddens=[0,1], MaxIter=niter, print_step=print_step)
 e_rbm = er + e_nuc
 print("E: ", e_rbm)
 

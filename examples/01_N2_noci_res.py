@@ -63,9 +63,12 @@ e_nuc = mf.energy_nuc()
 n_dets = 2
 niter = 8000
 print_step = 1000
-t0 = thouless.gen_thouless_doubles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
-noise = thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets)[:n_dets]
-# t0 = noise
+# t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
+t0 = thouless.gen_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)
+
+# t0 = thouless.gen_thouless_doubles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
+# noise = thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets)[:n_dets]
+# # t0 = noise
 t0 = t0.reshape(n_dets, -1)
 # RES HF
 t1 = time.time()

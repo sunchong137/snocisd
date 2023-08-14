@@ -2,30 +2,11 @@
 
 import numpy as np
 
-def gen_thouless_random(nocc, nvir, max_nt):
+def gen_thouless_singles(nocc, nvir, max_nt=1, zmax=5, zmin=0.1):
 
-    tmats = []
-    for i in range(max_nt):
-        t = np.random.rand(2, nvir, nocc)
-        #t = np.random.normal(size=tshape)
-        tmats.append(t)
-
-    return np.asarray(tmats)
-
-def gen_thouless_singles(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
     '''
-    Generate rotations for near singly excited state for spinless systems.
-    Input:
-        nocc: number of occupied orbitals.
-        nvir: number of virtual orbitals.
-    Kwargs:
-        max_nrot: maximum number of matrices to generate.
-    Returns:
-        A list of unnormalized Thouless parameters.
+    Generate near-single-excitation initial guesses.
     '''
-
-    if max_nt is None:
-        max_nt = nvir * nocc
 
     # pick the excitations closest to the Fermi level    
     sqrt_nt = int(np.sqrt(max_nt)) + 1
@@ -43,22 +24,109 @@ def gen_thouless_singles(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
         else:
             d_occ = sqrt_nt 
             d_vir = sqrt_nt
+    tmats = np.ones((max_nt, 2, nvir, nocc)) * zmin
 
-    tmats = []
-    t0 = np.zeros((nvir, nocc))
     k = 0
     for i in range(d_occ): # occupied
         for j in range(d_vir): # virtual
             if k == max_nt:
                 break
-            tm = np.ones((nvir, nocc)) * zmin 
-            tm[j, nocc-i-1] = zmax
-            tmats.append(np.array([tm, t0]))
-            tmats.append(np.array([t0, tm]))
+            tmats[k, 0, i, j] = zmax 
             k += 1
-    tmats = np.asarray(tmats)
     return tmats
 
+# def gen_thouless_singles_allspin(nocc, nvir, max_nt=1, zmax=10, zmin=0.1):
+
+#     '''
+#     Generate near-single-excitation initial guesses.
+#     '''
+
+#     # pick the excitations closest to the Fermi level    
+#     sqrt_nt = int(np.sqrt(max_nt)) + 1
+#     if nocc < nvir:
+#         if nocc < sqrt_nt: 
+#             d_occ = nocc 
+#             d_vir = nvir  
+#         else:
+#             d_occ = sqrt_nt 
+#             d_vir = sqrt_nt
+#     else:
+#         if nvir < sqrt_nt:
+#             d_occ = nocc 
+#             d_vir = nvir 
+#         else:
+#             d_occ = sqrt_nt 
+#             d_vir = sqrt_nt
+#     tmats = np.ones((max_nt, 2, nvir, nocc)) * zmin
+
+#     k = 0
+#     max_k = int(max_nt/2)+1
+#     for i in range(d_occ): # occupied
+#         for j in range(d_vir): # virtual
+#             if k == max_k:
+#                 break
+#             tmats[2*k, 0, i, j] = zmax 
+#             tmats[2*k+1, 1, i, j] = zmax
+#             k += 1
+#     return tmats
+
+
+def gen_thouless_random(nocc, nvir, max_nt):
+
+    tmats = []
+    for i in range(max_nt):
+        t = np.random.rand(2, nvir, nocc)
+        #t = np.random.normal(size=tshape)
+        tmats.append(t)
+
+    return np.asarray(tmats)
+
+# def gen_thouless_singles_all(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
+#     '''
+#     Generate rotations for near singly excited state for spinless systems.
+#     Input:
+#         nocc: number of occupied orbitals.
+#         nvir: number of virtual orbitals.
+#     Kwargs:
+#         max_nrot: maximum number of matrices to generate.
+#     Returns:
+#         A list of unnormalized Thouless parameters.
+#     '''
+
+#     if max_nt is None:
+#         max_nt = nvir * nocc
+
+#     # pick the excitations closest to the Fermi level    
+#     sqrt_nt = int(np.sqrt(max_nt)) + 1
+#     if nocc < nvir:
+#         if nocc < sqrt_nt: 
+#             d_occ = nocc 
+#             d_vir = nvir  
+#         else:
+#             d_occ = sqrt_nt 
+#             d_vir = sqrt_nt
+#     else:
+#         if nvir < sqrt_nt:
+#             d_occ = nocc 
+#             d_vir = nvir 
+#         else:
+#             d_occ = sqrt_nt 
+#             d_vir = sqrt_nt
+
+#     tmats = []
+#     t0 = np.zeros((nvir, nocc))
+#     k = 0
+#     for i in range(d_occ): # occupied
+#         for j in range(d_vir): # virtual
+#             if k == max_nt:
+#                 break
+#             tm = np.ones((nvir, nocc)) * zmin 
+#             tm[j, nocc-i-1] = zmax
+#             tmats.append(np.array([tm, t0]))
+#             tmats.append(np.array([t0, tm]))
+#             k += 1
+#     tmats = np.asarray(tmats)
+#     return tmats
 
 def gen_thouless_doubles(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
     '''
