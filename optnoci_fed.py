@@ -64,7 +64,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         E0 = E
         init_tvecs = init_tvecs.at[iter].set(jnp.copy(t))
         r = rbm.tvecs_to_rmats(jnp.array([t]), nvir, nocc) # TODO implement one vector case
-        hmat, smat = rbm._expand_hs(hmat0, smat0, r, rmats_new, h1e, h2e, mo_coeff)
+        hmat, smat = rbm.expand_hs(hmat0, smat0, r, rmats_new, h1e, h2e, mo_coeff)
         rmats_new = jnp.vstack([rmats_new, r])
 
     de_fed = E - e_hf  
@@ -151,7 +151,7 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
         _t = jnp.array([t])
         # thouless to rotation
         r_n = rbm.tvecs_to_rmats(_t, nvir, nocc)
-        hm, sm = rbm._expand_hs(hmat, smat, r_n, rmats, h1e, h2e, mo_coeff)
+        hm, sm = rbm.expand_hs(hmat, smat, r_n, rmats, h1e, h2e, mo_coeff)
         energy = rbm.solve_lc_coeffs(hm, sm)
         return energy  
           

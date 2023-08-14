@@ -10,7 +10,7 @@ config.update("jax_enable_x64", True)
 
 
 def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, 
-            MaxIter=100, print_step=1000, lrate=1e-2):
+            MaxIter=100, print_step=1000, lrate=1e-2, schedule=False):
     '''
     Optimize the RBM parameters one by one.
     '''
@@ -44,7 +44,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None,
         w0 = init_params[iter]
         e, w = opt_one_rbmvec(w0, opt_tvecs, h1e, h2e, mo_coeff, tshape,
                               hmat=hmat, smat=smat,MaxIter=MaxIter, 
-                              print_step=print_step, lrate=lrate)
+                              print_step=print_step, lrate=lrate, schedule=schedule)
         
         init_params = init_params.at[iter].set(jnp.copy(w))
         de = e - E0
@@ -54,7 +54,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None,
         opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
         # update hmat and smat
         rmats_n = rbm.tvecs_to_rmats(new_tvecs, nvir, nocc)
-        hmat, smat = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        hmat, smat = rbm.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
 
     print("Total energy lowered: {}".format(e - e_hf))
@@ -62,7 +62,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None,
 
 
 def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1], 
-              nsweep=1, MaxIter=100, print_step=1000, lrate=1e-2):
+              nsweep=1, MaxIter=100, print_step=1000, lrate=1e-2, schedule=False):
 
     nvecs = len(init_params)
     if nsweep < 1 or nvecs < 2:
@@ -101,7 +101,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
             fixed_vecs = rbm.expand_vecs(new_params, coeff_hidden) 
             E, w = opt_one_rbmvec(w0, fixed_vecs, h1e, h2e, mo_coeff, tshape,
                                 hmat=None, smat=None, MaxIter=MaxIter, 
-                                print_step=print_step, lrate=lrate)
+                                print_step=print_step, lrate=lrate, schedule=schedule)
             de = E - E0
             E0 = E
             print("Iter {}: energy lowered {}".format(iter+1, de))
@@ -114,7 +114,8 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
 
 
 def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape, 
-                   hmat=None, smat=None, MaxIter=100, print_step=1000, lrate=1e-2):
+                   hmat=None, smat=None, MaxIter=100, print_step=1000, 
+                   lrate=1e-2, schedule=False):
     '''
     Optimize one RBM vector with the other fixed.
     Args:
@@ -135,7 +136,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
     def cost_func(w):
         tvecs_n = rbm.add_vec(w, tvecs) # newly added Thouless vectors
         rmats_n = rbm.tvecs_to_rmats(tvecs_n, nvir, nocc)
-        hm, sm = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        hm, sm = rbm.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         e = rbm.solve_lc_coeffs(hm, sm)
         return e
 
@@ -161,15 +162,18 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
 
         return loss_value, params
 
-    # schedule
-    niter1 = int(MaxIter / 1.5)
-    niter2 = MaxIter - niter1
-    lrate2 = lrate / 2.
+    if schedule:
+        # schedule
+        niter1 = int(MaxIter / 1.5)
+        niter2 = MaxIter - niter1
+        lrate2 = lrate / 2.
 
-    # optimizer = optax.adam(learning_rate=lrate)
-    energy0, vec = fit(init_params, niter1, lrate)
-    print("Reducing Learning rate.")
-    energy, vec = fit(vec, niter2, lrate2)
+        # optimizer = optax.adam(learning_rate=lrate)
+        energy0, vec = fit(init_params, niter1, lrate)
+        print("Reducing Learning rate.")
+        energy, vec = fit(vec, niter2, lrate2)
+    else:
+        energy, vec = fit(init_params, MaxIter, lrate)
 
 
     del fit # release memory

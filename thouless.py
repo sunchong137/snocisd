@@ -35,6 +35,28 @@ def gen_thouless_singles(nocc, nvir, max_nt=1, zmax=5, zmin=0.1):
             k += 1
     return tmats
 
+def gen_thouless_doubles_new():
+    pass
+
+def gen_thouless_active(nocc, nvir, max_nt=1, ncas=6, ncas_elec=None, zmax=5, zmin=0.1):
+    '''
+    Generate all spinless excitations in the active space.
+    Args:
+        ncas: the number of active orbitals.
+    '''
+    if ncas_elec is None: # only for spin up
+        ncas_elec = int(ncas/2)
+
+    ncas_occ = int(ncas / 2)
+    ncas_vir = ncas - ncas_occ 
+
+    # single excitation ncas_occ * ncas_vir 
+
+    # double excitation (ncas_occ)*(ncas_occ-1)*(ncas_vir)*(ncas_vir-1)/4
+
+    # Triple excitation a lot
+
+
 # def gen_thouless_singles_allspin(nocc, nvir, max_nt=1, zmax=10, zmin=0.1):
 
 #     '''

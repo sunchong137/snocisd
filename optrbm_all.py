@@ -8,7 +8,7 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hiddens=[0,1],
-            MaxIter=1000, print_step=1000, lrate=1e-2, truncate=None):
+            MaxIter=1000, print_step=1000, lrate=1e-2, truncate=None, schedule=False):
     '''
     Optimize the RBM parameters all together.
     Args:
@@ -83,16 +83,19 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
 
         return loss_value, params
 
-    # schedule
-    niter1 = int(MaxIter / 1.5)
-    niter2 = MaxIter - niter1
-    lrate2 = lrate / 2.
+    if schedule:
+        # schedule
+        niter1 = int(MaxIter / 1.5)
+        niter2 = MaxIter - niter1
+        lrate2 = lrate / 2.
 
-    # optimizer = optax.adam(learning_rate=lrate)
-    energy0, vecs = fit(init_params, niter1, lrate)
-    # print(f"Energy lowered: {energy0 - E0}")
-    print("Reducing the learning rate.")
-    energy, vecs = fit(vecs, niter2, lrate2)
-    # print(f"Energy lowered: {energy - energy0}")
+        # optimizer = optax.adam(learning_rate=lrate)
+        energy0, vecs = fit(init_params, niter1, lrate)
+        # print(f"Energy lowered: {energy0 - E0}")
+        print("Reducing the learning rate.")
+        energy, vecs = fit(vecs, niter2, lrate2)
+        # print(f"Energy lowered: {energy - energy0}")
+    else:
+        energy, vecs = fit(init_params, MaxIter, lrate)
 
     return energy, vecs

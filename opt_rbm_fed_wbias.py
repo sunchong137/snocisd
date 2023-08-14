@@ -61,7 +61,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIte
         opt_lc = jnp.concatenate([opt_lc, opt_lc + b])
         # update hmat and smat
         rmats_n = rbm.tvecs_to_rmats(new_tvecs, nvir, nocc)
-        hmat, smat = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        hmat, smat = rbm.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
 
 
@@ -152,7 +152,7 @@ def opt_one_rbmvec(vec0, bias0, tvecs, coeffs, h1e, h2e, mo_coeff, tshape,
         lc_coeffs = jnp.concatenate([coeffs, lc_n])
         lc_coeffs = jnp.exp(lc_coeffs)
         rmats_n = rbm.tvecs_to_rmats(tvecs_n, nvir, nocc)
-        hm, sm = rbm._expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        hm, sm = rbm.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         h = lc_coeffs.conj().T.dot(hm).dot(lc_coeffs)
         s = lc_coeffs.conj().T.dot(sm).dot(lc_coeffs)
         e = h/s
