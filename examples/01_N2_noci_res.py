@@ -9,7 +9,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 sys.path.append("..")
-import rbm
+import thouless
 import time
 import optnoci_all as optdets
 
@@ -61,9 +61,11 @@ e_nuc = mf.energy_nuc()
 
 # generate initial guess for thouless rotations
 n_dets = 2
-niter = 1000
-print_step = 500
-t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+niter = 8000
+print_step = 1000
+t0 = thouless.gen_thouless_doubles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
+noise = thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets)[:n_dets]
+# t0 = noise
 t0 = t0.reshape(n_dets, -1)
 # RES HF
 t1 = time.time()

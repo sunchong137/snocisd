@@ -11,7 +11,7 @@ import time
 import sys 
 sys.path.append("..")
 sys.path.append(".")
-import rbm, optrbm_fed
+import thouless, optrbm_fed
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -21,7 +21,7 @@ N   0   0   0
 N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
-mol.basis = "sto3g"
+mol.basis = "ccpvdz"
 mol.cart = True
 mol.build()
 
@@ -60,13 +60,13 @@ e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
-n_dets = 2
-MaxIter = 1000
-print_step = 200
+n_dets = 1
+MaxIter = 2000
+print_step = int(MaxIter/5)
 tol=1e-10
 nsweep=1
-t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
-t0 += -rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
+t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 += -thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)

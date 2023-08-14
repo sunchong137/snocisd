@@ -65,9 +65,6 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
               nsweep=1, MaxIter=100, print_step=1000, lrate=1e-2):
 
     nvecs = len(init_params)
-    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
-    coeff_hidden = jnp.array(coeff_hidden)
-
     if nsweep < 1 or nvecs < 2:
         print("Number of sweeps needs to be > 1!")
         print("Number of new determinants needs to be > !")
@@ -79,6 +76,9 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
             E0 = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e)
         return E0, init_params
     
+    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
+    coeff_hidden = jnp.array(coeff_hidden)
+
     mo_coeff = jnp.array(mo_coeff)
     h1e = jnp.array(h1e)
     h2e = jnp.array(h2e)

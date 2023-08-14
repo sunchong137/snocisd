@@ -10,7 +10,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 sys.path.append("..")
-import rbm, optrbm_all
+import thouless, optrbm_all
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -66,8 +66,8 @@ niter = 2000
 print_step = 200
 tol = 1e-6
 
-t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_nodes, zmax=10, zmin=0.1)[:n_nodes]
-t0 += rbm.gen_thouless_random(nocc, nvir, max_nt=n_nodes) * 0.1 # better to add noise
+t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_nodes, zmax=10, zmin=0.1)[:n_nodes]
+t0 += thouless.gen_thouless_random(nocc, nvir, max_nt=n_nodes) * 0.1 # better to add noise
 
 bias = np.random.rand(n_nodes)
 bias = None

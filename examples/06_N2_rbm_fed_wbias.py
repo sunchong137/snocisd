@@ -12,7 +12,7 @@ import time
 import sys 
 sys.path.append("..")
 sys.path.append(".")
-import rbm, opt_rbm_fed_wbias
+import thouless, rbm, opt_rbm_fed_wbias
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -66,8 +66,8 @@ MaxIter = 5000
 print_step = 1000
 tol=1e-10
 nsweep=1
-t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
-t0 += -rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
+t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 += -thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 
 nvecs = len(t0)
 t0 = t0.reshape(nvecs, -1)

@@ -9,7 +9,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 sys.path.append("../")
-import rbm
+import thouless
 import optnoci_fed as optdets
 
 # set up the system with pyscf
@@ -20,7 +20,7 @@ N   0   0   0
 N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
-mol.basis = "sto3g"
+mol.basis = "ccpvdz"
 mol.symmetry=1
 mol.build()
 
@@ -59,12 +59,12 @@ e_nuc = mf.energy_nuc()
  
 
 n_dets = 2
-niter = 1000
-nsweep = 2
-print_step=200
-t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
-t_noise = rbm.gen_thouless_random(nocc, nvir, max_nt=n_dets)
-t0 = t0 + t_noise * 0.5
+niter = 5000
+nsweep = 0
+print_step=500
+t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
+t_noise = thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets)
+# t0 = t0 + t_noise * 0.5
 t0 = t0.reshape(n_dets, -1)
 # RES HF
 E0, tn0 = optdets.optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=n_dets, 
