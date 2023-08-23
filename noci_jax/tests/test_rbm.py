@@ -1,9 +1,7 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-import sys
-sys.path.append("../")
-import rbm 
+from noci_jax import rbm 
 
 
 def test_solve_lc():
@@ -32,7 +30,4 @@ def test_solve_lc():
     assert np.allclose(e, e2)
     assert np.allclose(v, vsla)
 
-def test_hiddens():
-    nvecs = 4
-    print(rbm.trucated_hidden_coeffs(nvecs))
 
