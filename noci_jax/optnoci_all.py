@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from jax.config import config
 # config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
-import rbm
+from noci_jax import rbm
 
 
 def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 

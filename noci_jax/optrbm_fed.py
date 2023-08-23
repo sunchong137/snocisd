@@ -1,6 +1,6 @@
 # hiddens are always [0, 1]
 import numpy as np
-import rbm
+from noci_jax import rbm
 import optax
 import jax
 import jax.numpy as jnp
