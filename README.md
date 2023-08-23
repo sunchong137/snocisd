@@ -1,19 +1,16 @@
-NOCI with RBM
+NOCI with JAX
 -------------
+Perform Non-configuration interaction with Jax.
 
 Author: Chong Sun [email](sunchong137@gmail.com)
+# Installation
+`git clone https://github.com/sunchong137/rbm_jax.git`
 
-Dependencies:
-- PySCF 
-  Installation: `pip install pyscf`
-- Numpy
-  Installation: `pip install numpy`
-- Scipy
-  Installation: `pip install scipy`
-- Jax
-  Installation: `pip install jax`
-- Jaxlib
-  Installation: `pip install jaxlib`
-- optax
-  Installation: `pip install optax`
+`cd rbm_jax`
 
+`pip install -e .`
+
+# Running NOCI_Jax
+`import noci_jax`
+
+`from noci_jax import rbm`
