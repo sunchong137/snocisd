@@ -4,9 +4,9 @@ Perform Non-configuration interaction with Jax.
 
 Author: Chong Sun [email](sunchong137@gmail.com)
 # Installation
-`git clone https://github.com/sunchong137/rbm_jax.git`
+`git clone https://github.com/sunchong137/noci_jax.git`
 
-`cd rbm_jax`
+`cd noci_jax`
 
 `pip install -e .`
 
