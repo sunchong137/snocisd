@@ -7,7 +7,7 @@ config.update("jax_enable_x64", True)
 from noci_jax import rbm
 
 def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
-                 MaxIter=100, print_step=1000, lrate=1e-2):
+                 MaxIter=100, print_step=1000, lrate=1e-2, schedule=False):
     '''
     Given a set of Thouless rotations, optimize the parameters.
     Using FED (few-determinant) approach.
@@ -58,7 +58,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         hmat0 = jnp.copy(hmat)
         E, t = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
                                 hmat=hmat0, smat=smat0, MaxIter=MaxIter, 
-                                print_step=print_step, lrate=lrate)
+                                print_step=print_step, lrate=lrate, schedule=schedule)
         de = E - E0
         print("Iter {}: energy lowered {}".format(iter+1, de))
         E0 = E
@@ -74,7 +74,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
 
 
 def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, E0=None, 
-                   print_step=1000, lrate=1e-2):
+                   print_step=1000, lrate=1e-2, schedule=False):
 
     nvecs = len(init_tvecs)
     if nsweep < 1 or nvecs < 2:
@@ -121,7 +121,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
             hmat0, smat0= rbm.rbm_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
             E, t, = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
                                     hmat=hmat0, smat=smat0, MaxIter=MaxIter, 
-                                    print_step=print_step, lrate=lrate)
+                                    print_step=print_step, lrate=lrate, schedule=schedule)
             de = E - E0
             print("Iter {}: energy lowered {}".format(iter+1, de))
             E0 = E
@@ -138,7 +138,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
     return E, init_tvecs.reshape(nvecs, -1)
 
 def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, 
-                     MaxIter=100, print_step=1000, lrate=1e-2):
+                     MaxIter=100, print_step=1000, lrate=1e-2, schedule=False):
 
 
     # nvecs = len(rmats) + 1
@@ -178,16 +178,22 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
 
         return loss_value, params
 
-    # schedule
-    niter1 = int(MaxIter / 1.5)
-    niter2 = MaxIter - niter1
-    lrate2 = lrate / 2.
+    if schedule:
+        # schedule
+        niter1 = int(MaxIter / 1.5)
+        niter2 = MaxIter - niter1
+        lrate2 = lrate / 2.
 
-    # optimizer = optax.adam(learning_rate=lrate)
-    energy0, vec = fit(init_params, niter1, lrate)
-    print("Reducing Learning rate.")
-    energy, vec = fit(vec, niter2, lrate2)
+        # optimizer = optax.adam(learning_rate=lrate)
+        energy0, vecs = fit(init_params, niter1, lrate)
+        # print(f"Energy lowered: {energy0 - E0}")
+        print("Reducing the learning rate.")
+        energy, vecs = fit(vecs, niter2, lrate2)
+        # print(f"Energy lowered: {energy - energy0}")
+    else:
+        energy, vecs = fit(init_params, MaxIter, lrate)
+
 
     del fit # release memory
 
-    return energy, vec
+    return energy, vecs

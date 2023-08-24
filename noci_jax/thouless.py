@@ -36,8 +36,43 @@ def gen_thouless_singles(nocc, nvir, max_nt=1, zmax=5, zmin=0.1):
             k += 1
     return tmats
 
-def gen_thouless_doubles_new():
-    pass
+def gen_thouless_doubles_cross(nocc, nvir, max_nt=1, zmax=5, zmin=0.1):
+    
+    # pick the excitations closest to the Fermi level    
+    sqrt_nt = int(np.sqrt(max_nt)) + 1
+    if nocc < nvir:
+        if nocc < sqrt_nt: 
+            d_occ = nocc 
+            d_vir = nvir  
+        else:
+            d_occ = sqrt_nt 
+            d_vir = sqrt_nt
+    else:
+        if nvir < sqrt_nt:
+            d_occ = nocc 
+            d_vir = nvir 
+        else:
+            d_occ = sqrt_nt 
+            d_vir = sqrt_nt
+    if max_nt % 2 == 0:
+        tmats = np.ones((max_nt, 2, nvir, nocc)) * zmin
+    else:
+        tmats = np.ones((max_nt+1, 2, nvir, nocc)) * zmin
+
+    nt = 0
+    for i in range(d_occ): # occupied
+        for j in range(d_vir): # virtual
+            for k in range(d_occ):
+                for l in range(d_vir):
+                    # print(i, j)
+                    if nt == max_nt:
+                        break
+                    tmats[nt, 0, i, j] = zmax 
+                    tmats[nt+1, 1, k, l] = zmax
+                    nt += 2
+                    
+    return tmats[:max_nt]
+
 
 def gen_thouless_active(nocc, nvir, max_nt=1, ncas=6, ncas_elec=None, zmax=5, zmin=0.1):
     '''

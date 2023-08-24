@@ -8,7 +8,7 @@ from noci_jax import rbm
 
 
 def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
-                 MaxIter=5000, print_step=1000, lrate=1e-2):
+                 MaxIter=5000, print_step=1000, lrate=1e-2, schedule=False):
     ''' 
     Given a set of Thouless rotations, optimize the parameters.
     Res HF approach, all parameters are optimized simultaneously.
@@ -69,16 +69,20 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
 
         return loss_value, params
 
-    # schedule
-    niter1 = int(MaxIter / 1.5)
-    niter2 = MaxIter - niter1
-    lrate2 = lrate / 2.
+    if schedule:
+        # schedule
+        niter1 = int(MaxIter / 1.5)
+        niter2 = MaxIter - niter1
+        lrate2 = lrate / 2.
 
-    # optimizer = optax.adam(learning_rate=lrate)
-    energy0, vecs = fit(init_tvecs, niter1, lrate)
-    print(f"Energy lowered: {energy0 - E0}")
-    energy, vecs = fit(vecs, niter2, lrate2)
-    print(f"Energy lowered: {energy - energy0}")
+        # optimizer = optax.adam(learning_rate=lrate)
+        energy0, vecs = fit(init_tvecs, niter1, lrate)
+        print(f"Energy lowered: {energy0 - E0}")
+        energy, vecs = fit(vecs, niter2, lrate2)
+        print(f"Energy lowered: {energy - energy0}")
+    else:
+        energy, vecs = fit(init_tvecs, MaxIter, lrate)
+ 
 
     return energy, vecs
 
