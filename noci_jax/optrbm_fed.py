@@ -157,7 +157,7 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
         for i in range(Niter):
             params, opt_state, loss_value = step(params, opt_state)
 
-            if (i+1) % print_step == 0:
+            if i % print_step == 0:
                 print(f'step {i+1}, Energy: {loss_value};')
 
         return loss_value, params

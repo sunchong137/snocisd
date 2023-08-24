@@ -64,7 +64,7 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         for i in range(Niter):
             params, opt_state, loss_value = step(params, opt_state)
 
-            if (i+1) % print_step == 0:
+            if i % print_step == 0:
                 print(f'step {i+1}, Energy: {loss_value};')
 
         return loss_value, params

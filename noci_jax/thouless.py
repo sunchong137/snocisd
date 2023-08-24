@@ -29,6 +29,7 @@ def gen_thouless_singles(nocc, nvir, max_nt=1, zmax=5, zmin=0.1):
     k = 0
     for i in range(d_occ): # occupied
         for j in range(d_vir): # virtual
+            # print(i, j)
             if k == max_nt:
                 break
             tmats[k, 0, i, j] = zmax 
@@ -97,7 +98,7 @@ def gen_thouless_random(nocc, nvir, max_nt):
 
     tmats = []
     for i in range(max_nt):
-        t = np.random.rand(2, nvir, nocc)
+        t = np.random.rand(2, nvir, nocc) - 0.5
         #t = np.random.normal(size=tshape)
         tmats.append(t)
 

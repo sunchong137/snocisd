@@ -173,7 +173,7 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
         for i in range(Niter):
             params, opt_state, loss_value = step(params, opt_state)
 
-            if (i+1) % print_step == 0:
+            if i % print_step == 0:
                 print(f'step {i+1}, Energy: {loss_value};')
 
         return loss_value, params
