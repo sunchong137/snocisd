@@ -1,7 +1,21 @@
+# Copyright 2023 by NOCI_Jax developers. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import rbm 
+from noci_jax import reshf
 
 
 def test_solve_lc():
@@ -20,7 +34,7 @@ def test_solve_lc():
     hmat = jnp.array(hmat)
     smat = jnp.array(smat)
 
-    e, v = rbm.solve_lc_coeffs(hmat, smat, return_vec=True)
+    e, v = reshf.solve_lc_coeffs(hmat, smat, return_vec=True)
     v = np.array(v)
 
     h = v.conj().T.dot(hmat).dot(v)
