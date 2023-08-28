@@ -9,7 +9,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 from jax import numpy as jnp
 import time
-from noci_jax import thouless, reshf, opt_rbm_fed_wbias
+from noci_jax import thouless, reshf, opt_rbm_fed_wbias, pyscf_helpers
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -23,15 +23,18 @@ mol.basis = "sto3g"
 mol.cart = True
 mol.build()
 
+break_symm = True
+
 # Mean-field calculation
 mf = scf.UHF(mol)
-mf.conv_tol = 1e-10
-# break symmetry
-init_guess = mf.get_init_guess()
-init_guess[0][0, 0] = 2
-mf.kernel(init_guess)
-e_hf = mf.energy_tot()
-print("UHF: ", e_hf)
+mf.kernel()
+if break_symm:
+    mo1 = mf.stability()[0]                                                             
+    init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
+    mf.kernel(init) 
+
+h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf) 
+norb, nocc, nvir, ao_ovlp, mo_coeff = pyscf_helpers.get_mos(mf)
 
 # # CCSD 
 # mycc = cc.CCSD(mf).run()  
@@ -44,17 +47,6 @@ print("UHF: ", e_hf)
 # print("CCSD(T): ", e_ccsdt)
 
 # NOCI res HF
-
-# First get values that will be used for NOCI
-norb = mol.nao # number of orbitals
-occ = mf.get_occ()
-nocc = int(np.sum(occ[0])) # number of occupied orbitals for spin up
-nvir = norb - nocc
-ao_ovlp = mol.intor_symmetric ('int1e_ovlp') # overlap matrix of AO orbitals
-h1e = mf.get_hcore()
-h2e = mol.intor('int2e')
-mo_coeff = np.asarray(mf.mo_coeff)
-e_nuc = mf.energy_nuc()
 
 
 # generate initial guess for thouless rotations
