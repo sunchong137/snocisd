@@ -196,6 +196,25 @@ def generalized_eigh(A, B):
 
     return e0, c0
 
+def make_rdm1(rmats, mo_coeff, lc_coeff):
+    '''
+    Make rdm1 in the AO basis.
+    '''
+    # first calculate metric and thus overlap
+    metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
+
+    # transition density matrices
+    inv_metrics = jnp.linalg.inv(metrics_all)
+    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+
+    top = jnp.einsum("n, m, nmsil -> sil", lc_coeff.conj(), lc_coeff, trdms) 
+    bot = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
+
+    return top/bot
+
+
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     '''
     Expand the H matrix and S matrix
