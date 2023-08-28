@@ -9,10 +9,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 from jax import numpy as jnp
 import time
-import sys 
-sys.path.append("..")
-sys.path.append(".")
-import thouless, rbm, opt_rbm_fed_wbias
+from noci_jax import thouless, reshf, opt_rbm_fed_wbias
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -66,7 +63,7 @@ MaxIter = 5000
 print_step = 1000
 tol=1e-10
 nsweep=1
-t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 = thouless.gen_init_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 += -thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets) * 0.5
 
 nvecs = len(t0)
@@ -80,7 +77,7 @@ E, vecs, bias_n = opt_rbm_fed_wbias.rbm_sweep(h1e, h2e, mo_coeff, nocc, vecs0, b
                                               E0=E0, nsweep=nsweep, MaxIter=MaxIter, print_step=print_step)
 # t2 = time.time()
 # print("Time used:", t2-t1)
-hidden_coeffs = rbm.hiddens_to_coeffs([0, 1], n_dets)
+hidden_coeffs = reshf.hiddens_to_coeffs([0, 1], n_dets)
 lc_coeffs = jnp.exp(hidden_coeffs.dot(bias_n))
 print(lc_coeffs)
 e_rbm = E + e_nuc

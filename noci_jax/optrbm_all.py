@@ -1,7 +1,7 @@
 import optax
 import jax
 import jax.numpy as jnp
-from noci_jax import rbm
+from noci_jax import reshf
 from jax.config import config
 # config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
@@ -31,7 +31,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
     lt = 2*nvir*nocc # 2 for spins
 
     # get expansion coefficients
-    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs, order=truncate)
+    coeff_hidden = reshf.hiddens_to_coeffs(hiddens, nvecs, order=truncate)
     coeff_hidden = jnp.array(coeff_hidden)
 
     if init_params is None:
@@ -42,16 +42,16 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
 
     def cost_func_no_bias(w):
         w_n = w.reshape(nvecs, -1)
-        rmats = rbm.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
-        e = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e)
+        rmats = reshf.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
+        e = reshf.rbm_energy(rmats, mo_coeff, h1e, h2e)
         return e
     
     def cost_func_bias(v):
         w_n = jnp.copy(v[:len_params]).reshape(nvecs, -1)
         b_n = jnp.copy(v[len_params:])
-        rmats = rbm.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
+        rmats = reshf.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
         lc_coeffs = jnp.exp(coeff_hidden.dot(b_n)) 
-        e = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, lc_coeffs=lc_coeffs)
+        e = reshf.rbm_energy(rmats, mo_coeff, h1e, h2e, lc_coeffs=lc_coeffs)
         return e
     
     if bias is None:

@@ -8,10 +8,9 @@ CCSD(T): -109.2863
 from pyscf import gto, scf, cc
 import numpy as np
 import sys 
-sys.path.append("..")
-import thouless
+from noci_jax import thouless
+from noci_jax import optnoci_all as optdets
 import time
-import optnoci_all as optdets
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -64,7 +63,7 @@ n_dets = 2
 niter = 8000
 print_step = 1000
 # t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
-t0 = thouless.gen_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)
+t0 = thouless.gen_init_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)
 
 # t0 = thouless.gen_thouless_doubles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
 # noise = thouless.gen_thouless_random(nocc, nvir, max_nt=n_dets)[:n_dets]

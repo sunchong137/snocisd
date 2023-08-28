@@ -4,7 +4,7 @@ import jax.numpy as jnp
 from jax.config import config
 # config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
-from noci_jax import rbm
+from noci_jax import reshf
 
 
 def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
@@ -40,13 +40,13 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
     rot_hf = jnp.array([[rot0_u, rot0_u]]) # the HF state
 
-    E0 = rbm.rbm_energy(rot_hf, mo_coeff, h1e, h2e, return_mats=False)
+    E0 = reshf.rbm_energy(rot_hf, mo_coeff, h1e, h2e, return_mats=False)
     
     def cost_func(t):
         tvecs = t.reshape(nvecs, -1)
-        rmats = rbm.tvecs_to_rmats(tvecs, nvir, nocc)
+        rmats = reshf.tvecs_to_rmats(tvecs, nvir, nocc)
         rmats = jnp.vstack([rot_hf, rmats])
-        e = rbm.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=False)
+        e = reshf.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=False)
         return e
 
     def fit(params: optax.Params, Niter: int, lrate) -> optax.Params:

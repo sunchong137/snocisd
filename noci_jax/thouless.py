@@ -2,7 +2,7 @@
 
 import numpy as np
 
-def gen_thouless_singles(nocc, nvir, max_nt=1, zmax=5, zmin=0.1, spin=0):
+def gen_init_singles(nocc, nvir, max_nt=1, zmax=5, zmin=0.1, spin=0):
 
     '''
     Generate near-single-excitation initial guesses.
