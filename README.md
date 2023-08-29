@@ -1,6 +1,7 @@
 NOCI with JAX
--------------
-Perform Non-configuration interaction with Jax.
+=============
+
+Perform non-configuration interaction with Jax.
 
 Author: Chong Sun [email](sunchong137@gmail.com)
 # Installation

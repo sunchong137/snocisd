@@ -56,7 +56,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
     rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
 
-    hmat, smat = reshf.rbm_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
+    hmat, smat = reshf.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
     e_hf = reshf.solve_lc_coeffs(hmat, smat)
     E0 = e_hf 
     if nvecs is None:
@@ -102,7 +102,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
             rmats_n = reshf.tvecs_to_rmats(init_tvecs, nvir, nocc)
             rmats_new = jnp.vstack([rmats_new, rmats_n])
         
-            E0 = reshf.rbm_energy(rmats_new, mo_coeff, h1e, h2e)
+            E0 = reshf.noci_energy(rmats_new, mo_coeff, h1e, h2e)
         return E0, init_tvecs
 
     mo_coeff = jnp.array(mo_coeff)
@@ -121,7 +121,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
     rmats_new = jnp.vstack([rmats_new, rmats_n])
     # Start sweeping
     if E0 is None:
-        E0 = reshf.rbm_energy(rmats_new, mo_coeff, h1e, h2e)
+        E0 = reshf.noci_energy(rmats_new, mo_coeff, h1e, h2e)
 
     e_hf = E0
 
@@ -132,7 +132,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
         for iter in range(nvecs):
             t0 = init_tvecs[iter]
             rmats_new = jnp.delete(rmats_new, 1, axis=0)
-            hmat0, smat0= reshf.rbm_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
+            hmat0, smat0= reshf.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
             E, t, = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
                                     hmat=hmat0, smat=smat0, MaxIter=MaxIter, 
                                     print_step=print_step, lrate=lrate, schedule=schedule)
@@ -159,7 +159,7 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
     nvir, nocc = tshape
 
     if hmat is None:
-        hmat, smat = reshf.rbm_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+        hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     def cost_func(t): 
         _t = jnp.array([t])
