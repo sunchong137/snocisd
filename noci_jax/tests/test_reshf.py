@@ -15,7 +15,8 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import reshf
+from noci_jax import reshf, pyscf_helpers 
+from pyscf import gto, scf
 
 
 def test_solve_lc():
@@ -44,4 +45,40 @@ def test_solve_lc():
     assert np.allclose(e, e2)
     assert np.allclose(v, vsla)
 
+
+def test_make_rdm1():
+    # construct molecule
+    mol = gto.Mole()
+    mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
+    mol.unit='angstrom'
+    mol.basis = "sto6g"
+
+    # mol.symmetry = True
+    mol.build()
+
+    mf = scf.UHF(mol)
+
+    # Hartree-Fock
+    mf.kernel(verbose=0, tol=1e-10)
+    e_ref = mf.e_tot
+    
+    # orthogonalize ao overlap matrix
+    h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf, ortho_ao=True)
+    mf.kernel(verbose=0, tol=1e-10)
+    
+    norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
+
+    t_vecs = np.random.rand(2, 2*nvir*nocc)-0.5
+    t_vecs[0] = 0
+
+    rmats = reshf.tvecs_to_rmats(t_vecs, nvir, nocc)
+    hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    energy, c = reshf.solve_lc_coeffs(hmat, smat, return_vec=True)
+    rmats = rmats.at[1].set(rmats[1]/np.sqrt(smat[0,0]))
+    rdm1 = reshf.make_rdm1(rmats, mo_coeff, c)
+    ne_a = np.sum(np.diag(rdm1[0]))
+    ne_b = np.sum(np.diag(rdm1[1]))
+
+    assert np.allclose(ne_a, 2)
+    assert np.allclose(ne_b, 2)
 
