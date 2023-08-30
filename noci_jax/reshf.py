@@ -135,7 +135,37 @@ def generalized_eigh(A, B):
 
 def make_rdm1(rmats, mo_coeff, lc_coeff):
     '''
-    Make rdm1 in the AO basis.
+    Make rdm1 of NOCI in the AO basis for UHF.
+    Return: array of size (2, N, N)
+    '''
+    # first calculate metric and thus overlap
+    metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
+
+    # transition density matrices
+    inv_metrics = jnp.linalg.inv(metrics_all)
+    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+    trdms = jnp.einsum("nmsij, nm -> nmsij", trdms, smat)
+
+    top = jnp.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, trdms) 
+    bot = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
+
+    return top/bot
+
+def make_rdm2(rmats, mo_coeff, lc_coeff):
+    '''
+    Make 2RDM given an NOCI.
+    Return: (p,q,r,s) = <a^dag_p a^dag_q a_r a_s>
+    '''
+    pass 
+
+def corr_spin(rmats, mo_coeff, lc_coeff):
+    '''
+    Evaluate <n_iup, n_jdn> = <a^dag_iup a_iup a^dag_jdn a_jdn> 
+     <iijj> = <ijji>
+    With one determinant
+    <ijji> = <ii><jj> 
     '''
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
@@ -146,11 +176,9 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
     sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
 
-    top = jnp.einsum("n, m, nmsil -> sil", lc_coeff.conj(), lc_coeff, trdms) 
-    bot = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
-
-    return top/bot
-
+    trdm_u = trdms[:, :, 0]
+    trdm_d = trdms[:, :, 1]
+    print(trdm_u.shape)
 
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     '''

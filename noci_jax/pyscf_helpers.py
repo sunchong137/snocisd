@@ -16,12 +16,31 @@ Interface to PySCF.
 Only support unrestricted spin symmetry.
 '''
 import numpy as np
+from scipy import linalg as sla
+from pyscf import ao2mo
 
-def get_integrals(mf):
+def get_integrals(mf, ortho_ao=False):
+    '''
+    Return essential values needed for NOCI calculations.
+    '''
     h1e = mf.get_hcore()
     h2e = mf.mol.intor('int2e')
     e_nuc = mf.energy_nuc()
+    
+
+    if ortho_ao:
+        norb = mf.mol.nao
+        ao_ovlp = mf.mol.intor_symmetric ('int1e_ovlp')
+        trans_m = sla.inv(sla.sqrtm(ao_ovlp))
+        h1e = trans_m @ h1e @ trans_m # trans_m.T = trans_m 
+        h2e = ao2mo.incore.full(h2e, trans_m)
+        # update the values 
+        mf.get_hcore = lambda *args: h1e     
+        mf._eri = ao2mo.restore(8, h2e, norb)                             
+        mf.get_ovlp = lambda *args: np.eye(norb)                        
+
     return h1e, h2e, e_nuc    
+
 
 def get_mos(mf):
     norb = mf.mol.nao # number of orbitals
@@ -32,3 +51,18 @@ def get_mos(mf):
     mo_coeff = np.asarray(mf.mo_coeff)
 
     return norb, nocc, nvir, ao_ovlp, mo_coeff
+
+
+# def ortho_integrals(h1e, h2e, ao_ovlp):
+#     '''
+#     Rotate h1e and h2e to the orthogonal AO basis.
+#     '''
+    
+#     ortho_ao = sla.sqrtm(ao_ovlp)
+#     trans_m = sla.inv(ortho_ao)
+
+#     h1e = trans_m @ h1e @ trans_m # trans_m.T = trans_m 
+#     h2e = ao2mo.incore.full(h2e, trans_m)
+#     # h2e = np.einsum("pi, qj, ijkl, kr, ls -> pqrs", trans_m, trans_m, h2e, trans_m, trans_m)
+
+#     return h1e, h2e
