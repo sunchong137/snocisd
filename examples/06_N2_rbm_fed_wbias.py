@@ -8,8 +8,8 @@ CCSD(T): -109.2863
 from pyscf import gto, scf, cc
 import numpy as np
 from jax import numpy as jnp
-import time
-from noci_jax import thouless, reshf, opt_rbm_fed_wbias, pyscf_helpers
+from noci_jax import thouless, pyscf_helpers
+from noci_jax.rbm import opt_rbm_fed_wbias, rbm_vecs
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -34,7 +34,7 @@ if break_symm:
     mf.kernel(init) 
 
 h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf) 
-norb, nocc, nvir, ao_ovlp, mo_coeff = pyscf_helpers.get_mos(mf)
+norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
 
 # # CCSD 
 # mycc = cc.CCSD(mf).run()  
@@ -69,7 +69,7 @@ E, vecs, bias_n = opt_rbm_fed_wbias.rbm_sweep(h1e, h2e, mo_coeff, nocc, vecs0, b
                                               E0=E0, nsweep=nsweep, MaxIter=MaxIter, print_step=print_step)
 # t2 = time.time()
 # print("Time used:", t2-t1)
-hidden_coeffs = reshf.hiddens_to_coeffs([0, 1], n_dets)
+hidden_coeffs = rbm_vecs.hiddens_to_coeffs([0, 1], n_dets)
 lc_coeffs = jnp.exp(hidden_coeffs.dot(bias_n))
 print(lc_coeffs)
 e_rbm = E + e_nuc

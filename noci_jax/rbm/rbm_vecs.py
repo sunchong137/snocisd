@@ -54,8 +54,6 @@ def params_to_rmats(vecs, nvir, nocc, coeffs):
     return rmats
 
 
-
-
 def hiddens_to_coeffs_general(hiddens, nvecs, order=None):
     '''
     Generate all possible combinations of the nvecs of hidden variables.

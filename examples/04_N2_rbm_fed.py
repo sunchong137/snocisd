@@ -5,10 +5,9 @@ CCSD: -109.2740
 CCSD(T): -109.2863
 '''
 
-from pyscf import gto, scf, cc
-import numpy as np
-import time
-from noci_jax import thouless, optrbm_fed, pyscf_helpers
+from pyscf import gto, scf
+from noci_jax import thouless, pyscf_helpers
+from noci_jax.rbm import optrbm_fed
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -45,7 +44,7 @@ if break_symm:
 # NOCI res HF
 
 h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf) 
-norb, nocc, nvir, ao_ovlp, mo_coeff = pyscf_helpers.get_mos(mf)
+norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
 
 
 # generate initial guess for thouless rotations

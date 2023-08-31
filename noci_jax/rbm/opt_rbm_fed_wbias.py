@@ -15,7 +15,8 @@
 
 # hiddens are always [0, 1]
 import numpy as np
-from noci_jax import reshf, rbm
+from noci_jax import reshf
+from noci_jax.rbm import rbm_vecs
 import optax
 import jax
 import jax.numpy as jnp
@@ -71,7 +72,7 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIte
         de = e - E0
         E0 = e
         print(f"##### Done optimizing determinant {iter+1}, energy lowered {de} #####")
-        new_tvecs = rbm.add_vec_rbm(w, opt_tvecs) # new Thouless vectors from adding this RBM vector
+        new_tvecs = rbm_vecs.add_vec_rbm(w, opt_tvecs) # new Thouless vectors from adding this RBM vector
         opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
         opt_lc = jnp.concatenate([opt_lc, opt_lc + b])
         # update hmat and smat
@@ -88,7 +89,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
               nsweep=1, MaxIter=5000, print_step=1000):
 
     nvecs = len(init_params)
-    coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs-1)
+    coeff_hidden = rbm_vecs.hiddens_to_coeffs(hiddens, nvecs-1)
     coeff_hidden = jnp.array(coeff_hidden)
 
     if nsweep < 1 or nvecs < 2:
@@ -96,9 +97,9 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
         print("Number of new determinants needs to be > !")
         print("No sweep performed.")
         if E0 is None:
-            coeff_hidden = rbm.hiddens_to_coeffs(hiddens, nvecs)
+            coeff_hidden = rbm_vecs.hiddens_to_coeffs(hiddens, nvecs)
             coeff_hidden = jnp.array(coeff_hidden)
-            rmats = rbm.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
+            rmats = rbm_vecs.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
             E0 = reshf.noci_energy(rmats, mo_coeff, h1e, h2e)
         return E0, init_params
     
@@ -110,7 +111,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
     nvir = norb - nocc
     tshape = (nvir, nocc)
     if E0 is None:
-        rmats = rbm.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
+        rmats = rbm_vecs.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
         E0 = reshf.noci_energy(rmats, mo_coeff, h1e, h2e)
     
     print("Start sweeping...")
@@ -123,8 +124,8 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
             b0 = bias[iter]
             params_fix = jnp.delete(init_params, iter, axis=0)
             bias_fix = jnp.delete(bias, iter, axis=0)
-            fixed_vecs = rbm.expand_vecs(params_fix, coeff_hidden) 
-            fixed_lc = rbm.expand_vecs(bias_fix, coeff_hidden) 
+            fixed_vecs = rbm_vecs.expand_vecs(params_fix, coeff_hidden) 
+            fixed_lc = rbm_vecs.expand_vecs(bias_fix, coeff_hidden) 
             E, v = opt_one_rbmvec(w0, b0, fixed_vecs, fixed_lc, h1e, h2e, mo_coeff, tshape,
                                 hmat=None, smat=None, MaxIter=MaxIter, print_step=print_step)
             de = E - E0
@@ -162,7 +163,7 @@ def opt_one_rbmvec(vec0, bias0, tvecs, coeffs, h1e, h2e, mo_coeff, tshape,
     def cost_func(v):
         w = v[:-1]
         b = v[-1]
-        tvecs_n = rbm.add_vec_rbm(w, tvecs) # newly added Thouless vectors
+        tvecs_n = rbm_vecs.add_vec_rbm(w, tvecs) # newly added Thouless vectors
         lc_n = coeffs + b
         lc_coeffs = jnp.concatenate([coeffs, lc_n])
         lc_coeffs = jnp.exp(lc_coeffs)

@@ -6,10 +6,11 @@ CCSD(T): -109.2863
 NOTE:  Carlos used Cartessian basis with Gaussian -> mol.cart = True
 '''
 
-from pyscf import gto, scf, cc
+from pyscf import gto, scf
 import numpy as np
-from noci_jax import thouless, optrbm_all
-from noci_jax import pyscf_helpers
+from noci_jax import thouless, pyscf_helpers
+from noci_jax.rbm import optrbm_all
+
 
 # set up the system with pyscf
 bond_length = 1.09768
@@ -48,7 +49,7 @@ if break_symm:
 
 # NOCI res HF
 h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf) 
-norb, nocc, nvir, ao_ovlp, mo_coeff = pyscf_helpers.get_mos(mf)
+norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
 
 # generate initial guess for thouless rotations
 n_nodes = 2

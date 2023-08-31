@@ -19,7 +19,7 @@ N   0   0   0
 N   0   0   {}
 '''.format(bond_length)
 mol.unit = "angstrom"
-mol.basis = "ccpvdz"
+mol.basis = "sto6g"
 mol.symmetry=1
 mol.build()
 
@@ -47,7 +47,7 @@ if break_symm:
 # NOCI res HF
 
 h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf) 
-norb, nocc, nvir, ao_ovlp, mo_coeff = pyscf_helpers.get_mos(mf)
+norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
  
 
 n_dets = 2
