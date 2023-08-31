@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import reshf, pyscf_helpers 
+from noci_jax import slater, pyscf_helpers 
 from pyscf import gto, scf
 
 
@@ -35,7 +35,7 @@ def test_solve_lc():
     hmat = jnp.array(hmat)
     smat = jnp.array(smat)
 
-    e, v = reshf.solve_lc_coeffs(hmat, smat, return_vec=True)
+    e, v = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
     v = np.array(v)
 
     h = v.conj().T.dot(hmat).dot(v)
@@ -71,11 +71,11 @@ def test_make_rdm1():
     t_vecs = np.random.rand(2, 2*nvir*nocc)-0.5
     t_vecs[0] = 0
 
-    rmats = reshf.tvecs_to_rmats(t_vecs, nvir, nocc)
-    hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
-    energy, c = reshf.solve_lc_coeffs(hmat, smat, return_vec=True)
+    rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
+    hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    energy, c = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
     rmats = rmats.at[1].set(rmats[1]/np.sqrt(smat[0,0]))
-    rdm1 = reshf.make_rdm1(rmats, mo_coeff, c)
+    rdm1 = slater.make_rdm1(rmats, mo_coeff, c)
     ne_a = np.sum(np.diag(rdm1[0]))
     ne_b = np.sum(np.diag(rdm1[1]))
 
@@ -108,12 +108,12 @@ def test_make_rdm12s():
     t_vecs = np.random.rand(1, 2*nvir*nocc)-0.5
     t_vecs[0] = 0
 
-    rmats = reshf.tvecs_to_rmats(t_vecs, nvir, nocc)
-    hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
-    energy, c = reshf.solve_lc_coeffs(hmat, smat, return_vec=True)
+    rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
+    hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    energy, c = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
     rmats = rmats.at[1].set(rmats[1]/np.sqrt(smat[0,0]))
-    rdm1s, rdm2s = reshf.make_rdm12(rmats, mo_coeff, c)
-    # rdm1 = reshf.make_rdm1(rmats, mo_coeff, c)
+    rdm1s, rdm2s = slater.make_rdm12(rmats, mo_coeff, c)
+    # rdm1 = slater.make_rdm1(rmats, mo_coeff, c)
     ne_a = np.sum(np.diag(rdm1s[0]))
     ne_b = np.sum(np.diag(rdm1s[1]))
 

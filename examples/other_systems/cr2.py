@@ -3,9 +3,9 @@ import numpy as np
 import time
 import sys 
 sys.path.append("../..")
-import rbm
+import thouless
 import time
-import optnoci_all as optdets
+import opt_res as optdets
 
 mol = gto.Mole()
 a = 2.0
@@ -40,7 +40,7 @@ e_nuc = mf.energy_nuc()
 # generate initial guess for thouless rotations
 n_dets = 1
 niter = 500
-t0 = rbm.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
+t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=10, zmin=0.1)[:n_dets]
 t0 = t0.reshape(n_dets, -1)
 # RES HF
 t1 = time.time()

@@ -15,7 +15,7 @@
 
 # hiddens are always [0, 1]
 import numpy as np
-from noci_jax import reshf
+from noci_jax import slater
 from noci_jax.rbm import rbm_vecs
 import optax
 import jax
@@ -49,14 +49,14 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIte
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
     rot_hf = jnp.array([[rot0_u, rot0_u]]) # the HF state
 
-    E0 = reshf.noci_energy(rot_hf, mo_coeff, h1e, h2e)
+    E0 = slater.noci_energy(rot_hf, mo_coeff, h1e, h2e)
     e_hf = E0
 
     opt_tvecs = jnp.array([np.zeros(2*nvir*nocc)]) # All Thouless vectors
     opt_lc = jnp.array([0]) # all optimized lc_coeffs (ln)
 
-    rmats = reshf.tvecs_to_rmats(opt_tvecs, nvir, nocc)
-    hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    rmats = slater.tvecs_to_rmats(opt_tvecs, nvir, nocc)
+    hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     print("Start RBM FED...")
     for iter in range(nvecs):
@@ -76,8 +76,8 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, MaxIte
         opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
         opt_lc = jnp.concatenate([opt_lc, opt_lc + b])
         # update hmat and smat
-        rmats_n = reshf.tvecs_to_rmats(new_tvecs, nvir, nocc)
-        hmat, smat = reshf.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        rmats_n = slater.tvecs_to_rmats(new_tvecs, nvir, nocc)
+        hmat, smat = slater.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
 
 
@@ -100,7 +100,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
             coeff_hidden = rbm_vecs.hiddens_to_coeffs(hiddens, nvecs)
             coeff_hidden = jnp.array(coeff_hidden)
             rmats = rbm_vecs.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
-            E0 = reshf.noci_energy(rmats, mo_coeff, h1e, h2e)
+            E0 = slater.noci_energy(rmats, mo_coeff, h1e, h2e)
         return E0, init_params
     
     mo_coeff = jnp.array(mo_coeff)
@@ -112,7 +112,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, bias, E0=None, hiddens=[0,1
     tshape = (nvir, nocc)
     if E0 is None:
         rmats = rbm_vecs.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
-        E0 = reshf.noci_energy(rmats, mo_coeff, h1e, h2e)
+        E0 = slater.noci_energy(rmats, mo_coeff, h1e, h2e)
     
     print("Start sweeping...")
     for isw in range(nsweep):
@@ -153,10 +153,10 @@ def opt_one_rbmvec(vec0, bias0, tvecs, coeffs, h1e, h2e, mo_coeff, tshape,
         1D array: optimized RBM vector.
     '''
     nvir, nocc = tshape
-    rmats = reshf.tvecs_to_rmats(tvecs, nvir, nocc)
+    rmats = slater.tvecs_to_rmats(tvecs, nvir, nocc)
 
     if hmat is None: # assume smat is also None
-        hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+        hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     tvecs = jnp.array(tvecs)
 
@@ -167,8 +167,8 @@ def opt_one_rbmvec(vec0, bias0, tvecs, coeffs, h1e, h2e, mo_coeff, tshape,
         lc_n = coeffs + b
         lc_coeffs = jnp.concatenate([coeffs, lc_n])
         lc_coeffs = jnp.exp(lc_coeffs)
-        rmats_n = reshf.tvecs_to_rmats(tvecs_n, nvir, nocc)
-        hm, sm = reshf.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        rmats_n = slater.tvecs_to_rmats(tvecs_n, nvir, nocc)
+        hm, sm = slater.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         h = lc_coeffs.conj().T.dot(hm).dot(lc_coeffs)
         s = lc_coeffs.conj().T.dot(sm).dot(lc_coeffs)
         e = h/s

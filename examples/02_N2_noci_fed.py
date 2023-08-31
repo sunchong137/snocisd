@@ -9,7 +9,7 @@ from pyscf import gto, scf, cc
 import numpy as np
 import sys 
 from noci_jax import thouless, pyscf_helpers
-from noci_jax import optnoci_fed as optdets
+from noci_jax import opt_fed as optdets
 
 # set up the system with pyscf
 bond_length = 1.09768

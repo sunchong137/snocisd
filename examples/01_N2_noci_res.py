@@ -7,7 +7,7 @@ CCSD(T): -109.2863
 
 from pyscf import gto, scf
 from noci_jax import thouless, pyscf_helpers
-from noci_jax import optnoci_all as optdets
+from noci_jax import opt_res as optdets
 import time
 
 # set up the system with pyscf

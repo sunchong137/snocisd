@@ -15,7 +15,7 @@
 import optax
 import jax
 import jax.numpy as jnp
-from noci_jax import reshf
+from noci_jax import slater
 from noci_jax.rbm import rbm_vecs
 from jax.config import config
 # config.update("jax_debug_nans", True)
@@ -58,7 +58,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
     def cost_func_no_bias(w):
         w_n = w.reshape(nvecs, -1)
         rmats = rbm_vecs.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
-        e = reshf.noci_energy(rmats, mo_coeff, h1e, h2e)
+        e = slater.noci_energy(rmats, mo_coeff, h1e, h2e)
         return e
     
     def cost_func_bias(v):
@@ -66,7 +66,7 @@ def rbm_all(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None, bias=None, hidden
         b_n = jnp.copy(v[len_params:])
         rmats = rbm_vecs.params_to_rmats(w_n, nvir, nocc, coeff_hidden)
         lc_coeffs = jnp.exp(coeff_hidden.dot(b_n)) 
-        e = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, lc_coeffs=lc_coeffs)
+        e = slater.noci_energy(rmats, mo_coeff, h1e, h2e, lc_coeffs=lc_coeffs)
         return e
     
     if bias is None:

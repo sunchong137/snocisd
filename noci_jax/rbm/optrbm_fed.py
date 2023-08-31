@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from noci_jax import reshf
+from noci_jax import slater
 from noci_jax.rbm import rbm_vecs
 import optax
 import jax
@@ -44,13 +44,13 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None,
     rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
     rot_hf = jnp.array([[rot0_u, rot0_u]]) # the HF state
 
-    E0 = reshf.noci_energy(rot_hf, mo_coeff, h1e, h2e)
+    E0 = slater.noci_energy(rot_hf, mo_coeff, h1e, h2e)
     e_hf = E0
 
     opt_tvecs = jnp.array([np.zeros(2*nvir*nocc)]) # All Thouless vectors
 
-    rmats = reshf.tvecs_to_rmats(opt_tvecs, nvir, nocc)
-    hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    rmats = slater.tvecs_to_rmats(opt_tvecs, nvir, nocc)
+    hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     print("Start RBM FED...")
     for iter in range(nvecs):
@@ -67,8 +67,8 @@ def rbm_fed(h1e, h2e, mo_coeff, nocc, nvecs, init_params=None,
         new_tvecs = rbm_vecs.add_vec_rbm(w, opt_tvecs) # new Thouless vectors from adding this RBM vector
         opt_tvecs = jnp.vstack([opt_tvecs, new_tvecs])
         # update hmat and smat
-        rmats_n = reshf.tvecs_to_rmats(new_tvecs, nvir, nocc)
-        hmat, smat = reshf.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        rmats_n = slater.tvecs_to_rmats(new_tvecs, nvir, nocc)
+        hmat, smat = slater.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
         rmats = jnp.vstack([rmats, rmats_n])
 
     print("Total energy lowered: {}".format(e - e_hf))
@@ -87,7 +87,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
             coeff_hidden = rbm_vecs.hiddens_to_coeffs(hiddens, nvecs)
             coeff_hidden = jnp.array(coeff_hidden)
             rmats = rbm_vecs.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
-            E0 = reshf.noci_energy(rmats, mo_coeff, h1e, h2e)
+            E0 = slater.noci_energy(rmats, mo_coeff, h1e, h2e)
         return E0, init_params
     
     coeff_hidden = rbm_vecs.hiddens_to_coeffs(hiddens, nvecs-1)
@@ -102,7 +102,7 @@ def rbm_sweep(h1e, h2e, mo_coeff, nocc, init_params, E0=None, hiddens=[0,1],
     tshape = (nvir, nocc)
     if E0 is None:
         rmats = rbm_vecs.params_to_rmats(init_params, nvir, nocc, coeff_hidden)
-        E0 = reshf.noci_energy(rmats, mo_coeff, h1e, h2e)
+        E0 = slater.noci_energy(rmats, mo_coeff, h1e, h2e)
     
     print("Start sweeping...")
     for isw in range(nsweep):
@@ -141,17 +141,17 @@ def opt_one_rbmvec(vec0, tvecs, h1e, h2e, mo_coeff, tshape,
         1D array: optimized RBM vector.
     '''
     nvir, nocc = tshape
-    rmats = reshf.tvecs_to_rmats(tvecs, nvir, nocc)
+    rmats = slater.tvecs_to_rmats(tvecs, nvir, nocc)
 
     if hmat is None: # assume smat is also None
-        hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+        hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     tvecs = jnp.array(tvecs)
     def cost_func(w):
         tvecs_n = rbm_vecs.add_vec_rbm(w, tvecs) # newly added Thouless vectors
-        rmats_n = reshf.tvecs_to_rmats(tvecs_n, nvir, nocc)
-        hm, sm = reshf.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
-        e = reshf.solve_lc_coeffs(hm, sm)
+        rmats_n = slater.tvecs_to_rmats(tvecs_n, nvir, nocc)
+        hm, sm = slater.expand_hs(hmat, smat, rmats_n, rmats, h1e, h2e, mo_coeff)
+        e = slater.solve_lc_coeffs(hm, sm)
         return e
 
     init_params = jnp.array(vec0)
