@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import slater, pyscf_helpers 
+from noci_jax import slater, pyscf_helpers, opt_res 
 from pyscf import gto, scf
 
 
@@ -68,13 +68,11 @@ def test_make_rdm1():
     
     norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
 
-    t_vecs = np.random.rand(2, 2*nvir*nocc)-0.5
-    t_vecs[0] = 0
+    t_vecs = np.load("./data/h4_tvec5.npy")
 
     rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
     hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
     energy, c = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
-    rmats = rmats.at[1].set(rmats[1]/np.sqrt(smat[0,0]))
     rdm1 = slater.make_rdm1(rmats, mo_coeff, c)
     ne_a = np.sum(np.diag(rdm1[0]))
     ne_b = np.sum(np.diag(rdm1[1]))
@@ -82,7 +80,7 @@ def test_make_rdm1():
     assert np.allclose(ne_a, 2)
     assert np.allclose(ne_b, 2)
 
-
+test_make_rdm1()
 def test_make_rdm12s():
     # construct molecule
     mol = gto.Mole()

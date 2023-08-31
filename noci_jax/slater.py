@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-import itertools
 import jax.numpy as jnp
 from jax.config import config
 config.update("jax_enable_x64", True)
 
 
 def tvecs_to_rmats(tvecs, nvir, nocc):
+    '''
+    Transform Thouless vectors into rotation matrices.
+    '''
 
     vecs_all = tvecs.reshape(-1, nvir, nocc)
     nvecs = vecs_all.shape[0]
@@ -56,7 +57,6 @@ def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None):
     E2 = E2J - E2K
 
     hmat = (E1 + 0.5*E2) * smat
-
     if return_mats:
         return hmat, smat
     else:
@@ -95,7 +95,6 @@ def gen_hmat(rmats1, rmats2, mo_coeff, h1e, h2e):
     E2K = jnp.einsum("nmsij, nmsji ->nm", K, trdms)
 
     E2 = E2J - E2K
-
     hmat = (E1 + 0.5*E2) * smat
    
     return hmat, smat
@@ -115,23 +114,13 @@ def solve_lc_coeffs(hmat, smat, return_vec=False):
         A 1D numpy array of size (n**d,), linear combination coefficient
 
     '''
-    energy, c = generalized_eigh(hmat, smat)
+    energy, c = _generalized_eigh(hmat, smat)
 
     if return_vec:
         return energy, c
     else:
         return energy
     
-def generalized_eigh(A, B):
-    L = jnp.linalg.cholesky(B)
-    L_inv = jnp.linalg.inv(L)
-    A_redo = L_inv.dot(A).dot(L_inv.T)
-    e, v = jnp.linalg.eigh(A_redo)
-    e0 = e[0]
-    v0 = v[:, 0]
-    c0 = L_inv.T.dot(v0) # rotate back 
-
-    return e0, c0
 
 def make_rdm1(rmats, mo_coeff, lc_coeff):
     '''
@@ -152,6 +141,7 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
     bot = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
 
     return top/bot
+
 
 def make_rdm12(rmats, mo_coeff, lc_coeff):
     '''
@@ -189,28 +179,6 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     return dm1s/phi_norm, dm2s/phi_norm
 
 
-
-def corr_spin(rmats, mo_coeff, lc_coeff):
-    '''
-    Evaluate <n_iup, n_jdn> = <a^dag_iup a_iup a^dag_jdn a_jdn> 
-     <iijj> = <ijji>
-    With one determinant
-    <ijji> = <ii><jj> 
-    '''
-    # first calculate metric and thus overlap
-    metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
-    smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
-
-    # transition density matrices
-    inv_metrics = jnp.linalg.inv(metrics_all)
-    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
-
-    trdm_u = trdms[:, :, 0]
-    trdm_d = trdms[:, :, 1]
-    print(trdm_u.shape)
-    #TODO
-
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     '''
     Expand the H matrix and S matrix
@@ -243,6 +211,16 @@ def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
 
     return hm, sm
 
+def _generalized_eigh(A, B):
+    L = jnp.linalg.cholesky(B)
+    L_inv = jnp.linalg.inv(L)
+    A_redo = L_inv.dot(A).dot(L_inv.T)
+    e, v = jnp.linalg.eigh(A_redo)
+    e0 = e[0]
+    v0 = v[:, 0]
+    c0 = L_inv.T.dot(v0) # rotate back 
+
+    return e0, c0
 
 if __name__ == "__main__":
     print("Main function:\n")
