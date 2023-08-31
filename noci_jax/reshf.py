@@ -153,12 +153,42 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
 
     return top/bot
 
-def make_rdm2(rmats, mo_coeff, lc_coeff):
+def make_rdm12(rmats, mo_coeff, lc_coeff):
     '''
     Make 2RDM given an NOCI.
-    Return: (p,q,r,s) = <a^dag_p a^dag_q a_r a_s>
+    Return: (p,q,r,s) = <a^dag_p a_q a^_r a_s>
+    order: uuuu, uudd, dduu, dddd
+
     '''
-    pass 
+    metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
+
+    # transition density matrices
+    inv_metrics = jnp.linalg.inv(metrics_all)
+    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+    dm1s = jnp.einsum("nmsij, nm -> nmsij", trdms, smat)
+    dm1_u = trdms[:, :, 0]
+    dm1_d = trdms[:, :, 1]
+    dm2s_uu = jnp.einsum("nmij, nmkl -> nmijkl", dm1_u, dm1_u) \
+             - jnp.einsum("nmil, nmkj -> nmijkl", dm1_u, dm1_u)
+    dm2s_dd = jnp.einsum("nmij, nmkl -> nmijkl", dm1_d, dm1_d) \
+             - jnp.einsum("nmil, nmkj -> nmijkl", dm1_d, dm1_d)
+    dm2s_ud = jnp.einsum("nmij, nmkl -> nmijkl", dm1_u, dm1_d)
+    dm2s_du = jnp.einsum("nmij, nmkl -> nmijkl", dm1_d, dm1_u)
+
+    dm2s = jnp.array([dm2s_uu, dm2s_ud, dm2s_du, dm2s_dd])
+    dm2s = jnp.einsum("snmijkl, nm -> snmijkl", dm2s, smat)
+
+    dm1s = jnp.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
+    dm2s = jnp.einsum("n, m, snmijkl -> sijkl", lc_coeff.conj(), lc_coeff, dm2s)
+
+
+    phi_norm = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
+
+    return dm1s/phi_norm, dm2s/phi_norm
+
+
 
 def corr_spin(rmats, mo_coeff, lc_coeff):
     '''
@@ -179,6 +209,7 @@ def corr_spin(rmats, mo_coeff, lc_coeff):
     trdm_u = trdms[:, :, 0]
     trdm_d = trdms[:, :, 1]
     print(trdm_u.shape)
+    #TODO
 
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     '''

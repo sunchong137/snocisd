@@ -82,3 +82,51 @@ def test_make_rdm1():
     assert np.allclose(ne_a, 2)
     assert np.allclose(ne_b, 2)
 
+
+def test_make_rdm12s():
+    # construct molecule
+    mol = gto.Mole()
+    mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
+    mol.unit='angstrom'
+    mol.basis = "sto6g"
+
+    # mol.symmetry = True
+    mol.build()
+
+    mf = scf.UHF(mol)
+
+    # Hartree-Fock
+    mf.kernel(verbose=0, tol=1e-10)
+    e_ref = mf.e_tot
+    
+    # orthogonalize ao overlap matrix
+    h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf, ortho_ao=True)
+    mf.kernel(verbose=0, tol=1e-10)
+    
+    norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
+
+    t_vecs = np.random.rand(1, 2*nvir*nocc)-0.5
+    t_vecs[0] = 0
+
+    rmats = reshf.tvecs_to_rmats(t_vecs, nvir, nocc)
+    hmat, smat = reshf.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    energy, c = reshf.solve_lc_coeffs(hmat, smat, return_vec=True)
+    rmats = rmats.at[1].set(rmats[1]/np.sqrt(smat[0,0]))
+    rdm1s, rdm2s = reshf.make_rdm12(rmats, mo_coeff, c)
+    # rdm1 = reshf.make_rdm1(rmats, mo_coeff, c)
+    ne_a = np.sum(np.diag(rdm1s[0]))
+    ne_b = np.sum(np.diag(rdm1s[1]))
+
+    dm2_hf = mf.make_rdm2()
+
+    assert np.allclose(dm2_hf[0], rdm2s[0])
+    assert np.allclose(dm2_hf[1], rdm2s[1]) 
+    assert np.allclose(dm2_hf[2], rdm2s[3])
+
+    E1 = jnp.einsum("ij, sji ->", h1e, rdm1s)
+    E2 = jnp.einsum("ijkl, sjilk ->", h2e, rdm2s)
+    E = E1 + 0.5*E2
+
+    assert np.allclose(E, mf.energy_elec()[0])
+
+# test_make_rdm12s()

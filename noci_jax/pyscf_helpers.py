@@ -43,14 +43,14 @@ def get_integrals(mf, ortho_ao=False):
 
 
 def get_mos(mf):
+
     norb = mf.mol.nao # number of orbitals
     occ = mf.get_occ()
     nocc = int(np.sum(occ[0])) # number of occupied orbitals for spin up
     nvir = norb - nocc
-    ao_ovlp = mf.mol.intor_symmetric ('int1e_ovlp') # overlap matrix of AO orbitals
     mo_coeff = np.asarray(mf.mo_coeff)
 
-    return norb, nocc, nvir, ao_ovlp, mo_coeff
+    return norb, nocc, nvir, mo_coeff
 
 
 # def ortho_integrals(h1e, h2e, ao_ovlp):
