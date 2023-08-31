@@ -54,8 +54,5 @@ def test_corr_spin():
 
     c_spin_dms = analysis.corr_spin_dms(dm1s, rdm2s[1])
 
-    print(c_spin_det)
-    print(c_spin_dms)
-    # print(c_spin_det - c_spin_dms)
+    assert np.allclose(c_spin_det, c_spin_dms)
 
-test_corr_spin()

@@ -31,19 +31,19 @@ def corr_spin_state(rmats, mo_coeff, lc_coeff):
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
     inv_metrics = jnp.linalg.inv(metrics_all)
     sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    # trans rdm1s
+    tdm1s_diag = jnp.einsum("msij, nmsjk, nsik -> nmsi", sdets, inv_metrics, sdets.conj())
 
     # evaluate <n_iup> and <n_jdn>
-    tdm1s_diag = jnp.einsum("msij, nmsjk, nsik -> nmsi", sdets, inv_metrics, sdets.conj())
-    dm1_diag = jnp.einsum("nmsi, nm -> nmsi", tdm1s_diag, smat)
-    dm1_diag = jnp.einsum("n, m, nmsi -> si", lc_coeff.conj(), lc_coeff, dm1_diag) 
+    dm1_diag = jnp.einsum("n, m, nmsi, nm -> si", lc_coeff.conj(), lc_coeff, tdm1s_diag, smat)
 
     # evaluate <n_iup n_jdn>
     tdm_diag_u = tdm1s_diag[:, :, 0]
     tdm_diag_d = tdm1s_diag[:, :, 1]
-    dm2_ud_diag = jnp.einsum("nmi, nmj -> nmij", tdm_diag_u, tdm_diag_d)
-    dm2_ud_diag = jnp.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, dm2_ud_diag) 
-    phi_norm = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
+    dm2_ud_diag = jnp.einsum("n, m, nmi, nmj, nm -> ij", lc_coeff.conj(), lc_coeff, tdm_diag_u, tdm_diag_d, smat)
+    # dm2_ud_diag = jnp.einsum("nmij, nm -> ij",  dm2_ud_diag, smat)
 
+    phi_norm = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
     dm1_diag = dm1_diag / phi_norm 
     dm2_ud_diag = dm2_ud_diag / phi_norm
 
