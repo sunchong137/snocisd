@@ -53,16 +53,11 @@ def get_mos(mf):
     return norb, nocc, nvir, mo_coeff
 
 
-# def ortho_integrals(h1e, h2e, ao_ovlp):
-#     '''
-#     Rotate h1e and h2e to the orthogonal AO basis.
-#     '''
-    
-#     ortho_ao = sla.sqrtm(ao_ovlp)
-#     trans_m = sla.inv(ortho_ao)
-
-#     h1e = trans_m @ h1e @ trans_m # trans_m.T = trans_m 
-#     h2e = ao2mo.incore.full(h2e, trans_m)
-#     # h2e = np.einsum("pi, qj, ijkl, kr, ls -> pqrs", trans_m, trans_m, h2e, trans_m, trans_m)
-
-#     return h1e, h2e
+def run_stab_scf(mf):
+    '''
+    Stabalized HF.
+    '''
+    mf.kernel()
+    mo1 = mf.stability()[0]                                                             
+    init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
+    mf.kernel(init) 

@@ -80,7 +80,6 @@ def test_make_rdm1():
     assert np.allclose(ne_a, 2)
     assert np.allclose(ne_b, 2)
 
-test_make_rdm1()
 def test_make_rdm12s():
     # construct molecule
     mol = gto.Mole()
