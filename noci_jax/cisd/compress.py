@@ -18,7 +18,7 @@ Compress the linear combinations of CISD with NOCI.
 import numpy as np
 from pyscf import ci
 
-def get_cisd_coeffs_uhf(mf):
+def get_cisd_coeffs_uhf(mf, flatten_c2=False):
     '''
     Return the CISD coefficients.
     Returns:
@@ -33,11 +33,14 @@ def get_cisd_coeffs_uhf(mf):
     c1_n = np.transpose(np.array(c1), (0, 2, 1))
     # transpose c2
     c2_n = np.transpose(np.array(c2), (0, 3, 1, 4, 2))
-    c2_n = c2_n.reshape(3, nvir*nocc, nvir*nocc)
+
+    if flatten_c2:
+        nocc, nvir = c1[0].shape
+        c2_n = c2_n.reshape(3, nvir*nocc, nvir*nocc)
 
     return c1_n, c2_n
 
-def cis_to_thou(c1, dt=0.1):
+def c2t_singles(c1, dt=0.1):
     '''
     Given the CIS coefficients, generate Thouless rotation paramters.
     Only for UHF.
@@ -47,11 +50,46 @@ def cis_to_thou(c1, dt=0.1):
     Returns:
         arrays of Thouless for NOSDs
         coeffs for the NOSDs.
+    TODO: coeffs not needed.
     '''
     t1_p = c1 * dt / 2.
     t1_m = -c1 * dt / 2.
 
-    coeffs = np.array([1./dt, -1./dt])
+    # coeffs = np.array([1./dt, -1./dt])
 
-    return np.array([t1_p, t1_m]), coeffs
+    return np.array([t1_p, t1_m])
     
+
+def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
+    '''
+    Generate NOSDs corresponding to the doubly excited states.
+    Args:
+        c2: array.
+    '''
+    if nvir is None:
+        nvir = c2.shape[1]
+        nocc = c2.shape[2]
+    
+    c2 = c2.reshape(3, nvir*nocc, nvir*nocc)
+    # TODO make the following more efficient
+    e_aa, v_aa = np.linalg.eigh(c2[0])
+    idx_aa = np.where(np.abs(e_aa) > tol)
+    z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
+    pad_aa = np.zeros_like(z_aa)
+    t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
+
+    e_ab, v_ab = np.linalg.eigh(c2[1])
+    idx_ab = np.where(np.abs(e_ab) > tol)
+    z_ab = v_ab[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
+    t_ab = np.transpose(np.array([z_ab, z_ab]), (1,0,2,3))
+ 
+    e_bb, v_bb = np.linalg.eigh(c2[2])
+    idx_bb = np.where(np.abs(e_bb) > tol)
+    z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
+    pad_bb = np.zeros_like(z_bb)
+    t_bb = np.transpose(np.array([pad_bb, z_bb]), (1,0,2,3))
+
+    tmat_aa = np.vstack([t_aa*dt, -t_aa*dt])
+    tmat_ab = np.vstack([t_ab*dt, -t_ab*dt])
+    tmat_bb = np.vstack([t_bb*dt, -t_bb*dt])
+    return np.vstack([tmat_aa, tmat_ab, tmat_bb])
