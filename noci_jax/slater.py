@@ -17,15 +17,16 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 
 
-def tvecs_to_rmats(tvecs, nvir, nocc):
+def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):
     '''
     Transform Thouless vectors into rotation matrices.
     '''
 
     vecs_all = tvecs.reshape(-1, nvir, nocc)
     nvecs = vecs_all.shape[0]
-    I = jnp.eye(nocc)
-    Imats = jnp.tile(I, (nvecs)).T.reshape(nvecs, nocc, nocc) # 2 for spins
+    if occ_mat is None:
+        occ_mat = jnp.eye(nocc)
+    Imats = jnp.tile(occ_mat, (nvecs)).T.reshape(nvecs, nocc, nocc) # 2 for spins
     rmats = jnp.concatenate([Imats, vecs_all], axis=1)
     rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
     return rmats

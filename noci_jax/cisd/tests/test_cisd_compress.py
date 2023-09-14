@@ -55,23 +55,25 @@ def test_singles_c2t():
 
 
 def test_doubles_c2t():
+
+    # occ_ref = np.random.rand(nocc, nocc)
+    # occ_ref += occ_ref.T
     c1, c2 = compress.get_cisd_coeffs_uhf(mf)
-    nvir, nocc = c1[0].shape
     dt = 0.1
     t1 = compress.c2t_singles(c1, dt)
-    t2 = compress.c2t_doubles(c2, dt=dt, tol=1e-3)
+    t2 = compress.c2t_doubles(c2, dt=dt, tol=8e-2)
+    t_hf = np.zeros((1, 2, nvir, nocc))
     tmats = t2
     # tmats = np.vstack([t1, t2])
-    rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
+    tmats = np.vstack([t_hf, tmats])
+
+    rmats = slater.tvecs_to_rmats(tmats, nvir, nocc, occ_mat=occ_ref)
     # ovlp = slater.metric_rmats(rmats[0], rmats[1])
 
-    r0 = np.zeros((norb, nocc))
-    r0[:nocc, :nocc] = np.eye(nocc)
-    r_hf = np.array([[r0, r0]])
-    r_all = np.vstack([r_hf, rmats])
-    h, s = slater.noci_energy(r_all, mo_coeff, h1e, h2e, return_mats=True, lc_coeffs=None, e_nuc=e_nuc)
+
+    h, s = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True, lc_coeffs=None, e_nuc=e_nuc)
     print(np.linalg.det(s))
-    # E = slater.noci_energy(r_all, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
-    # print(E)
+    E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
+    print(E)
 
 test_doubles_c2t()

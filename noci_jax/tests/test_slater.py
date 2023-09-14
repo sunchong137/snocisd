@@ -18,6 +18,21 @@ from scipy import linalg as sla
 from noci_jax import slater, pyscf_helpers, opt_res 
 from pyscf import gto, scf
 
+def test_tvecs_to_rmats():
+    
+    nocc = 2
+    nvir = 3
+    occ_mat = np.eye(2)/2
+    occ_mat[0,1] = -0.1
+    occ_mat += occ_mat.T
+
+    tvecs = np.arange(nocc*nvir*2)
+
+    rmats = slater.tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=occ_mat)
+    ref = np.array([[[[ 1.,  -0.1], [-0.1,  1. ], [ 0.,1. ],[ 2., 3. ], [ 4.,5. ]],
+                     [[ 1.,-0.1],[-0.1,  1. ],[ 6., 7. ],[ 8., 9. ],[10.,  11. ]]]])
+    assert np.allclose(rmats, ref)
+
 
 def test_solve_lc():
     n = 10
