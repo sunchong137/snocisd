@@ -49,8 +49,6 @@ def c2t_singles(c1, dt=0.1):
         t: float, a small number for the NOSD expansion approximation
     Returns:
         arrays of Thouless for NOSDs
-        coeffs for the NOSDs.
-    TODO: coeffs not needed.
     '''
     t1_p = c1 * dt / 2.
     t1_m = -c1 * dt / 2.
@@ -77,19 +75,27 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     pad_aa = np.zeros_like(z_aa)
     t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
+    c_aa = e_aa[idx_aa]
 
     e_ab, v_ab = np.linalg.eigh(c2[1])
     idx_ab = np.where(np.abs(e_ab) > tol)
     z_ab = v_ab[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     t_ab = np.transpose(np.array([z_ab, z_ab]), (1,0,2,3))
+    c_ab = e_ab[idx_ab]
  
     e_bb, v_bb = np.linalg.eigh(c2[2])
     idx_bb = np.where(np.abs(e_bb) > tol)
     z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     pad_bb = np.zeros_like(z_bb)
     t_bb = np.transpose(np.array([pad_bb, z_bb]), (1,0,2,3))
+    c_bb = e_bb[idx_bb]
 
     tmat_aa = np.vstack([t_aa*dt, -t_aa*dt])
     tmat_ab = np.vstack([t_ab*dt, -t_ab*dt])
     tmat_bb = np.vstack([t_bb*dt, -t_bb*dt])
-    return np.vstack([tmat_aa, tmat_ab, tmat_bb])
+
+    return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]
+
+
+def compress():
+    pass

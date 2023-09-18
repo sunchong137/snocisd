@@ -3,7 +3,7 @@ from pyscf import gto, scf, ci, fci
 from pyscf.lib import numpy_helper
 import scipy
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
-from noci_jax.cisd import compress
+from noci_jax import nocisd
 from noci_jax import slater, pyscf_helpers
 
 # System set up
@@ -32,16 +32,16 @@ e_hf = mf.energy_tot()
 
 def test_get_ci_coeff():
 
-    c1, c2 = compress.get_cisd_coeffs_uhf(mf, flatten_c2=True)
+    c1, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=True)
     for i in range(3):
         assert np.linalg.norm(c2[i]-c2[i].T) < 1e-6  # change to a larger number if basis larger
     
 
 def test_singles_c2t():
-    c1, c2 = compress.get_cisd_coeffs_uhf(mf)
+    c1, c2 = nocisd.get_cisd_coeffs_uhf(mf)
     nvir, nocc = c1[0].shape
     dt = 0.05
-    tmats = compress.c2t_singles(c1, dt)
+    tmats = nocisd.c2t_singles(c1, dt)
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     ovlp = slater.metric_rmats(rmats[0], rmats[1])
 
@@ -58,10 +58,12 @@ def test_doubles_c2t():
 
     # occ_ref = np.random.rand(nocc, nocc)
     # occ_ref += occ_ref.T
-    c1, c2 = compress.get_cisd_coeffs_uhf(mf)
+    occ_ref = None
+    c1, c2 = nocisd.get_cisd_coeffs_uhf(mf)
     dt = 0.1
-    t1 = compress.c2t_singles(c1, dt)
-    t2 = compress.c2t_doubles(c2, dt=dt, tol=8e-2)
+    t1= nocisd.c2t_singles(c1, dt)
+    _t2, lams = nocisd.c2t_doubles(c2, dt=dt, tol=8e-2)
+    t2 = np.vstack(_t2)
     t_hf = np.zeros((1, 2, nvir, nocc))
     tmats = t2
     # tmats = np.vstack([t1, t2])
