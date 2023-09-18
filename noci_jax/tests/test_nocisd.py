@@ -22,9 +22,9 @@ mol.build()
 
 mf = scf.UHF(mol)
 mf.kernel()
-mo1 = mf.stability()[0]                                                             
-init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
-mf.kernel(init) 
+# mo1 = mf.stability()[0]                                                             
+# init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
+# mf.kernel(init) 
 
 h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf, ortho_ao=False)
 norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
@@ -32,25 +32,22 @@ e_hf = mf.energy_tot()
 
 def test_get_ci_coeff():
 
-    c1, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=True)
+    _, __dict__, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=True)
     for i in range(3):
         assert np.linalg.norm(c2[i]-c2[i].T) < 1e-6  # change to a larger number if basis larger
     
 
 def test_singles_c2t():
-    c1, c2 = nocisd.get_cisd_coeffs_uhf(mf)
+    _, c1, _ = nocisd.get_cisd_coeffs_uhf(mf)
     nvir, nocc = c1[0].shape
     dt = 0.05
     tmats = nocisd.c2t_singles(c1, dt)
-    rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
+    r0 = np.zeros((2, nvir, nocc))
+    t_all = np.vstack(r0 + tmats)
+    rmats = slater.tvecs_to_rmats(t_all, nvir, nocc)
     ovlp = slater.metric_rmats(rmats[0], rmats[1])
-
-    r0 = np.zeros((norb, nocc))
-    r0[:nocc, :nocc] = np.eye(nocc)
-    r_hf = np.array([[r0, r0]])
-    r_all = np.vstack([r_hf, rmats])
     
-    E = slater.noci_energy(r_all, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
+    E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
     assert E <= e_hf
 
 
@@ -59,7 +56,7 @@ def test_doubles_c2t():
     # occ_ref = np.random.rand(nocc, nocc)
     # occ_ref += occ_ref.T
     occ_ref = None
-    c1, c2 = nocisd.get_cisd_coeffs_uhf(mf)
+    _, c1, c2 = nocisd.get_cisd_coeffs_uhf(mf)
     dt = 0.1
     t1= nocisd.c2t_singles(c1, dt)
     _t2, lams = nocisd.c2t_doubles(c2, dt=dt, tol=8e-2)
@@ -78,4 +75,12 @@ def test_doubles_c2t():
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
     print(E)
 
-test_doubles_c2t()
+
+def test_compress():
+
+    tmats, coeffs = nocisd.compress(mf,dt1=0.01, dt2=0.001, tol2=1e-5)
+    nvir, nocc = tmats.shape[2:]
+    rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
+    E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+    print(E)
+test_compress()

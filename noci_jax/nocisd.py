@@ -22,12 +22,13 @@ def get_cisd_coeffs_uhf(mf, flatten_c2=False):
     '''
     Return the CISD coefficients.
     Returns:
-        c1: 3D array
-        c2: 
+        c0: float, amplitude for HF ground state
+        c1: 3D array, amplitudes for single excitations.
+        c2: 3D array or 5D array, amplitudes for double excitations.
     '''
     myci = ci.UCISD(mf)                                                                    
     _, civec = myci.kernel()
-    _, c1, c2 = myci.cisdvec_to_amplitudes(civec)
+    c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
     nocc, nvir = c1[0].shape
 
     c1_n = np.transpose(np.array(c1), (0, 2, 1))
@@ -38,7 +39,7 @@ def get_cisd_coeffs_uhf(mf, flatten_c2=False):
         nocc, nvir = c1[0].shape
         c2_n = c2_n.reshape(3, nvir*nocc, nvir*nocc)
 
-    return c1_n, c2_n
+    return c0, c1_n, c2_n
 
 def c2t_singles(c1, dt=0.1):
     '''
@@ -48,14 +49,12 @@ def c2t_singles(c1, dt=0.1):
         c1: 3D array, size (2, nocc, nvir) amplitudes for singly excited states.
         t: float, a small number for the NOSD expansion approximation
     Returns:
-        arrays of Thouless for NOSDs
+        A list of two Thouless matrices (size (2, nvir, nocc))
     '''
     t1_p = c1 * dt / 2.
     t1_m = -c1 * dt / 2.
-
     # coeffs = np.array([1./dt, -1./dt])
-
-    return np.array([t1_p, t1_m])
+    return [t1_p, t1_m]
     
 
 def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
@@ -97,5 +96,30 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]
 
 
-def compress():
-    pass
+def compress(mf, dt1=0.1, dt2=0.1, tol2=1e-5):
+    '''
+    Return NOSDs and corresponding coefficients.
+    '''
+    c0, c1, c2 = get_cisd_coeffs_uhf(mf)
+    coeff0 = c0
+    # get the CIS thouless
+    t1s = np.array(c2t_singles(c1, dt=dt1))
+    coeff1 = np.array([1./dt1, -1/dt1])
+
+    # get the CID thouless
+    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
+    t2s = np.vstack(t2s)
+    coeff2 = np.concatenate([lam2s[0], lam2s[0], lam2s[1], lam2s[1], lam2s[2], lam2s[2]])
+    coeff2 /= (dt2**2)
+
+    # CID also has the contribution of HF GS
+    nvir, nocc = t1s.shape[2:]
+    t0 = np.zeros((1, 2, nvir, nocc))
+    coeff0 -= 2*np.sum(coeff2)
+    coeff0 = np.array([coeff0])
+
+    t_all = np.vstack([t0, t1s, t2s])
+    coeff_all = np.concatenate([coeff0, coeff1, coeff2])
+    coeff_all /= np.linalg.norm(coeff_all)
+
+    return t_all, coeff_all
