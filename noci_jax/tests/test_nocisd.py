@@ -5,6 +5,7 @@ import scipy
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
 from noci_jax import slater, pyscf_helpers
+import logging
 
 # System set up
 nH = 4
@@ -17,7 +18,7 @@ for i in range(nH):
 mol = gto.Mole()
 mol.atom = geom
 mol.unit='angstrom'
-mol.basis = "sto3g"
+mol.basis = "631g"
 mol.build()
 
 mf = scf.UHF(mol)
@@ -30,12 +31,13 @@ h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf, ortho_ao=False)
 norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
 e_hf = mf.energy_tot()
 
+
 def test_get_ci_coeff():
 
-    _, __dict__, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=True)
-    for i in range(3):
-        assert np.linalg.norm(c2[i]-c2[i].T) < 1e-6  # change to a larger number if basis larger
-    
+    _, _, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=True)
+    for i in [0,2]:
+        assert np.linalg.norm(c2[i]-c2[i].T) < 1e-10 
+    # C_aabb is not symmetric
 
 def test_singles_c2t():
     _, c1, _ = nocisd.get_cisd_coeffs_uhf(mf)
@@ -78,9 +80,22 @@ def test_doubles_c2t():
 
 def test_compress():
 
-    tmats, coeffs = nocisd.compress(mf,dt1=0.01, dt2=0.001, tol2=1e-5)
+    tmats, coeffs = nocisd.compress(mf,dt1=0.1, dt2=0.01, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
     print(E)
+
 test_compress()
+
+def test_c2_symm():
+    norm = np.linalg.norm
+    # myci = ci.UCISD(mf)
+    # _, civec = myci.kernel()
+    c0, c1, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=False)
+    print(c2[0][0,1,0,1])
+    # print(np.diag(c2[1]))
+    # print(norm(c2[0]-c2[0].T.conj()))
+    # print(norm(c2[1]-c2[1].T.conj()))
+    # print(norm(c2[2]-c2[2].T.conj()))
+

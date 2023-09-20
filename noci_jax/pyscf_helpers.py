@@ -18,6 +18,8 @@ Only support unrestricted spin symmetry.
 import numpy as np
 from scipy import linalg as sla
 from pyscf import ao2mo
+import logging 
+
 
 def get_integrals(mf, ortho_ao=False):
     '''
@@ -49,7 +51,10 @@ def get_mos(mf):
     nocc = int(np.sum(occ[0])) # number of occupied orbitals for spin up
     nvir = norb - nocc
     mo_coeff = np.asarray(mf.mo_coeff)
-
+    print("**********System information***********")
+    print("Number of orbitals: {}".format(norb))
+    print("Number of occupied orbitals: {}".format(nocc))
+    print("Number of virtual orbitals: {}".format(nvir))
     return norb, nocc, nvir, mo_coeff
 
 

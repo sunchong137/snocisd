@@ -36,10 +36,10 @@ def get_cisd_coeffs_uhf(mf, flatten_c2=False):
     c2_n = np.transpose(np.array(c2), (0, 3, 1, 4, 2))
 
     if flatten_c2:
-        nocc, nvir = c1[0].shape
         c2_n = c2_n.reshape(3, nvir*nocc, nvir*nocc)
 
     return c0, c1_n, c2_n
+
 
 def c2t_singles(c1, dt=0.1):
     '''
@@ -76,10 +76,13 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
     c_aa = e_aa[idx_aa]
 
-    e_ab, v_ab = np.linalg.eigh(c2[1])
+    u_a, e_ab, v_bt = np.linalg.svd(c2[1])
+    v_b = v_bt.conj().T
     idx_ab = np.where(np.abs(e_ab) > tol)
-    z_ab = v_ab[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
-    t_ab = np.transpose(np.array([z_ab, z_ab]), (1,0,2,3))
+    z_a = u_a[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
+    z_b = v_b[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
+    t_ab_p = np.transpose(np.array([z_a, z_b]), (1,0,2,3))
+    t_ab_m = np.transpose(np.array([z_a, -z_b]), (1,0,2,3))
     c_ab = e_ab[idx_ab]
  
     e_bb, v_bb = np.linalg.eigh(c2[2])
@@ -89,9 +92,9 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     t_bb = np.transpose(np.array([pad_bb, z_bb]), (1,0,2,3))
     c_bb = e_bb[idx_bb]
 
-    tmat_aa = np.vstack([t_aa*dt, -t_aa*dt])
-    tmat_ab = np.vstack([t_ab*dt, -t_ab*dt])
-    tmat_bb = np.vstack([t_bb*dt, -t_bb*dt])
+    tmat_aa = np.vstack([t_aa, -t_aa])*dt
+    tmat_ab = np.vstack([t_ab_p, -t_ab_p, t_ab_m, -t_ab_m])*dt
+    tmat_bb = np.vstack([t_bb, -t_bb])*dt
 
     return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]
 
@@ -99,6 +102,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
 def compress(mf, dt1=0.1, dt2=0.1, tol2=1e-5):
     '''
     Return NOSDs and corresponding coefficients.
+    TODO: rewrite the up-down part.
     '''
     c0, c1, c2 = get_cisd_coeffs_uhf(mf)
     coeff0 = c0
@@ -106,16 +110,18 @@ def compress(mf, dt1=0.1, dt2=0.1, tol2=1e-5):
     t1s = np.array(c2t_singles(c1, dt=dt1))
     coeff1 = np.array([1./dt1, -1/dt1])
 
-    # get the CID thouless
+    # get the CID thouless for same spin
     t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
     t2s = np.vstack(t2s)
-    coeff2 = np.concatenate([lam2s[0], lam2s[0], lam2s[1], lam2s[1], lam2s[2], lam2s[2]])
+    
+    coeff2 = np.concatenate([lam2s[0],]*2 + [lam2s[1],]*4 + [ lam2s[2],]*2)
     coeff2 /= (dt2**2)
 
     # CID also has the contribution of HF GS
     nvir, nocc = t1s.shape[2:]
     t0 = np.zeros((1, 2, nvir, nocc))
-    coeff0 -= 2*np.sum(coeff2)
+    coeff2_0 = np.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt2**2)
+    coeff0 -= 2*np.sum(coeff2_0)
     coeff0 = np.array([coeff0])
 
     t_all = np.vstack([t0, t1s, t2s])
