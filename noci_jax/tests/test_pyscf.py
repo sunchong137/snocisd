@@ -16,8 +16,8 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import pyscf_helpers
-from pyscf import gto, scf, ao2mo
+from noci_jax import pyscf_helper
+from pyscf import gto, scf, ao2mo, ci
 
 def test_get_integrals():
 
@@ -37,7 +37,7 @@ def test_get_integrals():
     e_ref = mf.e_tot
     
     # orthogonalize ao overlap matrix
-    h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf, ortho_ao=True)
+    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=True)
     mf.kernel(verbose=0, tol=1e-10)
     e_hf = mf.e_tot
     
@@ -50,4 +50,26 @@ def test_get_integrals():
     assert np.allclose(ne_b, 2)
 
     
+def test_cisd_energy():
+    # System set up
+    nH = 4
+    bl = 1.5
+    geom = []
+    for i in range(nH):
+        geom.append(['H', 0.0, 0.0, i*bl])
 
+    # construct molecule
+    mol = gto.Mole()
+    mol.atom = geom
+    mol.unit='angstrom'
+    mol.basis = "631g"
+    mol.build()
+
+    mf = scf.UHF(mol)
+    mf.kernel()
+    myci = ci.UCISD(mf)  
+    eris = myci.ao2mo(mf.mo_coeff)
+    e_corr, civec = myci.kernel()
+    ci_n = myci.contract(civec, eris)
+    e_diff = np.dot(civec.conj().T, ci_n)
+    assert np.allclose(e_diff, e_corr)

@@ -17,7 +17,7 @@ Only support unrestricted spin symmetry.
 '''
 import numpy as np
 from scipy import linalg as sla
-from pyscf import ao2mo, fci
+from pyscf import ao2mo, ci
 import logging 
 
 
@@ -90,8 +90,20 @@ def rotate_ham(mf):
 
     return h1_mo, h2_mo
 
-def energy_from_civec(ci, mf):
+
+def cisd_energy_from_vec(vec, mf):
     '''
-    Given a FCI-vector-like vector, return the energy.
+    Given a CISD-vector-like vector, return the energy.
+    Args:
+        vec: 1D array, coefficients of HF, S and D.
+        mf: PySCF mean-field object.
+    Returns:
+        double, the energy corresponding to the vec.
     '''
-    pass
+    myci = ci.UCISD(mf)  
+    e_hf = mf.e_tot
+    eris = myci.ao2mo(mf.mo_coeff)
+    ci_n = myci.contract(vec, eris)
+    e_corr = np.dot(vec.conj().T, ci_n)
+    e_cisd = e_hf + e_corr
+    return e_cisd

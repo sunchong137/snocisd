@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import slater, pyscf_helpers, analysis
+from noci_jax import slater, pyscf_helper, analysis
 from pyscf import gto, scf
 
 
@@ -36,10 +36,10 @@ def test_corr_spin():
     e_ref = mf.e_tot
     
     # orthogonalize ao overlap matrix
-    h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf, ortho_ao=True)
+    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=True)
     mf.kernel(verbose=0, tol=1e-10)
     
-    norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
+    norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 
     # t_vecs = np.random.rand(3, 2*nvir*nocc)-0.5
     # t_vecs[0] = 0

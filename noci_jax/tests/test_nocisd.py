@@ -4,7 +4,7 @@ from pyscf.lib import numpy_helper
 import scipy
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
-from noci_jax import slater, pyscf_helpers
+from noci_jax import slater, pyscf_helper
 import logging
 
 # System set up
@@ -27,8 +27,8 @@ mf.kernel()
 # init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
 # mf.kernel(init) 
 
-h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf, ortho_ao=False)
-norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
+h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
+norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 e_hf = mf.energy_tot()
 
 
@@ -86,7 +86,6 @@ def test_compress():
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
     print(E)
 
-test_compress()
 
 def test_c2_symm():
     norm = np.linalg.norm
@@ -99,3 +98,19 @@ def test_c2_symm():
     # print(norm(c2[1]-c2[1].T.conj()))
     # print(norm(c2[2]-c2[2].T.conj()))
 
+
+def test_cisd():
+    '''
+    Try out PySCF cisd.
+    '''
+    myci = ci.UCISD(mf)  
+    e_hf = mf.e_tot
+    eris = myci.ao2mo(mf.mo_coeff)
+    e_corr, civec = myci.kernel()
+    print(e_corr)
+    ci_n = myci.contract(civec, eris)
+    e_diff = np.dot(civec.conj().T, ci_n)
+    e_cisd = e_hf + e_diff
+    print(e_cisd)
+
+test_cisd()
