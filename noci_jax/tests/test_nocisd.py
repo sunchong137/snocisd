@@ -30,6 +30,7 @@ mf.kernel()
 h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
 norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 e_hf = mf.energy_tot()
+nelec = mol.nelectron
 
 
 def test_get_ci_coeff():
@@ -80,13 +81,13 @@ def test_doubles_c2t():
 
 def test_compress():
 
-    tmats, coeffs = nocisd.compress(mf,dt1=0.1, dt2=0.01, tol2=1e-5)
+    tmats, coeffs = nocisd.compress(mf,dt1=0.1, dt2=0.5, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
     print(E)
 
-
+test_compress()
 def test_c2_symm():
     norm = np.linalg.norm
     # myci = ci.UCISD(mf)
@@ -98,19 +99,16 @@ def test_c2_symm():
     # print(norm(c2[1]-c2[1].T.conj()))
     # print(norm(c2[2]-c2[2].T.conj()))
 
-
-def test_cisd():
-    '''
-    Try out PySCF cisd.
-    '''
+def test_cisd_vecs():
     myci = ci.UCISD(mf)  
-    e_hf = mf.e_tot
-    eris = myci.ao2mo(mf.mo_coeff)
     e_corr, civec = myci.kernel()
-    print(e_corr)
-    ci_n = myci.contract(civec, eris)
-    e_diff = np.dot(civec.conj().T, ci_n)
-    e_cisd = e_hf + e_diff
-    print(e_cisd)
+    c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
+    ov = nocc * nvir
+    l0 = 1
+    l1 =  ov * 2
+    l2 = ov**2 + ov*(nocc-1)*(nvir-1)//2
+    # print(civec)
+    print(len(civec))
+    print(l0+l1+l2)
+    # print(c2)
 
-test_cisd()

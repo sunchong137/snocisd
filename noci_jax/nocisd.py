@@ -60,6 +60,7 @@ def c2t_singles(c1, dt=0.1):
 def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     '''
     Generate NOSDs corresponding to the doubly excited states.
+    same spin - 4 fold degeneracy 
     Args:
         c2: array.
     '''
@@ -71,7 +72,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     # TODO make the following more efficient
     e_aa, v_aa = np.linalg.eigh(c2[0])
     idx_aa = np.where(np.abs(e_aa) > tol)
-    z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
+    z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)/4
     pad_aa = np.zeros_like(z_aa)
     t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
     c_aa = e_aa[idx_aa]
@@ -87,7 +88,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
  
     e_bb, v_bb = np.linalg.eigh(c2[2])
     idx_bb = np.where(np.abs(e_bb) > tol)
-    z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
+    z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)/4
     pad_bb = np.zeros_like(z_bb)
     t_bb = np.transpose(np.array([pad_bb, z_bb]), (1,0,2,3))
     c_bb = e_bb[idx_bb]
