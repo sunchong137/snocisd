@@ -74,3 +74,9 @@ def test_cisd_energy():
     e_diff = np.dot(civec.conj().T, ci_n)
     assert np.allclose(e_diff, e_corr)
 
+def test_civec_size():
+    lci = 199
+    size, loc = pyscf_helper.sep_cisdvec(8, 4)
+    assert np.allclose(np.sum(size), lci)
+    assert np.allclose(loc[-1], lci)
+

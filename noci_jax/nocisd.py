@@ -19,7 +19,7 @@ NOTE: assumed nocca = noccb.
 import numpy as np
 from pyscf import ci
 
-def get_cisd_coeffs_uhf(mf, civec=None, flatten_c2=False):
+def ucisd_amplitudes(mf, civec=None, flatten_c2=False):
     '''
     Return the CISD coefficients.
     Returns:
@@ -55,10 +55,15 @@ def c2t_singles(c1, dt=0.1):
     Returns:
         A list of two Thouless matrices (size (2, nvir, nocc))
     '''
-    t1_p = c1 * dt / 2.
-    t1_m = -c1 * dt / 2.
+    t0 = np.zeros_like(c1[0])
+    t1p = c1 * dt / 2.
+    t1m = -c1 * dt / 2.
+    t1pa = np.array([t1p[0], t0])
+    t1pb = np.array([t0, t1p[1]])
+    t1ma = np.array([t1m[0], t0])
+    t1mb = np.array([t0, t1m[1]])
     # coeffs = np.array([1./dt, -1./dt])
-    return [t1_p, t1_m]
+    return [t1pa, t1ma, t1pb, t1mb]
     
 
 def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
@@ -104,16 +109,16 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]
 
 
-def compress(mf, dt1=0.1, dt2=0.1, tol2=1e-5):
+def compress(mf, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     '''
     Return NOSDs and corresponding coefficients.
     TODO: rewrite the up-down part.
     '''
-    c0, c1, c2 = get_cisd_coeffs_uhf(mf)
+    c0, c1, c2 = ucisd_amplitudes(mf, civec=civec)
     coeff0 = c0
     # get the CIS thouless
     t1s = np.array(c2t_singles(c1, dt=dt1))
-    coeff1 = np.array([1./dt1, -1/dt1])
+    coeff1 = np.array([1./dt1,]*4)
 
     # get the CID thouless for same spin
     t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)

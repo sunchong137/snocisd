@@ -112,13 +112,14 @@ def cisd_energy_from_vec(vec, mf):
     e_cisd = e_hf + e_corr
     return e_cisd
 
-def sep_cisdvec(civec, norb, nelec):
+def sep_cisdvec(norb, nelec):
     '''
     Give the length of the 0th, one- and two- body excitations, respectively.
     Args:
-        civec: 1D array.
+        norb: int, number of orbitals
+        nelec: int or tuple, number of electrons
     Returns:
-        list of [l0, [l1_u, l1_d], [l1_ab, l1_aa, l1_bb]]
+        list of [l0, l1_u, l1_d, l1_ab, l1_aa, l1_bb]
     '''
     try:
         na, nb = nelec 
@@ -136,7 +137,8 @@ def sep_cisdvec(civec, norb, nelec):
     noob = nob * (nob - 1) // 2
     nvvb = nvb * (nvb - 1) // 2
 
-    size = [1, [noa*nva, nob*nvb], [noa*nob*nva*nvb,
-            nooa*nvva, noob*nvvb]]
+    size = [1, noa*nva, nob*nvb, noa*nob*nva*nvb,
+            nooa*nvva, noob*nvvb]
+    loc = np.cumsum(size)
     
-    return size
+    return size, loc

@@ -35,13 +35,13 @@ nelec = mol.nelectron
 
 def test_get_ci_coeff():
 
-    _, _, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=True)
+    _, _, c2 = nocisd.ucisd_amplitudes(mf, flatten_c2=True)
     for i in [0,2]:
         assert np.linalg.norm(c2[i]-c2[i].T) < 1e-10 
     # C_aabb is not symmetric
 
 def test_singles_c2t():
-    _, c1, _ = nocisd.get_cisd_coeffs_uhf(mf)
+    _, c1, _ = nocisd.ucisd_amplitudes(mf)
     nvir, nocc = c1[0].shape
     dt = 0.1
     tmats = nocisd.c2t_singles(c1, dt)
@@ -58,7 +58,7 @@ def test_doubles_c2t():
     # occ_ref = np.random.rand(nocc, nocc)
     # occ_ref += occ_ref.T
     occ_ref = None
-    _, c1, c2 = nocisd.get_cisd_coeffs_uhf(mf)
+    _, c1, c2 = nocisd.ucisd_amplitudes(mf)
     dt = 0.1
     t1= nocisd.c2t_singles(c1, dt)
     _t2, lams = nocisd.c2t_doubles(c2, dt=dt, tol=8e-2)
@@ -80,22 +80,24 @@ def test_doubles_c2t():
 
 def test_compress():
 
-    tmats, coeffs = nocisd.compress(mf,dt1=0.1, dt2=0.1, tol2=1e-5)
+    tmats, coeffs = nocisd.compress(mf, dt1=0.1, dt2=0.1, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
     print(E)
 
-def test_c2_symm():
-    norm = np.linalg.norm
-    # myci = ci.UCISD(mf)
-    # _, civec = myci.kernel()
-    c0, c1, c2 = nocisd.get_cisd_coeffs_uhf(mf, flatten_c2=False)
-    print(c2[0][0,1,0,1])
-    # print(np.diag(c2[1]))
-    # print(norm(c2[0]-c2[0].T.conj()))
-    # print(norm(c2[1]-c2[1].T.conj()))
-    # print(norm(c2[2]-c2[2].T.conj()))
+test_compress()
+
+# def test_c2_symm():
+#     norm = np.linalg.norm
+#     # myci = ci.UCISD(mf)
+#     # _, civec = myci.kernel()
+#     c0, c1, c2 = nocisd.ucisd_amplitudes(mf, flatten_c2=False)
+#     print(c2[0][0,1,0,1])
+#     # print(np.diag(c2[1]))
+#     # print(norm(c2[0]-c2[0].T.conj()))
+#     # print(norm(c2[1]-c2[1].T.conj()))
+#     # print(norm(c2[2]-c2[2].T.conj()))
 
 def test_cisd_vecs():
     myci = ci.UCISD(mf)  
@@ -107,6 +109,6 @@ def test_cisd_vecs():
     l2 = ov**2 + ov*(nocc-1)*(nvir-1)//2
     # print(civec)
     print(len(civec))
-    print(l0+l1+l2)
-    # print(c2)
+
+
 

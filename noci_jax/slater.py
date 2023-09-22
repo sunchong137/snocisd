@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 import jax.numpy as jnp
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -30,6 +31,14 @@ def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):
     rmats = jnp.concatenate([Imats, vecs_all], axis=1)
     rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
     return rmats
+
+def add_tvec_hf(tmats):
+    '''
+    Add the Hartree-Fock Thouless matrices to the list of Thouless
+    '''
+    t0 = np.zeros_like(tmats[0])[None, :] # add another axis
+    t_all = np.vstack([t0, tmats])
+    return t_all
 
 def metric_rmats(rmat1, rmat2):
     '''
