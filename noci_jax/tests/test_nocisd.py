@@ -23,9 +23,9 @@ mol.build()
 
 mf = scf.UHF(mol)
 mf.kernel()
-# mo1 = mf.stability()[0]                                                             
-# init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
-# mf.kernel(init) 
+mo1 = mf.stability()[0]                                                             
+init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
+mf.kernel(init) 
 
 h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
 norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
@@ -79,8 +79,8 @@ def test_doubles_c2t():
 
 
 def test_compress():
-
-    tmats, coeffs = nocisd.compress(mf, dt1=0.1, dt2=0.1, tol2=1e-5)
+    dt = 0.2
+    tmats, coeffs = nocisd.compress(mf, dt1=dt, dt2=dt, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)

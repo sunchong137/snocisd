@@ -37,7 +37,10 @@ def ucisd_amplitudes(mf, civec=None, flatten_c2=False):
 
     c1_n = np.transpose(np.array(c1), (0, 2, 1))
     # transpose c2
-    c2_n = np.transpose(np.array(c2), (0, 3, 1, 4, 2))/4 # count for the 4-fold degeneracy
+    c2_n = np.transpose(np.array(c2), (0, 3, 1, 4, 2)) 
+    # count for the 4-fold degeneracy for same spin excitations.
+    c2_n[0] /= 4.
+    c2_n[2] /= 4.
 
     if flatten_c2:
         c2_n = c2_n.reshape(3, nvir*nocc, nvir*nocc)
@@ -92,6 +95,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     z_a = u_a[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     z_b = v_b[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     t_ab_p = np.transpose(np.array([z_a, z_b]), (1,0,2,3))
+ 
     t_ab_m = np.transpose(np.array([z_a, -z_b]), (1,0,2,3))
     c_ab = e_ab[idx_ab]
  
@@ -118,7 +122,7 @@ def compress(mf, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     coeff0 = c0
     # get the CIS thouless
     t1s = np.array(c2t_singles(c1, dt=dt1))
-    coeff1 = np.array([1./dt1,]*4)
+    coeff1 = np.array([1/dt1, -1/dt1]*2)
 
     # get the CID thouless for same spin
     t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
