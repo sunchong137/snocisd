@@ -12,15 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 '''
-Interface to PySCF.
-Only support unrestricted spin symmetry.
+Functions to better use PySCF.
+Only support functions for unrestricted spin symmetry.
+
+Includes:
+1. mean-field helpers.
+2. CISD helpers.
 '''
 import numpy as np
 from scipy import linalg as sla
 from pyscf import ao2mo, ci
 import logging 
 
-
+# mean-field helpers
 def get_integrals(mf, ortho_ao=False):
     '''
     Return essential values needed for NOCI calculations.
@@ -90,7 +94,7 @@ def rotate_ham(mf):
 
     return h1_mo, h2_mo
 
-
+# CISD helpers
 def cisd_energy_from_vec(vec, mf):
     '''
     Given a CISD-vector-like vector, return the energy.
@@ -107,3 +111,32 @@ def cisd_energy_from_vec(vec, mf):
     e_corr = np.dot(vec.conj().T, ci_n)
     e_cisd = e_hf + e_corr
     return e_cisd
+
+def sep_cisdvec(civec, norb, nelec):
+    '''
+    Give the length of the 0th, one- and two- body excitations, respectively.
+    Args:
+        civec: 1D array.
+    Returns:
+        list of [l0, [l1_u, l1_d], [l1_ab, l1_aa, l1_bb]]
+    '''
+    try:
+        na, nb = nelec 
+    except:
+        na = nelec//2
+        nb = nelec - na
+
+    noa = na 
+    nob = nb
+    nva = norb - na 
+    nvb = norb - nb
+
+    nooa = noa * (noa - 1) // 2
+    nvva = nva * (nva - 1) // 2
+    noob = nob * (nob - 1) // 2
+    nvvb = nvb * (nvb - 1) // 2
+
+    size = [1, [noa*nva, nob*nvb], [noa*nob*nva*nvb,
+            nooa*nvva, noob*nvvb]]
+    
+    return size

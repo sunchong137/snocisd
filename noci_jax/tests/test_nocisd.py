@@ -43,16 +43,15 @@ def test_get_ci_coeff():
 def test_singles_c2t():
     _, c1, _ = nocisd.get_cisd_coeffs_uhf(mf)
     nvir, nocc = c1[0].shape
-    dt = 0.05
+    dt = 0.1
     tmats = nocisd.c2t_singles(c1, dt)
-    r0 = np.zeros((2, nvir, nocc))
-    t_all = np.vstack(r0 + tmats)
+    t0 = np.zeros((2, nvir, nocc))
+    t_all = np.vstack(t0 + tmats)
     rmats = slater.tvecs_to_rmats(t_all, nvir, nocc)
-    ovlp = slater.metric_rmats(rmats[0], rmats[1])
+    # ovlp = slater.metric_rmats(rmats[0], rmats[1])
     
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
-    assert E <= e_hf
-
+    assert np.allclose(E, e_hf)
 
 def test_doubles_c2t():
 
@@ -81,13 +80,12 @@ def test_doubles_c2t():
 
 def test_compress():
 
-    tmats, coeffs = nocisd.compress(mf,dt1=0.1, dt2=0.5, tol2=1e-5)
+    tmats, coeffs = nocisd.compress(mf,dt1=0.1, dt2=0.1, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
     print(E)
 
-test_compress()
 def test_c2_symm():
     norm = np.linalg.norm
     # myci = ci.UCISD(mf)

@@ -73,3 +73,4 @@ def test_cisd_energy():
     ci_n = myci.contract(civec, eris)
     e_diff = np.dot(civec.conj().T, ci_n)
     assert np.allclose(e_diff, e_corr)
+

@@ -14,11 +14,12 @@
 
 '''
 Compress the linear combinations of CISD with NOCI.
+NOTE: assumed nocca = noccb.
 '''
 import numpy as np
 from pyscf import ci
 
-def get_cisd_coeffs_uhf(mf, flatten_c2=False):
+def get_cisd_coeffs_uhf(mf, civec=None, flatten_c2=False):
     '''
     Return the CISD coefficients.
     Returns:
@@ -26,14 +27,17 @@ def get_cisd_coeffs_uhf(mf, flatten_c2=False):
         c1: 3D array, amplitudes for single excitations.
         c2: 3D array or 5D array, amplitudes for double excitations.
     '''
-    myci = ci.UCISD(mf)                                                                    
-    _, civec = myci.kernel()
+    myci = ci.UCISD(mf)   
+    if civec is None:                                                                 
+        _, civec = myci.kernel()
     c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
+
+    # NOTE assumed alpha and beta same number of electrons
     nocc, nvir = c1[0].shape
 
     c1_n = np.transpose(np.array(c1), (0, 2, 1))
     # transpose c2
-    c2_n = np.transpose(np.array(c2), (0, 3, 1, 4, 2))
+    c2_n = np.transpose(np.array(c2), (0, 3, 1, 4, 2))/4 # count for the 4-fold degeneracy
 
     if flatten_c2:
         c2_n = c2_n.reshape(3, nvir*nocc, nvir*nocc)
@@ -72,7 +76,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     # TODO make the following more efficient
     e_aa, v_aa = np.linalg.eigh(c2[0])
     idx_aa = np.where(np.abs(e_aa) > tol)
-    z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)/4
+    z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     pad_aa = np.zeros_like(z_aa)
     t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
     c_aa = e_aa[idx_aa]
@@ -88,7 +92,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
  
     e_bb, v_bb = np.linalg.eigh(c2[2])
     idx_bb = np.where(np.abs(e_bb) > tol)
-    z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)/4
+    z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     pad_bb = np.zeros_like(z_bb)
     t_bb = np.transpose(np.array([pad_bb, z_bb]), (1,0,2,3))
     c_bb = e_bb[idx_bb]
