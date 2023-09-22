@@ -128,7 +128,7 @@ def compress(mf, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
     t2s = np.vstack(t2s)
     
-    coeff2 = np.concatenate([lam2s[0],]*2 + [lam2s[1],]*4 + [ lam2s[2],]*2)
+    coeff2 = np.concatenate([lam2s[0],]*2 + [lam2s[1],]*2 + [-lam2s[1],]*2 + [ lam2s[2],]*2)
     coeff2 /= (dt2**2)
 
     # CID also has the contribution of HF GS
