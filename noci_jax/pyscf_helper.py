@@ -98,6 +98,7 @@ def rotate_ham(mf):
 def cisd_energy_from_vec(vec, mf):
     '''
     Given a CISD-vector-like vector, return the energy.
+    NOTE: the energy can be higher than the HF energy.
     Args:
         vec: 1D array, coefficients of HF, S and D.
         mf: PySCF mean-field object.
