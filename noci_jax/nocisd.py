@@ -82,6 +82,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     
     c2 = c2.reshape(3, nvir*nocc, nvir*nocc)
     # TODO make the following more efficient
+    # aaaa
     e_aa, v_aa = np.linalg.eigh(c2[0])
     idx_aa = np.where(np.abs(e_aa) > tol)
     z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
@@ -89,16 +90,17 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
     c_aa = e_aa[idx_aa]
 
+    # aabb
     u_a, e_ab, v_bt = np.linalg.svd(c2[1])
     v_b = v_bt.conj().T
     idx_ab = np.where(np.abs(e_ab) > tol)
     z_a = u_a[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     z_b = v_b[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     t_ab_p = np.transpose(np.array([z_a, z_b]), (1,0,2,3))
- 
     t_ab_m = np.transpose(np.array([z_a, -z_b]), (1,0,2,3))
     c_ab = e_ab[idx_ab]
  
+    # bbbb
     e_bb, v_bb = np.linalg.eigh(c2[2])
     idx_bb = np.where(np.abs(e_bb) > tol)
     z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)

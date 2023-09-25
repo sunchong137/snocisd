@@ -51,8 +51,33 @@ def ci_singles():
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
     print(E)
 
+def ci_doubles_aa():
+    dt = 0.001
+    vec = np.copy(civec)
+    vec[loc[0]:loc[3]] = 0
+    # vec[loc[4]:] = 0
+    # print(vec)
+    vec /= np.linalg.norm(vec)
+    e_ci = pyscf_helper.cisd_energy_from_vec(vec, mf)
+    print("CISD energy:", e_ci)
+    c0, c1, c2 = nocisd.ucisd_amplitudes(mf, civec=vec)
+    t2, lam2s = nocisd.c2t_doubles(c2, dt=dt)
+    t2_aa = t2[0]
+    t2_bb = t2[2]
+
+    c2 = np.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt**2)
+    
+    coeffs = np.concatenate([[c0], c2])
+    t2_all = np.vstack([t2_aa, t2_bb])
+    t_all = slater.add_tvec_hf(t2_all)
+    rmats = slater.tvecs_to_rmats(t_all, nvir, nocc)
+    E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+    print("CISD energy:", e_ci)
+    print("compressed NOCI",E)
+
 
 def ci_doubles_ab():
+    # TODO not figured out
     dt = 0.1
     vec = np.copy(civec)
     vec[loc[0]:loc[2]] = 0
@@ -79,4 +104,4 @@ def ci_doubles_ab():
     print(e_ci)
     print(E)
 
-ci_doubles_ab()
+
