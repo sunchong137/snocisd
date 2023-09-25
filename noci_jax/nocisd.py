@@ -109,7 +109,7 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     c_bb = e_bb[idx_bb]
 
     tmat_aa = np.vstack([t_aa, -t_aa])*dt
-    tmat_ab = np.vstack([t_ab_p, -t_ab_p, t_ab_m, -t_ab_m])*dt
+    tmat_ab = np.vstack([t_ab_p, -t_ab_p, t_ab_m, -t_ab_m])*dt/2.
     tmat_bb = np.vstack([t_bb, -t_bb])*dt
 
     return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]

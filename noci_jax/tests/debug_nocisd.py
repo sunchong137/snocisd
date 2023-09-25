@@ -89,7 +89,7 @@ def ci_doubles_ab():
     t2, lam2s = nocisd.c2t_doubles(c2, dt=dt)
     tab = np.asarray(t2[1])
     # print(tab)
-    cab = np.concatenate([lam2s[1],]*4)/(dt**3)
+    cab = np.concatenate([lam2s[1],]*2 + [-lam2s[1],]*2)/(dt**2)
     t = slater.add_tvec_hf(tab)
     # t = tab
     rmats = slater.tvecs_to_rmats(t, nvir, nocc)
@@ -105,3 +105,4 @@ def ci_doubles_ab():
     print(E)
 
 
+ci_doubles_ab()
