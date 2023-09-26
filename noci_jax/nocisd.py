@@ -74,7 +74,12 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     Generate NOSDs corresponding to the doubly excited states.
     same spin - 4 fold degeneracy 
     Args:
-        c2: array.
+        c2: array of dimension (3, nvir, nocc, nvir, nocc).
+    Kwargs:
+        dt: finite difference to approximate 2nd order derivatives.
+        nvir: number of virtual orbitals.
+        nocc: number of occupied orbitals.
+        tol: threshold to discard eigenvalues.
     '''
     if nvir is None:
         nvir = c2.shape[1]
@@ -118,7 +123,6 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
 def compress(mf, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     '''
     Return NOSDs and corresponding coefficients.
-    TODO: rewrite the up-down part.
     '''
     c0, c1, c2 = ucisd_amplitudes(mf, civec=civec)
     coeff0 = c0

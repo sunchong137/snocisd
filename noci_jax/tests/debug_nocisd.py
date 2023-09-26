@@ -78,7 +78,7 @@ def ci_doubles_aa():
 
 def ci_doubles_ab():
     # TODO not figured out
-    dt = 0.1
+    dt = 1
     vec = np.copy(civec)
     vec[loc[0]:loc[2]] = 0
     vec[loc[3]:] = 0
