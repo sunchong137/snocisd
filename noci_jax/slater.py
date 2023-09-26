@@ -17,6 +17,10 @@ import jax.numpy as jnp
 import jax
 from jax.config import config
 config.update("jax_enable_x64", True)
+# import os 
+# os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"]="false"
+# os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"]=".XX"
+# os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"]="platform"
 
 
 def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):
@@ -101,27 +105,30 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
 
     # transition density matrices
-    inv_metrics = jnp.linalg.inv(metrics_all)
     sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
-
+    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, jnp.linalg.inv(metrics_all), sdets.conj())
+    sdets = None
+    metrics_all = None
+    
+    # E1 = jnp.einsum("")
     # transition hamiltonian
     E1 = jnp.einsum("ij, nmsji -> nm", h1e, trdms)
     J = jnp.einsum("ijkl, nmslk -> nmij", h2e, trdms)
-    E2J = jnp.einsum("nmij, nmsji -> nm", J, trdms)
-    K = jnp.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
-    E2K = jnp.einsum("nmsij, nmsji ->nm", K, trdms)
-
-    E2 = E2J - E2K
+    J = jnp.einsum("nmij, nmsji -> nm", J, trdms)
+    K = jnp.einsum("ilkj, nmslk -> nmsij", h2e, trdms)
+    K = jnp.einsum("nmsij, nmsji ->nm", K, trdms)
+    E2 = J - K
+    # E2 = E2J - E2K
+    trdms = None
 
     hmat = (E1 + 0.5*E2) * smat
 
-
     h = lc_coeffs.T.conj().dot(hmat).dot(lc_coeffs)
     s = lc_coeffs.T.conj().dot(smat).dot(lc_coeffs)
-    energy = h / s
-            
+    energy = (h / s)
+
     return energy + e_nuc
+
 
 def noci_matrices(rmats, mo_coeff, h1e, h2e):
     # first calculate metric and thus overlap

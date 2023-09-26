@@ -5,6 +5,7 @@ from noci_jax import nocisd
 from noci_jax import slater, pyscf_helper
 import logging
 
+
 # System set up
 nH = 4
 bl = 1.5

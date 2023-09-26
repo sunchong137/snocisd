@@ -30,6 +30,8 @@ def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
     # myci = ci.UCISD(mf)   
     if civec is None:                                                                 
         _, civec = myci.kernel()
+    lci = len(civec)
+    print("There are {} CISD dets.".format(lci))
     c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
 
     # NOTE assumed alpha and beta same number of electrons
@@ -145,6 +147,8 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     coeff0 = np.array([coeff0])
 
     t_all = np.vstack([t0, t1s, t2s])
+    num_t = len(t_all) 
+    print("Compressed CISD to {} NOSDs.".format(num_t))
     coeff_all = np.concatenate([coeff0, coeff1, coeff2])
     coeff_all /= np.linalg.norm(coeff_all)
 
