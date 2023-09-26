@@ -31,17 +31,18 @@ h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
 norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 e_hf = mf.energy_tot()
 nelec = mol.nelectron
+myci = ci.UCISD(mf) 
 
 
 def test_get_ci_coeff():
 
-    _, _, c2 = nocisd.ucisd_amplitudes(mf, flatten_c2=True)
+    _, _, c2 = nocisd.ucisd_amplitudes(myci, flatten_c2=True)
     for i in [0,2]:
         assert np.linalg.norm(c2[i]-c2[i].T) < 1e-10 
     # C_aabb is not symmetric
 
 def test_singles_c2t():
-    _, c1, _ = nocisd.ucisd_amplitudes(mf)
+    _, c1, _ = nocisd.ucisd_amplitudes(myci)
     nvir, nocc = c1[0].shape
     dt = 0.1
     tmats = nocisd.c2t_singles(c1, dt)
@@ -58,7 +59,7 @@ def test_doubles_c2t():
     # occ_ref = np.random.rand(nocc, nocc)
     # occ_ref += occ_ref.T
     occ_ref = None
-    _, c1, c2 = nocisd.ucisd_amplitudes(mf)
+    _, c1, c2 = nocisd.ucisd_amplitudes(myci)
     dt = 0.1
     t1= nocisd.c2t_singles(c1, dt)
     _t2, lams = nocisd.c2t_doubles(c2, dt=dt, tol=8e-2)
@@ -80,13 +81,13 @@ def test_doubles_c2t():
 
 def test_compress():
     dt = 0.2
-    tmats, coeffs = nocisd.compress(mf, dt1=dt, dt2=dt, tol2=1e-5)
+    tmats, coeffs = nocisd.compress(myci, dt1=dt, dt2=dt, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
     print("compress: ", E)
 
-test_compress()
+
 
 # def test_c2_symm():
 #     norm = np.linalg.norm
@@ -110,5 +111,73 @@ def test_cisd_vecs():
     # print(civec)
     print(len(civec))
 
+# def ci_singles():
+#     dt = 0.00001
+#     vec = np.copy(civec)
+#     vec[loc[2]:] = 0
+#     vec /= np.linalg.norm(vec)
+#     e_ci = pyscf_helper.cisd_energy_from_vec(vec, mf)
+#     print(e_ci)
+#     c0, c1, c2 = nocisd.ucisd_amplitudes(mf, civec=vec)
+#     t1 = nocisd.c2t_singles(c1, dt=dt)
+#     coeffs = np.array([c0] + [1/dt, -1/dt]*2)
+#     coeffs /= np.linalg.norm(coeffs)
+#     t = slater.add_tvec_hf(t1)
+#     rmats = slater.tvecs_to_rmats(t, nvir, nocc)
+#     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+#     print(E)
+
+# def ci_doubles_aa():
+#     dt = 0.001
+#     vec = np.copy(civec)
+#     vec[loc[0]:loc[3]] = 0
+#     # vec[loc[4]:] = 0
+#     # print(vec)
+#     vec /= np.linalg.norm(vec)
+#     e_ci = pyscf_helper.cisd_energy_from_vec(vec, mf)
+#     print("CISD energy:", e_ci)
+#     c0, c1, c2 = nocisd.ucisd_amplitudes(mf, civec=vec)
+#     t2, lam2s = nocisd.c2t_doubles(c2, dt=dt)
+#     t2_aa = t2[0]
+#     t2_bb = t2[2]
+
+#     c2 = np.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt**2)
+    
+#     coeffs = np.concatenate([[c0], c2])
+#     t2_all = np.vstack([t2_aa, t2_bb])
+#     t_all = slater.add_tvec_hf(t2_all)
+#     rmats = slater.tvecs_to_rmats(t_all, nvir, nocc)
+#     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+#     print("CISD energy:", e_ci)
+#     print("compressed NOCI",E)
+
+
+# def ci_doubles_ab():
+#     # TODO not figured out
+#     dt = 1
+#     vec = np.copy(civec)
+#     vec[loc[0]:loc[2]] = 0
+#     vec[loc[3]:] = 0
+#     vec /= np.linalg.norm(vec)
+#     e_ci = pyscf_helper.cisd_energy_from_vec(vec, mf)
+
+#     c0, c1, c2 = nocisd.ucisd_amplitudes(mf, civec=vec)
+#     t2, lam2s = nocisd.c2t_doubles(c2, dt=dt)
+#     tab = np.asarray(t2[1])
+#     # print(tab)
+#     cab = np.concatenate([lam2s[1],]*2 + [-lam2s[1],]*2)/(dt**2)
+#     t = slater.add_tvec_hf(tab)
+#     # t = tab
+#     rmats = slater.tvecs_to_rmats(t, nvir, nocc)
+#     coeffs = np.concatenate([[c0], cab])
+#     # coeffs = cab
+#     coeffs /= np.linalg.norm(coeffs)
+#     # H, S = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True, lc_coeffs=coeffs, e_nuc=e_nuc)
+#     # print(np.diag(H)+e_nuc)
+#     # print(S)
+#     # exit()
+#     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+#     print(e_ci)
+#     print(E)
 
 

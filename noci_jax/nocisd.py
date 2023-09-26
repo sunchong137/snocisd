@@ -19,7 +19,7 @@ NOTE: assumed nocca = noccb.
 import numpy as np
 from pyscf import ci
 
-def ucisd_amplitudes(mf, civec=None, flatten_c2=False):
+def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
     '''
     Return the CISD coefficients.
     Returns:
@@ -27,7 +27,7 @@ def ucisd_amplitudes(mf, civec=None, flatten_c2=False):
         c1: 3D array, amplitudes for single excitations.
         c2: 3D array or 5D array, amplitudes for double excitations.
     '''
-    myci = ci.UCISD(mf)   
+    # myci = ci.UCISD(mf)   
     if civec is None:                                                                 
         _, civec = myci.kernel()
     c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
@@ -120,11 +120,11 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]
 
 
-def compress(mf, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
+def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     '''
     Return NOSDs and corresponding coefficients.
     '''
-    c0, c1, c2 = ucisd_amplitudes(mf, civec=civec)
+    c0, c1, c2 = ucisd_amplitudes(myci, civec=civec)
     coeff0 = c0
     # get the CIS thouless
     t1s = np.array(c2t_singles(c1, dt=dt1))
