@@ -55,11 +55,56 @@ def metric_rmats(rmat1, rmat2):
     return ovlp
 
 
-def ortho_dets():
+def orthonormal_mos(tmats):
     '''
-    Orthogonalize the non-orthogonal determinants.
+    Othogonalize the MO orbitals given a Thouless rotation. 
+    Args:
+        tmat: 3D array or 4D array, the thouless rotation of size (nt, spin, nvir, nocc)
+    Returns:
+        3D array: full rotation matrices to generate the new set of MOs.
     '''
-    pass
+    tshape = tmats.shape
+    if len(tshape) <= 2: # matrices
+        nvir, nocc = tshape
+        norb = nvir + nocc
+        Iocc = np.eye(nocc)
+        Ivir = np.eye(nvir)
+
+        Mocc = np.linalg.inv(Iocc + tmats.T.conj()@tmats).T.conj()
+        Mvir = np.linalg.inv(Ivir + tmats@tmats.T.conj()).T.conj()
+        Uocc = np.linalg.cholesky(Mocc)
+        Uvir = np.linalg.cholesky(Mvir)
+        mat_on = np.zeros((norb, norb))
+        mat_on[:nocc, :nocc] = Uocc 
+        mat_on[nocc:, :nocc] = tmats@Uocc 
+        mat_on[:nocc, nocc:] = -tmats.conj().T@Uvir 
+        mat_on[nocc:, nocc:] =  Uvir
+
+    else: # more than one matrices
+        Nt = np.prod(tshape[:-2])
+        nvir, nocc = tshape[-2:]
+        norb = nocc + nvir
+        Iocc = np.eye(nocc)
+        Ivir = np.eye(nvir)
+        ts = tmats.reshape(Nt, nvir, nocc)
+
+        Mocc = np.tile(Iocc, Nt).T.reshape(Nt, nocc, nocc)\
+            + np.moveaxis(ts, -2, -1).conj()@ts
+        Mvir = np.tile(Ivir, Nt).T.reshape(Nt, nvir, nvir)\
+            + ts@np.moveaxis(ts, -2, -1).conj()
+
+        Uocc = np.linalg.cholesky(Mocc)
+        Uocc = np.moveaxis(np.linalg.inv(Uocc), -2, -1).conj()
+        Uvir = np.linalg.cholesky(Mvir)
+        Uvir = np.moveaxis(np.linalg.inv(Uvir), -2, -1).conj()
+
+        mat_on = np.zeros((Nt, norb, norb))
+        mat_on[:, :nocc, :nocc] = Uocc 
+        mat_on[:, nocc:, :nocc] = ts@Uocc
+        mat_on[:, :nocc, nocc:] = -np.moveaxis(ts, -2, -1).conj()@Uvir 
+        mat_on[:, nocc:, nocc:] = Uvir 
+        
+    return mat_on.reshape(*list(tmats.shape[:-2]), norb, norb)
 
 
 def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=0.0):

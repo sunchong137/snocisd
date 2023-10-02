@@ -141,4 +141,25 @@ def test_make_rdm12s():
 
     assert np.allclose(E, mf.energy_elec()[0])
 
-# test_make_rdm12s()
+def test_orthonormal():
+
+    nvir = 5
+    nocc = 3
+    norb = nvir + nocc
+    tmats = np.random.rand(nvir, nocc)
+    r = slater.orthonormal_mos(tmats)
+    I = np.eye(norb)
+    assert np.allclose(np.dot(r.T, r), I)
+
+
+    nt = 3
+    spin = 2
+    tmats = np.random.rand(nt, spin, nvir, nocc)
+    rotm = slater.orthonormal_mos(tmats)
+    x = np.moveaxis(rotm, -2, -1).conj() @ rotm
+    I_all = np.tile(I, nt*spin).T.reshape(nt, spin, norb, norb)
+
+    assert np.allclose(x, I_all)
+
+
+test_orthonormal()
