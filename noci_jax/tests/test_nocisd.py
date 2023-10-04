@@ -52,3 +52,28 @@ def test_compress():
     # print("compress: ", E)
     assert np.allclose(E, e_cisd)
 
+def test_given_mo():
+    mymf = scf.UHF(mol)
+    mymf.kernel()
+    mo1 = mymf.stability()[0]                                                             
+    init = mymf.make_rdm1(mo1, mymf.mo_occ)                                                 
+    mymf.kernel(init) 
+    mo_coeff = mymf.mo_coeff 
+    h = np.random.rand(norb, norb)
+    h += h.T
+    _, u = np.linalg.eigh(h)
+    h2 = np.random.rand(norb, norb)
+    h2 += h2.T
+    _, u2 = np.linalg.eigh(h2)
+    mo_coeff[0] = mo_coeff[0]@u
+    mo_coeff[1] = mo_coeff[1]@u2
+    mymf.mo_coeff = mo_coeff
+
+    e_hf = mymf.energy_tot()
+ 
+    myci_n = ci.UCISD(mymf)
+    my_corr, civec = myci_n.kernel()
+    my_e = e_hf + my_corr 
+    print(e_cisd, my_e)
+
+test_given_mo()
