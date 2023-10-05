@@ -33,7 +33,7 @@ def uhf_with_ortho_ao(mol):
     norb = mf.mol.nao
     ao_ovlp = mf.mol.intor_symmetric ('int1e_ovlp')
     trans_m = sla.inv(sla.sqrtm(ao_ovlp))
-    h1e = mf.get_hcore()
+    h1e = mf.get_ovlp()
     h2e = mf.mol.intor('int2e')
     h1e = trans_m @ h1e @ trans_m # trans_m.T = trans_m 
     h2e = ao2mo.incore.full(h2e, trans_m)
@@ -56,7 +56,7 @@ def get_integrals(mf, ortho_ao=False):
     if ortho_ao:
         print("INFO: the AOs are orthogonalized!")
         norb = mf.mol.nao
-        ao_ovlp = mf.mol.intor_symmetric ('int1e_ovlp')
+        ao_ovlp = mf.get_ovlp()
         trans_m = sla.inv(sla.sqrtm(ao_ovlp))
         h1e = trans_m @ h1e @ trans_m # trans_m.T = trans_m 
         h2e = ao2mo.incore.full(h2e, trans_m)
