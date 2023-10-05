@@ -106,6 +106,17 @@ def orthonormal_mos(tmats):
         
     return mat_on.reshape(*list(tmats.shape[:-2]), norb, norb)
 
+def rotate_rmats(rmats, U):
+    '''
+    Rotate the rmats based on Unitary matrix U.
+    args:
+        rmats: (nr, s, norb, nocc) array
+        U: (s, norb, norb) array
+    Returns:
+        UR for each R
+    '''
+    return jnp.einsum('sij, nsjk -> nsik', U, rmats)
+
 
 def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=0.0):
     '''
