@@ -76,4 +76,3 @@ def test_given_mo():
     my_e = e_hf + my_corr 
     print(e_cisd, my_e)
 
-test_given_mo()

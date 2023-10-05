@@ -23,7 +23,7 @@ from noci_jax import slater
 
 
 def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
-                 MaxIter=5000, print_step=1000, lrate=1e-2, schedule=False):
+                 MaxIter=5000, print_step=1000, lrate=1e-2, schedule=False, e_nuc=0.0):
     ''' 
     Given a set of Thouless rotations, optimize the parameters.
     Res HF approach, all parameters are optimized simultaneously.
@@ -97,7 +97,10 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         print(f"Energy lowered: {energy - energy0}")
     else:
         energy, vecs = fit(init_tvecs, MaxIter, lrate)
- 
+    
+    energy += e_nuc 
+    print("********End optimization*********")
+    print("The final energy from Res HF is {}".format(energy))
 
-    return energy, vecs
+    return energy, vecs.reshape(nvecs, 2, nvir, nocc)
 

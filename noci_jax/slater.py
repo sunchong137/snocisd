@@ -57,7 +57,7 @@ def metric_rmats(rmat1, rmat2):
 
 def orthonormal_mos(tmats):
     '''
-    Othogonalize the MO orbitals given a Thouless rotation. 
+    Get the orthonormalization matrix given a Thouless rotation. 
     Args:
         tmat: 3D array or 4D array, the thouless rotation of size (nt, spin, nvir, nocc)
     Returns:
