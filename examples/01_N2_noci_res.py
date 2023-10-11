@@ -6,7 +6,7 @@ CCSD(T): -109.2863
 '''
 
 from pyscf import gto, scf
-from noci_jax import thouless, pyscf_helpers
+from noci_jax import thouless, pyscf_helper
 from noci_jax import opt_res as optdets
 import time
 
@@ -44,8 +44,8 @@ if break_symm:
 
 # NOCI res HF
 
-h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf) 
-norb, nocc, nvir,  mo_coeff = pyscf_helpers.get_mos(mf)
+h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf) 
+norb, nocc, nvir,  mo_coeff = pyscf_helper.get_mos(mf)
 
 # generate initial guess for thouless rotations
 n_dets = 2

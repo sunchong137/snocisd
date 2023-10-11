@@ -2,7 +2,7 @@ import numpy as np
 from pyscf import gto, scf, ci
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
-from noci_jax import slater, pyscf_helper
+from noci_jax import slater, pyscf_helper, math_helper
 import jax
 from jax.config import config
 config.update("jax_debug_nans", True)
@@ -41,8 +41,7 @@ rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
 
 # E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
 H, S = slater.noci_matrices(rmats, mo_coeff, h1e, h2e)
-u, s, vt = np.linalg.svd(S)
-print(s)
-q, r = np.linalg.qr(S)
+deg_ld = math_helper.check_linear_depend(S)
+print(deg_ld/len(S))
 # print(np.linalg.norm(r, axis=1))
 # print("compress: ", E)

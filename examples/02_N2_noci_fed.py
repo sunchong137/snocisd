@@ -8,7 +8,7 @@ CCSD(T): -109.2863
 from pyscf import gto, scf, cc
 import numpy as np
 import sys 
-from noci_jax import thouless, pyscf_helpers
+from noci_jax import thouless, pyscf_helper
 from noci_jax import opt_fed as optdets
 
 # set up the system with pyscf
@@ -46,8 +46,8 @@ if break_symm:
 
 # NOCI res HF
 
-h1e, h2e, e_nuc = pyscf_helpers.get_integrals(mf) 
-norb, nocc, nvir, mo_coeff = pyscf_helpers.get_mos(mf)
+h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf) 
+norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
  
 
 n_dets = 2
