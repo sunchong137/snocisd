@@ -115,6 +115,7 @@ r2_n = slater.rotate_rmats(r2, U_all[1])
 
 r_all = np.vstack([r1_n, r2_n])
 
+# NOTE: the way of computing c_all is wrong
 c_all = np.concatenate([c1*c_noci[0], c2*c_noci[1]])
 E = slater.noci_energy(r_all, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=c_all, e_nuc=e_nuc)
 print(E)
