@@ -18,6 +18,7 @@ Following Dutta et. al., J. Chem. Phys. 154, 114112 (2021)
 '''
 import numpy as np
 from jax import numpy as jnp
+from noci_jax import slater
 import jax
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -64,6 +65,37 @@ def metric_residual(rmats0, r_new, ovlp_mat0=None):
     # calculate the residual 
     inv0 = jnp.linalg.inv(ovlp_mat0)
     proj_nto = jnp.einsum("np, pq, qn -> n", ovlp_left.T.conj(), inv0, ovlp_left)
-    proj_n = 1 - proj_nto/jnp.diag(ovlp_new)
+    resid_n = 1 - proj_nto/jnp.diag(ovlp_new)
 
-    return proj_n
+    return resid_n
+
+def snoci_criteria(rmats0, r_new, noci_vec, mo_coeff, h1e, h2e, ovlp_mat0=None, ham_mat0=None):
+    '''
+    Evaluate the energy contribution of the new vectors.
+    TODO: these two should be put together to save time.
+    '''
+
+    nr0 = len(rmats0)
+    # nr = nr0 + len(r_new)
+
+    if ovlp_mat0 is None or ham_mat0 is None:
+        r_all = jnp.vstack([rmats0, r_new])
+        ham_all, ovlp_all = slater.noci_matrices(r_all, mo_coeff, h1e, h2e)
+        ovlp_mat0 = ovlp_all[:nr0, :nr0]
+
+    else:
+        ham_all, ovlp_all = slater.expand_hs(ham_mat0, ovlp_mat0, r_new, rmats0, h1e, h2e, mo_coeff)
+    
+    # calculate the residual 
+    ovlp_left = ovlp_all[:nr0, nr0:]
+    ovlp_new = ovlp_all[nr0:, nr0:]
+    inv0 = jnp.linalg.inv(ovlp_mat0)
+    proj_nto = jnp.einsum("np, pq, qn -> n", ovlp_left.T.conj(), inv0, ovlp_left)
+    resid_n = 1 - proj_nto/jnp.diag(ovlp_new) 
+
+    # calculate the energy contribution
+    alpha = inv0 @ ovlp_left 
+    # TODO implement the rest
+
+
+    return resid_n 
