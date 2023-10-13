@@ -43,7 +43,7 @@ def test_corr_spin():
 
     # t_vecs = np.random.rand(3, 2*nvir*nocc)-0.5
     # t_vecs[0] = 0
-    t_vecs = np.load("./data/h4_tvec5.npy")
+    t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy")
 
     rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
     hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)

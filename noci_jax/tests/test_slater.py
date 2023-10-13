@@ -83,7 +83,7 @@ def test_make_rdm1():
     
     norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 
-    t_vecs = np.load("./data/h4_tvec5.npy")
+    t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy")
 
     rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
     hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
