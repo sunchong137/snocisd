@@ -69,7 +69,7 @@ def metric_residual(rmats0, r_new, ovlp_mat0=None):
 
     return resid_n
 
-def snoci_criteria(rmats0, r_new, noci_vec, mo_coeff, h1e, h2e, ovlp_mat0=None, ham_mat0=None):
+def snoci_criteria(rmats0, r_new, mo_coeff, h1e, h2e, E_fix=None, noci_vec=None, ovlp_mat0=None, ham_mat0=None):
     '''
     Evaluate the energy contribution of the new vectors.
     TODO: these two should be put together to save time.
@@ -94,8 +94,19 @@ def snoci_criteria(rmats0, r_new, noci_vec, mo_coeff, h1e, h2e, ovlp_mat0=None, 
     resid_n = 1 - proj_nto/jnp.diag(ovlp_new) 
 
     # calculate the energy contribution
-    alpha = inv0 @ ovlp_left 
-    # TODO implement the rest
+
+    alpha = inv0 @ ovlp_left  # (nr0, nr) array 
+    ham_left = ham_all[:nr0, nr0:]
+    ham_mat0 = ham_all[:nr0, :nr0]
+    ham_new = ham_all[nr0:, nr0:]
+    if E_fix is None:
+        E_fix, noci_vec = slater.solve_lc_coeffs(ham_mat0, ovlp_mat0, return_vec=True)
+    T_part = noci_vec.T.conj() @ (ham_left - ham_mat0 @ alpha)
+    E_new = jnp.diag(ham_new) - 2 * jnp.real(jnp.einsum("pn, pn -> n", alpha.conj(), ham_left))
+    E_new = E_new + jnp.einsum("pn, pq, qn -> n", alpha.conj(), ham_mat0, alpha)
+
+    R_term = np.sqrt((E_new - E_fix*resid_n)**2 + 4 * resid_n * jnp.abs(T_part)**2) 
+    resid_energy = (E_new - R_term) / (resid_n * E_fix)
 
 
-    return resid_n 
+    return resid_n, resid_energy
