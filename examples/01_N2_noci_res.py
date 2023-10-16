@@ -45,10 +45,10 @@ if break_symm:
 # NOCI res HF
 
 h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf) 
-norb, nocc, nvir,  mo_coeff = pyscf_helper.get_mos(mf)
+norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 
 # generate initial guess for thouless rotations
-n_dets = 2
+n_dets = 2 # new determinants
 niter = 8000
 print_step = 1000
 # t0 = thouless.gen_thouless_singles(nocc, nvir, max_nt=n_dets, zmax=2, zmin=0.1)[:n_dets]
