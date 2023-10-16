@@ -90,8 +90,9 @@ def snoci_criteria(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None, noci_ve
     smat_new = smat_all[nr0:, nr0:]
     inv_fix = jnp.linalg.inv(smat_fix)
     proj_old = jnp.einsum("np, pq, qn -> n", smat_mix_l.T.conj(), inv_fix, smat_mix_l)
-    norm_new = 1.0 - proj_old/jnp.diag(smat_new)
-
+    norm_new = jnp.diag(smat_new)
+    proj_new = 1.0 - proj_old/norm_new
+    sdiag_new = norm_new - proj_old
     # calculate the energy contribution
     if E_fix is None:
         E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
@@ -104,8 +105,8 @@ def snoci_criteria(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None, noci_ve
     T_part = noci_vec.T.conj() @ (hmat_mix_l - hmat_fix @ alpha)
     H_new = jnp.diag(hmat_new) - 2 * jnp.real(jnp.einsum("pn, pn -> n", alpha.conj(), hmat_mix_l))
     H_new = H_new + jnp.einsum("pn, pq, qn -> n", alpha.conj(), hmat_fix, alpha)
-    E_new = H_new / norm_new
-    R_term = np.sqrt((H_new * norm_fix - H_fix * norm_new)**2 + 4 * norm_new * norm_fix * jnp.abs(T_part)**2) 
-    de_ratio = (E_new - E_fix - R_term/(norm_new * norm_fix)) / (2 * E_fix)
+    E_new = H_new / sdiag_new
+    R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*jnp.abs(T_part)**2) 
+    de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
 
-    return norm_new, de_ratio
+    return proj_new, de_ratio

@@ -70,7 +70,8 @@ def test_criteria():
     r_n = np.random.rand(2, 2, norb, nocc)
     r_n[0,0,:nocc] = np.eye(nocc)
     r_n[0,1,:nocc] = np.eye(nocc)
-    r_n[1] = rmats[1]
+    r_n[1] = rmats[1] 
+    r_n[1][:, nocc:] += np.random.rand(2, nvir, nocc)*0.001
     m, e = select_ci.snoci_criteria(rmats, r_n, mo_coeff, h1e, h2e)
     print(m)
     print(e)
