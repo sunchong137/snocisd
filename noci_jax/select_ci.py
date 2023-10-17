@@ -94,24 +94,24 @@ def snoci_criteria(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None,
     norm_new = jnp.diag(smat_new)
     proj_new = 1.0 - proj_old/norm_new
     sdiag_new = norm_new - proj_old
-    
-    if sdiag_new < metric_tol:
+
+    if False: # sdiag_new < metric_tol:
         de_ratio = 0
     else:
         # calculate the energy contribution
         if E_fix is None:
             E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
 
+        norm_fix = jnp.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+        H_fix = E_fix * norm_fix
         alpha = inv_fix @ smat_mix_l  # (nr0, nr) array 
         hmat_mix_l = hmat_all[:nr0, nr0:]
         hmat_new = hmat_all[nr0:, nr0:]
-        norm_fix = jnp.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
-        H_fix = E_fix * norm_fix
-        T_part = noci_vec.T.conj() @ (hmat_mix_l - hmat_fix @ alpha)
-        H_new = jnp.diag(hmat_new) - 2 * jnp.real(jnp.einsum("pn, pn -> n", alpha.conj(), hmat_mix_l))
+        T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
+        H_new = jnp.diag(hmat_new) - 2*jnp.real(jnp.einsum("pn, pn -> n", alpha.conj(), hmat_mix_l))
         H_new = H_new + jnp.einsum("pn, pq, qn -> n", alpha.conj(), hmat_fix, alpha)
         E_new = H_new / sdiag_new
-        R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*jnp.abs(T_part)**2) 
+        R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(jnp.abs(T_part))**2) 
         de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
 
     return proj_new, de_ratio

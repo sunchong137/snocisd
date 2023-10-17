@@ -66,12 +66,15 @@ def test_criteria():
     h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
     norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
     t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy")
+    t_vecs = slater.add_tvec_hf(t_vecs)
     rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
-    r_n = np.random.rand(2, 2, norb, nocc)
+    r_n = np.random.rand(3, 2, norb, nocc)
     r_n[0,0,:nocc] = np.eye(nocc)
     r_n[0,1,:nocc] = np.eye(nocc)
-    r_n[1] = rmats[1] 
-    r_n[1][:, nocc:] += np.random.rand(2, nvir, nocc)*0.001
+    r_n[1,0,:nocc] = np.eye(nocc)
+    r_n[1,1,:nocc] = np.eye(nocc)
+    r_n[2] = rmats[1] 
+    r_n[2][:, nocc:] += np.random.rand(2, nvir, nocc)*0.001
     m, e = select_ci.snoci_criteria(rmats, r_n, mo_coeff, h1e, h2e)
     print(m)
     print(e)
