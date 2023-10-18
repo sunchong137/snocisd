@@ -76,7 +76,9 @@ def test_criteria():
     r_n[2] = rmats[1] 
     r_n[2][:, nocc:] += np.random.rand(2, nvir, nocc)*0.001
     m, e = select_ci.snoci_criteria(rmats, r_n, mo_coeff, h1e, h2e)
-    print(m)
-    print(e)
+    print(m, e)
+    # single det
+    m1, e1 = select_ci.snoci_criteria_single_det(rmats, r_n[0], mo_coeff, h1e, h2e)
+    print(m1, e1)
 
 test_criteria()

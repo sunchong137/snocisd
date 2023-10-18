@@ -71,7 +71,7 @@ def metric_residual(rmats_fix, rmats_new, smat_fix=None):
     return norm_new_proj
 
 def snoci_criteria(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None, 
-                   noci_vec=None, smat_fix=None, hmat_fix=None, metric_tol=1e-8):
+                   noci_vec=None, smat_fix=None, hmat_fix=None):
     '''
     Evaluate the linear dependency and energy contribution of the new vectors.
     '''
@@ -95,23 +95,67 @@ def snoci_criteria(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None,
     proj_new = 1.0 - proj_old/norm_new
     sdiag_new = norm_new - proj_old
 
-    if False: # sdiag_new < metric_tol:
-        de_ratio = 0
-    else:
-        # calculate the energy contribution
-        if E_fix is None:
-            E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
 
-        norm_fix = jnp.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
-        H_fix = E_fix * norm_fix
-        alpha = inv_fix @ smat_mix_l  # (nr0, nr) array 
-        hmat_mix_l = hmat_all[:nr0, nr0:]
-        hmat_new = hmat_all[nr0:, nr0:]
-        T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
-        H_new = jnp.diag(hmat_new) - 2*jnp.real(jnp.einsum("pn, pn -> n", alpha.conj(), hmat_mix_l))
-        H_new = H_new + jnp.einsum("pn, pq, qn -> n", alpha.conj(), hmat_fix, alpha)
-        E_new = H_new / sdiag_new
-        R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(jnp.abs(T_part))**2) 
-        de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
+    # calculate the energy contribution
+    if E_fix is None:
+        E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
+
+    norm_fix = jnp.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+    H_fix = E_fix * norm_fix
+    alpha = inv_fix @ smat_mix_l  # (nr0, nr) array 
+    hmat_mix_l = hmat_all[:nr0, nr0:]
+    hmat_new = hmat_all[nr0:, nr0:]
+    T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
+    H_new = jnp.diag(hmat_new) - 2*jnp.real(jnp.einsum("pn, pn -> n", alpha.conj(), hmat_mix_l))
+    H_new = H_new + jnp.einsum("pn, pq, qn -> n", alpha.conj(), hmat_fix, alpha)
+    E_new = H_new / sdiag_new
+    R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(jnp.abs(T_part))**2) 
+    de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
 
     return proj_new, de_ratio
+
+
+def snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None, 
+                   noci_vec=None, smat_fix=None, hmat_fix=None):
+    '''
+    Evaluate the linear dependency and energy contribution of one new vector.
+    '''
+
+    if smat_fix is None or hmat_fix is None:
+        rmats_all = jnp.vstack([rmats_fix, r_new[None, :]])
+        hmat_all, smat_all = slater.noci_matrices(rmats_all, mo_coeff, h1e, h2e)
+        smat_fix = smat_all[:-1, :-1]
+        hmat_fix = hmat_all[:-1, :-1]
+    else:
+        hmat_all, smat_all = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
+    
+    # calculate the residual 
+    smat_mix_l = smat_all[:-1, -1] # (nr0, 1)
+    s_new = smat_all[-1, -1]
+    inv_fix = jnp.linalg.inv(smat_fix)
+    proj_old = smat_mix_l.T.conj()@inv_fix@smat_mix_l
+    norm_new = s_new
+    proj_new = 1.0 - proj_old/norm_new
+    sdiag_new = norm_new - proj_old
+
+
+    # calculate the energy contribution
+    if E_fix is None:
+        E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
+
+    norm_fix = jnp.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+    H_fix = E_fix * norm_fix
+    alpha = inv_fix @ smat_mix_l  # (nr0, 1) array 
+    hmat_mix_l = hmat_all[:-1, -1]
+    T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
+    H_new = hmat_all[-1, -1] - 2*jnp.real(alpha.conj().T@hmat_mix_l)
+    H_new = H_new + alpha.conj().T@hmat_fix@alpha
+    E_new = H_new / sdiag_new
+    R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(jnp.abs(T_part))**2) 
+    de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
+
+    return proj_new, de_ratio
+
+def kernel(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None, 
+           noci_vec=None, smat_fix=None, hmat_fix=None, metric_tol=1e-8):
+    pass 

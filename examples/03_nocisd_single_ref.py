@@ -40,8 +40,3 @@ nvir, nocc = tmats.shape[2:]
 rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
 
 # E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
-H, S = slater.noci_matrices(rmats, mo_coeff, h1e, h2e)
-deg_ld = math_helper.check_linear_depend(S)
-print(deg_ld/len(S))
-# print(np.linalg.norm(r, axis=1))
-# print("compress: ", E)
