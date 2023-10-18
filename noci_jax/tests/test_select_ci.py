@@ -68,17 +68,18 @@ def test_criteria():
     t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy")
     t_vecs = slater.add_tvec_hf(t_vecs)
     rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
-    r_n = np.random.rand(3, 2, norb, nocc)
-    r_n[0,0,:nocc] = np.eye(nocc)
-    r_n[0,1,:nocc] = np.eye(nocc)
-    r_n[1,0,:nocc] = np.eye(nocc)
-    r_n[1,1,:nocc] = np.eye(nocc)
-    r_n[2] = rmats[1] 
-    r_n[2][:, nocc:] += np.random.rand(2, nvir, nocc)*0.001
+    t_new = np.random.rand(3, 2, nvir, nocc)
+    t_new[1] = t_vecs[1]
+    t_new[1] = t_new[1] + np.random.rand(2, nvir, nocc)*0.001
+    r_n = slater.tvecs_to_rmats(t_new, nvir, nocc)
+
     m, e = select_ci.snoci_criteria(rmats, r_n, mo_coeff, h1e, h2e)
     print(m, e)
     # single det
     m1, e1 = select_ci.snoci_criteria_single_det(rmats, r_n[0], mo_coeff, h1e, h2e)
     print(m1, e1)
+
+    t_select = select_ci.kernel(t_vecs, t_new, mo_coeff, h1e, h2e, nocc, nvir)
+    print(len(t_select))
 
 test_criteria()
