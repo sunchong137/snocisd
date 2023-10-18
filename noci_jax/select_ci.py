@@ -159,12 +159,14 @@ def snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
     return proj_new, de_ratio
 
 def kernel(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
-           metric_tol=1e-6, e_tol=1e-4):
+           m_tol=1e-5, e_tol=5e-8):
     '''
     Add new determinants.
     '''
     if nocc is None:
         nvir, nocc = tvecs_fix.shape[-2:]
+    num_new = len(tvecs_new)
+    num_fix = len(tvecs_fix)
     rmats_fix = slater.tvecs_to_rmats(tvecs_fix, nvir, nocc)
     rmats_new = slater.tvecs_to_rmats(tvecs_new, nvir, nocc)
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
@@ -175,13 +177,18 @@ def kernel(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
         r_new = rmats_new[i]
         m, e = snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
                                          smat_fix=smat_fix, hmat_fix=hmat_fix)
-        print(m, e)
-        if m > metric_tol and abs(e) > e_tol:
+        # print(m, e)
+        if m > m_tol and abs(e) > e_tol:
             hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
             rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
             selected_tvecs = jnp.vstack([selected_tvecs, tvecs_new[i][None, :]])
-
         else:
             continue
 
+    num_all = len(selected_tvecs)
+    num_added = num_all - num_fix 
+    print("***Selected CI Summary:***")
+    print("Metric Threshold: {:.1e}".format(m_tol))
+    print("Energy Threshold: {:.1e}".format(e_tol))
+    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
     return selected_tvecs

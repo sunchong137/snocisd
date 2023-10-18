@@ -2,7 +2,7 @@ import numpy as np
 from pyscf import gto, scf, ci
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
-from noci_jax import slater, pyscf_helper
+from noci_jax import slater, pyscf_helper, select_ci
 import jax
 from jax.config import config
 config.update("jax_debug_nans", True)
@@ -36,7 +36,16 @@ e_cisd = e_hf + e_corr
 
 dt = 0.1
 tmats, coeffs = nocisd.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)
-nvir, nocc = tmats.shape[2:]
-rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
+# rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
+tmats_fix = tmats[0][None, :]
+tmats_new = tmats[1:]
+m_tol = 1e-8
+e_tol = 1e-8
+select_ts = select_ci.kernel(tmats_fix, tmats_new, mo_coeff, h1e, h2e, nocc, nvir, m_tol=m_tol, e_tol=e_tol)
+n_tvecs = len(select_ts)
+np.save("results/snoci_N2_nvec{}.npy".format(n_tvecs), select_ts)
 
-# E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+rmats = slater.tvecs_to_rmats(select_ts, nvir, nocc)
+
+E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+print(E)
