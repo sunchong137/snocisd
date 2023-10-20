@@ -17,11 +17,15 @@ Compress the linear combinations of CISD with NOCI.
 NOTE: assumed nocca = noccb.
 '''
 import numpy as np
-from pyscf import ci
 
 def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
     '''
     Return the CISD coefficients.
+    Args:
+        myci: PySCF CISD object.
+    Kwargs:
+        civec: the linear combination coefficients for orthogonal CISD expansion.
+        flatten_c2: boolean, whether to turn the rank-4 tensor doubles coefficients into a matrix.
     Returns:
         c0: float, amplitude for HF ground state
         c1: 3D array, amplitudes for single excitations.
@@ -82,6 +86,9 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
         nvir: number of virtual orbitals.
         nocc: number of occupied orbitals.
         tol: threshold to discard eigenvalues.
+    Returns:
+        a list of Thouless matrices corresponding to aaaa, aabb, bbbb
+        the corresponding coefficients
     '''
     if nvir is None:
         nvir = c2.shape[1]
@@ -124,7 +131,19 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
 
 def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     '''
-    Return NOSDs and corresponding coefficients.
+    Approximate an orthogonal CISD expansion with the compressed non-orthogonal
+    expansion. 
+
+    Args:
+        myci: PySCF CISD object.
+    Kwargs:
+        civec: the coefficients of the CISD expansion
+        dt1: difference for the two-point derivative for the singles expansion.
+        dt2: difference for the two-point derivative for the doubles expansion.
+        tol2: tolerance to truncate the doubles expansion.
+    Returns:
+        t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
+        coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
     '''
     c0, c1, c2 = ucisd_amplitudes(myci, civec=civec)
     coeff0 = c0
@@ -153,3 +172,18 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     coeff_all /= np.linalg.norm(coeff_all)
 
     return t_all, coeff_all
+
+
+def gen_nocisd_multiref(tvec_ref):
+    '''
+    Given a set of non-orthogonal SDs, generate the compressed 
+    non-orthogonal CISD expansion from each SD.
+    Args:
+        tvec_ref: (N, 2, nvir, nocc) array, the reference NOSDs. 
+        The first one is the HF state.
+    Returns: 
+        (M, 2, nvir, nocc) array, the Thouless matrices generated 
+        from the CISD expansion from each reference. 
+        All the Thouless matrices are based on the HF state.
+    '''
+    pass 
