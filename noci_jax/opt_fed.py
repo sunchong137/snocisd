@@ -21,23 +21,27 @@ config.update("jax_enable_x64", True)
 from noci_jax import slater
 
 def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
-                 MaxIter=100, print_step=1000, lrate=1e-2, schedule=False):
+                 MaxIter=100, print_step=1000, lrate=1e-2, schedule=False,
+                 e_nuc=0.0):
     '''
     Given a set of Thouless rotations, optimize the parameters.
     Using FED (few-determinant) approach.
     Args:
-        tmats0: a list of Thouless rotations as the initial guess.
-        mo_coeff: a list of two 2D arrays
         h1e: 2D array, one-body Hamiltonian 
         h2e: 4D array, two-body Hamiltonian
+        mo_coeff: a list of two 2D arrays
+        nocc: number of occupied orbitals
     Kwargs:
-        tol: threshold to terminate minimization
+        nvecs: number of determinants
+        init_vecs: 2D array of size (nvecs, -1)
         MaxIter: maximum number of iterations
-        nsweep: number of sweeps
-
+        print_step: when to print the progress
+        lrate: learning rate
+        schedule: whether to change learning rate
+        e_nuc: the nuclear energy
     Returns:
-        float, final energy
-        a list of arrays, the optimized Thouless parameters.
+        energy
+        optimized Thouless
     '''
 
     mo_coeff = jnp.array(mo_coeff)
@@ -84,12 +88,14 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     de_fed = E - e_hf  
     print("###SUMMARY: Energy lowered after FED: {}".format(de_fed))
 
-    return E, init_tvecs.reshape(nvecs, -1)
+    return E + e_nuc, init_tvecs.reshape(nvecs, -1)
 
 
 def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, E0=None, 
                    print_step=1000, lrate=1e-2, schedule=False):
-
+    '''
+    Sweep from left to right to further optimize the parameters.
+    '''
     nvecs = len(init_tvecs)
     if nsweep < 1 or nvecs < 2:
         print("Number of sweeps needs to be > 1!")
@@ -154,6 +160,9 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
 def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, 
                      MaxIter=100, print_step=1000, lrate=1e-2, schedule=False):
 
+    '''
+    Optimize one Thouless matrices while fixing the rest.
+    '''
 
     # nvecs = len(rmats) + 1
     nvir, nocc = tshape

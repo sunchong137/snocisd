@@ -172,8 +172,13 @@ def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
         h1e: (norb, norb) array, 1-body integrals of the Hamiltonian
         h2e: (norb, norb, norb, norb) array, 2-body integrals of the Hamiltonian
     Kwargs:
-        nocc: int, number of occupied orbitals, we assume it's
-
+        nocc: int, number of occupied orbitals, we assume it's the same for two spins.
+        nvir: int, number of virtual orbitals.
+        m_tol: float, tolerance for linear-independency
+        e_tol: float, tolerance for energy contribution
+    Returns:
+        array of fix + selected Thouless matrices.
+        list of the indices of the selected Thouless matrices.
     '''
     if nocc is None:
         nvir, nocc = tvecs_fix.shape[-2:]
@@ -207,7 +212,10 @@ def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
 
 def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-8):
     '''
-    Add new determinants.
+    Similar to select_tvecs(), this function selects rotation 
+    matrices of size (N, 2, norb, nocc). One should use this function
+    when there is multi-reference, i.e. more than one set of MO 
+    coefficients.
     '''
 
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
@@ -233,4 +241,4 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
     print("Metric Threshold: {:.1e}".format(m_tol))
     print("Energy Threshold: {:.1e}".format(e_tol))
     print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
-    return select_rmats, selected_indices
+    return selected_rmats, selected_indices

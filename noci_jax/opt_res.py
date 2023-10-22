@@ -23,14 +23,27 @@ from noci_jax import slater
 
 
 def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
-                 MaxIter=5000, print_step=1000, lrate=1e-2, schedule=False, e_nuc=0.0):
+                 MaxIter=5000, print_step=1000, lrate=1e-2, schedule=False, 
+                 e_nuc=0.0):
     ''' 
     Given a set of Thouless rotations, optimize the parameters.
     Res HF approach, all parameters are optimized simultaneously.
     Args:
-        
+        h1e: 2D array, one-body Hamiltonian 
+        h2e: 4D array, two-body Hamiltonian
+        mo_coeff: a list of two 2D arrays
+        nocc: number of occupied orbitals
     Kwargs:
+        nvecs: number of determinants
         init_vecs: 2D array of size (nvecs, -1)
+        MaxIter: maximum number of iterations
+        print_step: when to print the progress
+        lrate: learning rate
+        schedule: whether to change learning rate
+        e_nuc: the nuclear energy
+    Returns:
+        energy
+        optimized Thouless matrices
     '''
 
     mo_coeff = jnp.array(mo_coeff)
