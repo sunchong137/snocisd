@@ -161,19 +161,30 @@ def snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
 def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
            m_tol=1e-5, e_tol=5e-8):
     '''
-    Add new determinants.
+    Select Thouless matrices from tvecs_new such that they are linearly independent
+    to tvecs_fix and have enough energy contribution.
+    Args:
+        tvecs_fix: (N, 2, nvir, nocc) array, the fixed set of Thouless matrices 
+                   representing the determinants already chosen.
+        tvecs_new: (M, 2, nvir, nocc) array, the determinants to be chosen.
+        mo_coeff: (2, norb, norb) array, the MO coefficients of the single reference 
+                  usually HF solution).
+        h1e: (norb, norb) array, 1-body integrals of the Hamiltonian
+        h2e: (norb, norb, norb, norb) array, 2-body integrals of the Hamiltonian
+    Kwargs:
+        nocc: int, number of occupied orbitals, we assume it's
+
     '''
     if nocc is None:
         nvir, nocc = tvecs_fix.shape[-2:]
     num_new = len(tvecs_new)
-    num_fix = len(tvecs_fix)
     rmats_fix = slater.tvecs_to_rmats(tvecs_fix, nvir, nocc)
     rmats_new = slater.tvecs_to_rmats(tvecs_new, nvir, nocc)
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
-    nr_new = len(tvecs_new)
 
     selected_tvecs = tvecs_fix 
-    for i in range(nr_new):
+    selected_indices = []
+    for i in range(num_new):
         r_new = rmats_new[i]
         m, e = snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
                                          smat_fix=smat_fix, hmat_fix=hmat_fix)
@@ -182,13 +193,44 @@ def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
             hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
             rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
             selected_tvecs = jnp.vstack([selected_tvecs, tvecs_new[i][None, :]])
+            selected_indices.append(i)
         else:
             continue
 
-    num_all = len(selected_tvecs)
-    num_added = num_all - num_fix 
+    num_added = len(selected_indices)
     print("***Selected CI Summary:***")
     print("Metric Threshold: {:.1e}".format(m_tol))
     print("Energy Threshold: {:.1e}".format(e_tol))
     print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
-    return selected_tvecs
+    return selected_tvecs, selected_indices
+
+
+def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-8):
+    '''
+    Add new determinants.
+    '''
+
+    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
+    num_new = len(rmats_new)
+    selected_rmats = rmats_fix
+    selected_indices = []
+
+    for i in range(num_new):
+        r_new = rmats_new[i]
+        m, e = snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
+                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
+        # print(m, e)
+        if m > m_tol and abs(e) > e_tol:
+            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
+            rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
+            selected_rmats = jnp.vstack([selected_rmats, rmats_new[i][None, :]])
+            selected_indices.append(i)
+        else:
+            continue
+
+    num_added = len(selected_indices)
+    print("***Selected CI Summary:***")
+    print("Metric Threshold: {:.1e}".format(m_tol))
+    print("Energy Threshold: {:.1e}".format(e_tol))
+    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
+    return select_rmats, selected_indices
