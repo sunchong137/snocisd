@@ -158,7 +158,7 @@ def snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
 
     return proj_new, de_ratio
 
-def kernel(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
+def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
            m_tol=1e-5, e_tol=5e-8):
     '''
     Add new determinants.

@@ -17,6 +17,12 @@ Compress the linear combinations of CISD with NOCI.
 NOTE: assumed nocca = noccb.
 '''
 import numpy as np
+import copy
+from pyscf import ci
+from noci_jax import slater
+from jax import numpy as jnp
+from jax.config import config
+config.update("jax_enable_x64", True)
 
 def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
     '''
@@ -174,16 +180,44 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     return t_all, coeff_all
 
 
-def gen_nocisd_multiref(tvec_ref):
+def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
     '''
     Given a set of non-orthogonal SDs, generate the compressed 
     non-orthogonal CISD expansion from each SD.
     Args:
         tvec_ref: (N, 2, nvir, nocc) array, the reference NOSDs. 
-        The first one is the HF state.
+                  The first one is the HF state.
+        mf: the converged PySCF scf object.
     Returns: 
-        (M, 2, nvir, nocc) array, the Thouless matrices generated 
+        (M, 2, norb, nocc) array, the rotation matrices
         from the CISD expansion from each reference. 
         All the Thouless matrices are based on the HF state.
     '''
-    pass 
+    num_ref = len(tvecs_ref)
+    if nvir is None:
+        nvir, nocc = tvecs_ref.shape[-2:]
+    # generate orthonormal MOs for each determinant
+
+    U_on_ref = slater.orthonormal_mos(tvecs_ref)
+    mo_coeff = mf.mo_coeff # HF MO coeffs
+    mo_ref = jnp.einsum("sij, nsjk -> nsik", mo_coeff, U_on_ref)
+    
+    my_mf = copy.copy(mf)
+    # generate the CISD compressed NOSDs
+    # first do HF
+    my_ci = ci.UCISD(mf)
+    _, civec = my_ci.kernel()
+    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
+    r = slater.tvecs_to_rmats(t, nvir, nocc)
+    r_cisd = r[1:] # only choose the singles and doubles 
+
+    for i in range(num_ref-1):
+        my_mf.mo_coeff = mo_ref[i+1]
+        my_ci = ci.UCISD(my_mf)
+        _, civec = my_ci.kernel()
+        t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
+        r = slater.tvecs_to_rmats(t, nvir, nocc)
+        r = slater.rotate_rmats(r, U_on_ref[i+1])
+        r_cisd = np.vstack([r_cisd, r[1:]])
+
+    return r_cisd

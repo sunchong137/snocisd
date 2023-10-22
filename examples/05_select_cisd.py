@@ -41,7 +41,7 @@ tmats_fix = tmats[0][None, :]
 tmats_new = tmats[1:]
 m_tol = 1e-8
 e_tol = 1e-8
-select_ts = select_ci.kernel(tmats_fix, tmats_new, mo_coeff, h1e, h2e, nocc, nvir, m_tol=m_tol, e_tol=e_tol)
+select_ts = select_ci.select_tvecs(tmats_fix, tmats_new, mo_coeff, h1e, h2e, nocc, nvir, m_tol=m_tol, e_tol=e_tol)
 n_tvecs = len(select_ts)
 np.save("results/snoci_N2_nvec{}.npy".format(n_tvecs), select_ts)
 
