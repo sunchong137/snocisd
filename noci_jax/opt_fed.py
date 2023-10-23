@@ -81,7 +81,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         print("Iter {}: energy lowered {}".format(iter+1, de))
         E0 = E
         init_tvecs = init_tvecs.at[iter].set(jnp.copy(t))
-        r = slater.tvecs_to_rmats(jnp.array([t]), nvir, nocc) # TODO implement one vector case
+        r = slater.tvecs_to_rmats(t, nvir, nocc) 
         hmat, smat = slater.expand_hs(hmat0, smat0, r, rmats_new, h1e, h2e, mo_coeff)
         rmats_new = jnp.vstack([rmats_new, r])
 
@@ -171,9 +171,8 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
         hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     def cost_func(t): 
-        _t = jnp.array([t])
         # thouless to rotation
-        r_n = slater.tvecs_to_rmats(_t, nvir, nocc)
+        r_n = slater.tvecs_to_rmats(t, nvir, nocc)
         hm, sm = slater.expand_hs(hmat, smat, r_n, rmats, h1e, h2e, mo_coeff)
         energy = slater.solve_lc_coeffs(hm, sm)
         return energy  

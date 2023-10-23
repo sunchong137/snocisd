@@ -26,6 +26,14 @@ config.update("jax_enable_x64", True)
 def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):
     '''
     Transform Thouless vectors into rotation matrices.
+    Args:
+        tvecs: array, can be size (N, 2*nvir*nocc), (2*nvir*nocc) or (N, 2, nvir, nocc).
+        nvir: int, number of virtual orbitals.
+        nocc: int, number of occupied orbitals.
+    Kwargs:
+        occ_mat: the rotation matrices for the occupied orbitals.
+    Returns:
+        array of size (N, 2, nvir, nocc)
     '''
 
     vecs_all = tvecs.reshape(-1, nvir, nocc)
