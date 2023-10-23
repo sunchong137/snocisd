@@ -217,7 +217,7 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
     when there is multi-reference, i.e. more than one set of MO 
     coefficients.
     '''
-
+    print("Selecting determinants based on overlap and energy contribution.")
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
     num_new = len(rmats_new)
     selected_rmats = rmats_fix

@@ -13,10 +13,9 @@
 # limitations under the License.
 
 import numpy as np
-from jax import numpy as jnp
-from pyscf import gto, scf, ci
-from noci_jax import nocisd, slater, pyscf_helper, thouless, opt_res
-import copy
+from pyscf import gto, scf, fci
+from noci_jax import nocisd, slater, pyscf_helper, thouless, opt_res, select_ci
+
 
 from jax.config import config
 config.update("jax_enable_x64", True)
@@ -48,6 +47,10 @@ norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 e_hf = mf.energy_tot()
 nelec = mol.nelectron
 
+# fci
+myfci = fci.FCI(mf)
+e_fci, v = myfci.kernel()
+
 
 # Step 4: NOCI with res HF
 ndets = 1
@@ -66,8 +69,10 @@ except:
     np.save(save_file, tnew)
 
 t_all = slater.add_tvec_hf(tnew)
-r_all = slater.tvecs_to_rmats(t_all, nvir, nocc)
+r_fix = slater.tvecs_to_rmats(t_all, nvir, nocc)
 r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-5)
 
-
+r_select, _ = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=1e-6, e_tol=1e-6)
+E = slater.noci_energy(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+print(E)
 
