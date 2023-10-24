@@ -47,8 +47,7 @@ def metric_residual(rmats_fix, rmats_new, smat_fix=None):
 
     if smat_fix is None:
         rmats_all = jnp.vstack([rmats_fix, rmats_new])
-        metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats_all.conj(), rmats_all)
-        smat_all = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
+        smat_all = slater.get_smat(rmats_all)
         smat_mix_l = smat_all[:nr0, nr0:]
         smat_new = smat_all[nr0:, nr0:]
         smat_fix = smat_all[:nr0, :nr0]
@@ -217,7 +216,38 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
     when there is multi-reference, i.e. more than one set of MO 
     coefficients.
     '''
-    print("Selecting determinants based on overlap and energy contribution.")
+    print("***Selecting determinants based on overlap and energy contribution.")
+    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
+    num_new = len(rmats_new)
+    selected_rmats = rmats_fix
+    selected_indices = []
+
+    for i in range(num_new):
+        r_new = rmats_new[i]
+        m, e = snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
+                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
+        # print(m, e)
+        if m > m_tol and abs(e) > e_tol:
+            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
+            rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
+            selected_rmats = jnp.vstack([selected_rmats, rmats_new[i][None, :]])
+            selected_indices.append(i)
+        else:
+            continue
+
+    num_added = len(selected_indices)
+    print("***Selected CI Summary:***")
+    print("Metric Threshold: {:.1e}".format(m_tol))
+    print("Energy Threshold: {:.1e}".format(e_tol))
+    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
+    return selected_rmats, selected_indices
+
+
+def select_rmats_ovlp(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5):
+    '''
+    Only consider the overlap criteria.
+    '''
+    print("***Selecting determinants based on overlap.")
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
     num_new = len(rmats_new)
     selected_rmats = rmats_fix

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from pyscf import gto, scf, fci
+from pyscf import gto, scf, fci, cc
 from noci_jax import nocisd, slater, pyscf_helper, thouless, opt_res, select_ci
 
 
@@ -47,9 +47,15 @@ norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 e_hf = mf.energy_tot()
 nelec = mol.nelectron
 
-# fci
-myfci = fci.FCI(mf)
-e_fci, v = myfci.kernel()
+# # fci
+# myfci = fci.FCI(mf)
+# e_fci, v = myfci.kernel()
+
+# # ccsd
+# mycc = cc.UCCSD(mf)
+# mycc.run()
+# de = mycc.e_corr
+# e_cc = e_hf + de
 
 
 # Step 4: NOCI with res HF
@@ -72,7 +78,7 @@ t_all = slater.add_tvec_hf(tnew)
 r_fix = slater.tvecs_to_rmats(t_all, nvir, nocc)
 r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-5)
 
-r_select, _ = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=1e-6, e_tol=1e-6)
+r_select, _ = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=5e-6, e_tol=1e-6)
 E = slater.noci_energy(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
 print(E)
 

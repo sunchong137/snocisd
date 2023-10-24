@@ -291,6 +291,14 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     return dm1s/phi_norm, dm2s/phi_norm
 
 
+def get_smat(rmats):
+    '''
+    Get the overlap matrix of the given determinants.
+    '''
+    metrics = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    smat = jnp.prod(jnp.linalg.det(metrics), axis=-1)   
+    return smat
+
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     '''
     Expand the H matrix and S matrix
@@ -321,6 +329,29 @@ def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     sm = sm.at[n_fix:, n_fix:].set(s_new)
 
     return hm, sm
+
+
+
+def expand_smat(smat_fix, rmats_fix, rmats_new):
+    '''
+    Given the previous smat from rmats_fix, add the rows and columns from
+    rmats_new.
+    '''
+    n_fix = len(rmats_fix)
+    n_new = len(rmats_new)
+    n_tot = n_fix + n_new
+    smat = jnp.zeros((n_tot, n_tot))
+    smat = smat.at[:n_fix, :n_fix].set(smat_fix)
+    metrics_mix = jnp.einsum('nsji, msjk -> nmsik', rmats_fix.conj(), rmats_new)
+    smat_left = jnp.prod(jnp.linalg.det(metrics_mix), axis=-1)
+    metrics_new = jnp.einsum('nsji, msjk -> nmsik', rmats_new.conj(), rmats_new)
+    smat_new = jnp.prod(jnp.linalg.det(metrics_new), axis=-1)
+    smat = smat.at[:n_fix, n_fix:].set(smat_left)
+    smat = smat.at[n_fix:, :n_fix].set(smat_left.conj().T)
+    smat = smat.at[n_fix:, n_fix:].set(smat_new)
+
+    return smat
+    
 
 
 def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
