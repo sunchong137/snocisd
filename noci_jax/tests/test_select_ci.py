@@ -38,7 +38,7 @@ def test_metric():
     r_n[0,1,:nocc] = np.eye(nocc)
     r_n[1] = rmats[1]
     
-    mr = select_ci.metric_residual(rmats, r_n)
+    mr = select_ci.criteria_ovlp(rmats, r_n)
     assert mr[1] < 1e-10
 
 
@@ -73,13 +73,13 @@ def test_criteria():
     t_new[1] = t_new[1] + np.random.rand(2, nvir, nocc)*0.001
     r_n = slater.tvecs_to_rmats(t_new, nvir, nocc)
 
-    m, e = select_ci.snoci_criteria(rmats, r_n, mo_coeff, h1e, h2e)
+    m, e = select_ci.criteria_all(rmats, r_n, mo_coeff, h1e, h2e)
     print(m, e)
     # single det
-    m1, e1 = select_ci.snoci_criteria_single_det(rmats, r_n[0], mo_coeff, h1e, h2e)
+    m1, e1 = select_ci.criteria_all_single_det(rmats, r_n[0], mo_coeff, h1e, h2e)
     print(m1, e1)
 
-    t_select = select_ci.kernel(t_vecs, t_new, mo_coeff, h1e, h2e, nocc, nvir)
+    t_select = select_ci.select_tvecs(t_vecs, t_new, mo_coeff, h1e, h2e, nocc, nvir)
     print(len(t_select))
 
 test_criteria()

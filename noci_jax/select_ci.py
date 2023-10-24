@@ -23,6 +23,122 @@ import jax
 from jax.config import config
 config.update("jax_enable_x64", True)
 
+
+def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
+           m_tol=1e-5, e_tol=5e-8):
+    '''
+    Select Thouless matrices from tvecs_new such that they are linearly independent
+    to tvecs_fix and have enough energy contribution.
+    Args:
+        tvecs_fix: (N, 2, nvir, nocc) array, the fixed set of Thouless matrices 
+                   representing the determinants already chosen.
+        tvecs_new: (M, 2, nvir, nocc) array, the determinants to be chosen.
+        mo_coeff: (2, norb, norb) array, the MO coefficients of the single reference 
+                  usually HF solution).
+        h1e: (norb, norb) array, 1-body integrals of the Hamiltonian
+        h2e: (norb, norb, norb, norb) array, 2-body integrals of the Hamiltonian
+    Kwargs:
+        nocc: int, number of occupied orbitals, we assume it's the same for two spins.
+        nvir: int, number of virtual orbitals.
+        m_tol: float, tolerance for linear-independency
+        e_tol: float, tolerance for energy contribution
+    Returns:
+        array of fix + selected Thouless matrices.
+        list of the indices of the selected Thouless matrices.
+    '''
+    if nocc is None:
+        nvir, nocc = tvecs_fix.shape[-2:]
+    num_new = len(tvecs_new)
+    rmats_fix = slater.tvecs_to_rmats(tvecs_fix, nvir, nocc)
+    rmats_new = slater.tvecs_to_rmats(tvecs_new, nvir, nocc)
+    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
+
+    selected_tvecs = tvecs_fix 
+    selected_indices = []
+    for i in range(num_new):
+        r_new = rmats_new[i]
+        m, e = criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
+                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
+        # print(m, e)
+        if m > m_tol and abs(e) > e_tol:
+            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
+            rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
+            selected_tvecs = jnp.vstack([selected_tvecs, tvecs_new[i][None, :]])
+            selected_indices.append(i)
+        else:
+            continue
+
+    num_added = len(selected_indices)
+    print("***Selected CI Summary:***")
+    print("Metric Threshold: {:.1e}".format(m_tol))
+    print("Energy Threshold: {:.1e}".format(e_tol))
+    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
+    return selected_tvecs, selected_indices
+
+
+def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-8):
+    '''
+    Similar to select_tvecs(), this function selects rotation 
+    matrices of size (N, 2, norb, nocc). One should use this function
+    when there is multi-reference, i.e. more than one set of MO 
+    coefficients.
+    '''
+    print("***Selecting determinants based on overlap and energy contribution.")
+    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
+    num_new = len(rmats_new)
+    selected_rmats = rmats_fix
+    selected_indices = []
+
+    for i in range(num_new):
+        r_new = rmats_new[i][None, :]
+        m, e = criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
+                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
+        # print(m, e)
+        if m > m_tol and abs(e) > e_tol:
+            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new, rmats_fix, h1e, h2e, mo_coeff)
+            rmats_fix = jnp.vstack([rmats_fix, r_new])
+            selected_rmats = jnp.vstack([selected_rmats, r_new])
+            selected_indices.append(i)
+        else:
+            continue
+
+    num_added = len(selected_indices)
+    print("***Selected CI Summary:***")
+    print("Metric Threshold: {:.1e}".format(m_tol))
+    print("Energy Threshold: {:.1e}".format(e_tol))
+    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
+    return selected_rmats, selected_indices
+
+
+def select_rmats_ovlp(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5):
+    '''
+    Only consider the overlap criteria.
+    '''
+    print("***Selecting determinants based on overlap.")
+    smat_fix = slater.get_smat(rmats_fix)
+    num_new = len(rmats_new)
+    selected_rmats = rmats_fix
+    selected_indices = []
+
+    for i in range(num_new):
+        r_new = rmats_new[i][None, :]
+        m = criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=smat_fix)
+       
+        if m > m_tol:
+            smat_fix = slater.expand_smat(smat_fix, rmats_fix, r_new)
+            rmats_fix = jnp.vstack([rmats_fix, r_new])
+            selected_rmats = jnp.vstack([selected_rmats, r_new])
+            selected_indices.append(i)
+        else:
+            continue
+
+    num_added = len(selected_indices)
+    print("***Selected CI Summary:***")
+    print("Metric Threshold: {:.1e}".format(m_tol))
+    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
+    return selected_rmats, selected_indices
+
+
 def check_linear_depend(ovlp_mat, tol=1e-10):
     '''
     Check the linear dependancy of a set of vectors.
@@ -38,7 +154,7 @@ def check_linear_depend(ovlp_mat, tol=1e-10):
     
     return num_ind
 
-def metric_residual(rmats_fix, rmats_new, smat_fix=None):
+def criteria_ovlp(rmats_fix, rmats_new, smat_fix=None):
     '''
     Check if a new vector is not linearly dependent to the existing NOCI pool.
     '''
@@ -48,19 +164,12 @@ def metric_residual(rmats_fix, rmats_new, smat_fix=None):
     if smat_fix is None:
         rmats_all = jnp.vstack([rmats_fix, rmats_new])
         smat_all = slater.get_smat(rmats_all)
-        smat_mix_l = smat_all[:nr0, nr0:]
-        smat_new = smat_all[nr0:, nr0:]
         smat_fix = smat_all[:nr0, :nr0]
     else:
-        smat_all = jnp.zeros((nr, nr))
-        smat_all = smat_all.at[:nr0, :nr0].set(smat_fix) 
-        metrics_mix = jnp.einsum('nsji, msjk -> nmsik', rmats_fix.conj(), rmats_new)
-        smat_mix_l = jnp.prod(jnp.linalg.det(metrics_mix), axis=-1)
-        smat_all = smat_all.at[:nr0, nr0:].set(smat_mix_l)
-        smat_all = smat_all.at[nr0:, :nr0].set(smat_mix_l.T.conj())
-        metrics_new = jnp.einsum('nsji, msjk -> nmsik', rmats_new.conj(), rmats_new)
-        smat_new = jnp.prod(jnp.linalg.det(metrics_new), axis=-1)
-        smat_all = smat_all.at[nr0:, nr0:].set(smat_new) 
+        smat_all = slater.expand_smat(smat_fix, rmats_fix, rmats_new)
+
+    smat_mix_l = smat_all[:nr0, nr0:]
+    smat_new = smat_all[nr0:, nr0:]
 
     # calculate the residual 
     inv_fix = jnp.linalg.inv(smat_fix)
@@ -69,7 +178,30 @@ def metric_residual(rmats_fix, rmats_new, smat_fix=None):
 
     return norm_new_proj
 
-def snoci_criteria(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None, 
+
+def criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=None):
+    '''
+    Linear independence criterial for one determinant.
+    '''
+    if smat_fix is None:
+        rmats_all = jnp.vstack([rmats_fix, r_new[None, :]])
+        smat_all = slater.get_smat(rmats_all)
+        smat_fix = smat_all[:-1, :-1]
+    else:
+        smat_all = slater.expand_smat(smat_fix, rmats_fix, r_new[None, :])
+
+    # calculate the residual 
+    smat_mix_l = smat_all[:-1, -1] # (nr0, 1)
+    s_new = smat_all[-1, -1]
+    inv_fix = jnp.linalg.inv(smat_fix)
+    proj_old = smat_mix_l.T.conj()@inv_fix@smat_mix_l
+    norm_new = s_new
+    proj_new = 1.0 - proj_old/norm_new
+
+    return proj_new
+
+
+def criteria_all(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None, 
                    noci_vec=None, smat_fix=None, hmat_fix=None):
     '''
     Evaluate the linear dependency and energy contribution of the new vectors.
@@ -114,7 +246,7 @@ def snoci_criteria(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None,
     return proj_new, de_ratio
 
 
-def snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None, 
+def criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None, 
                    noci_vec=None, smat_fix=None, hmat_fix=None, metric_tol=1e-6):
     '''
     Evaluate the linear dependency and energy contribution of one new vector.
@@ -157,118 +289,3 @@ def snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
 
     return proj_new, de_ratio
 
-def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
-           m_tol=1e-5, e_tol=5e-8):
-    '''
-    Select Thouless matrices from tvecs_new such that they are linearly independent
-    to tvecs_fix and have enough energy contribution.
-    Args:
-        tvecs_fix: (N, 2, nvir, nocc) array, the fixed set of Thouless matrices 
-                   representing the determinants already chosen.
-        tvecs_new: (M, 2, nvir, nocc) array, the determinants to be chosen.
-        mo_coeff: (2, norb, norb) array, the MO coefficients of the single reference 
-                  usually HF solution).
-        h1e: (norb, norb) array, 1-body integrals of the Hamiltonian
-        h2e: (norb, norb, norb, norb) array, 2-body integrals of the Hamiltonian
-    Kwargs:
-        nocc: int, number of occupied orbitals, we assume it's the same for two spins.
-        nvir: int, number of virtual orbitals.
-        m_tol: float, tolerance for linear-independency
-        e_tol: float, tolerance for energy contribution
-    Returns:
-        array of fix + selected Thouless matrices.
-        list of the indices of the selected Thouless matrices.
-    '''
-    if nocc is None:
-        nvir, nocc = tvecs_fix.shape[-2:]
-    num_new = len(tvecs_new)
-    rmats_fix = slater.tvecs_to_rmats(tvecs_fix, nvir, nocc)
-    rmats_new = slater.tvecs_to_rmats(tvecs_new, nvir, nocc)
-    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
-
-    selected_tvecs = tvecs_fix 
-    selected_indices = []
-    for i in range(num_new):
-        r_new = rmats_new[i]
-        m, e = snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
-                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
-        # print(m, e)
-        if m > m_tol and abs(e) > e_tol:
-            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
-            rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
-            selected_tvecs = jnp.vstack([selected_tvecs, tvecs_new[i][None, :]])
-            selected_indices.append(i)
-        else:
-            continue
-
-    num_added = len(selected_indices)
-    print("***Selected CI Summary:***")
-    print("Metric Threshold: {:.1e}".format(m_tol))
-    print("Energy Threshold: {:.1e}".format(e_tol))
-    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
-    return selected_tvecs, selected_indices
-
-
-def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-8):
-    '''
-    Similar to select_tvecs(), this function selects rotation 
-    matrices of size (N, 2, norb, nocc). One should use this function
-    when there is multi-reference, i.e. more than one set of MO 
-    coefficients.
-    '''
-    print("***Selecting determinants based on overlap and energy contribution.")
-    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
-    num_new = len(rmats_new)
-    selected_rmats = rmats_fix
-    selected_indices = []
-
-    for i in range(num_new):
-        r_new = rmats_new[i]
-        m, e = snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
-                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
-        # print(m, e)
-        if m > m_tol and abs(e) > e_tol:
-            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
-            rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
-            selected_rmats = jnp.vstack([selected_rmats, rmats_new[i][None, :]])
-            selected_indices.append(i)
-        else:
-            continue
-
-    num_added = len(selected_indices)
-    print("***Selected CI Summary:***")
-    print("Metric Threshold: {:.1e}".format(m_tol))
-    print("Energy Threshold: {:.1e}".format(e_tol))
-    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
-    return selected_rmats, selected_indices
-
-
-def select_rmats_ovlp(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5):
-    '''
-    Only consider the overlap criteria.
-    '''
-    print("***Selecting determinants based on overlap.")
-    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
-    num_new = len(rmats_new)
-    selected_rmats = rmats_fix
-    selected_indices = []
-
-    for i in range(num_new):
-        r_new = rmats_new[i]
-        m, e = snoci_criteria_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
-                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
-        # print(m, e)
-        if m > m_tol and abs(e) > e_tol:
-            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
-            rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
-            selected_rmats = jnp.vstack([selected_rmats, rmats_new[i][None, :]])
-            selected_indices.append(i)
-        else:
-            continue
-
-    num_added = len(selected_indices)
-    print("***Selected CI Summary:***")
-    print("Metric Threshold: {:.1e}".format(m_tol))
-    print("Energy Threshold: {:.1e}".format(e_tol))
-    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
-    return selected_rmats, selected_indices
