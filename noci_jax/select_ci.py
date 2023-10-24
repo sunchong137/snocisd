@@ -118,17 +118,15 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
     print("***Selecting determinants based on overlap.")
     smat_fix = slater.get_smat(rmats_fix)
     num_new = len(rmats_new)
-    selected_rmats = rmats_fix
     selected_indices = []
 
     for i in range(num_new):
         r_new = rmats_new[i][None, :]
-        m = criterial_ovlp_single_det(rmats_fix, r_new[0], smat_fix=smat_fix)
-        print(m)
+        m, s = criterial_ovlp_single_det(rmats_fix, r_new[0], smat_fix=smat_fix, m_tol=m_tol)
+        # print(m)
         if m > m_tol:
-            smat_fix = slater.expand_smat(smat_fix, rmats_fix, r_new)
+            smat_fix = s
             rmats_fix = jnp.vstack([rmats_fix, r_new])
-            selected_rmats = jnp.vstack([selected_rmats, r_new])
             selected_indices.append(i)
         else:
             continue
@@ -137,7 +135,7 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
     print("***Selected CI Summary:***")
     print("Metric Threshold: {:.1e}".format(m_tol))
     print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
-    return selected_rmats, selected_indices
+    return rmats_fix, selected_indices
 
 
 def check_linear_depend(ovlp_mat, tol=1e-10):
@@ -179,7 +177,7 @@ def criteria_ovlp(rmats_fix, rmats_new, smat_fix=None):
     return norm_new_proj
 
 
-def criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=None):
+def criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=None, m_tol=1e-5):
     '''
     Linear independence criterial for one determinant.
     '''
@@ -187,18 +185,30 @@ def criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=None):
         rmats_all = jnp.vstack([rmats_fix, r_new[None, :]])
         smat_all = slater.get_smat(rmats_all)
         smat_fix = smat_all[:-1, :-1]
+        smat_left = smat_all[:-1, -1] # (nr0, 1)
+        s_new = smat_all[-1, -1]
     else:
-        smat_all = slater.expand_smat(smat_fix, rmats_fix, r_new[None, :])
+        metrics_mix = jnp.einsum('nsji, sjk -> nsik', rmats_fix.conj(), r_new)
+        smat_left = jnp.prod(jnp.linalg.det(metrics_mix), axis=-1)
+        s_new = jnp.einsum("sji, sjk -> sik", r_new.conj(), r_new)
+        s_new = jnp.prod(jnp.linalg.det(s_new), axis=-1)
+
 
     # calculate the residual 
-    smat_mix_l = smat_all[:-1, -1] # (nr0, 1)
-    s_new = smat_all[-1, -1]
     inv_fix = jnp.linalg.inv(smat_fix)
-    proj_old = smat_mix_l.T.conj()@inv_fix@smat_mix_l
-    norm_new = s_new
-    proj_new = 1.0 - proj_old/norm_new
+    proj_old = smat_left.T.conj() @ inv_fix @ smat_left
+    proj_new = 1.0 - proj_old/s_new
 
-    return proj_new
+    if proj_new > m_tol:
+        nr = len(rmats_fix) + 1
+        smat_all = jnp.zeros((nr, nr))
+        smat_all = smat_all.at[:-1, :-1].set(smat_fix)
+        smat_all = smat_all.at[:-1, -1].set(smat_left)
+        smat_all = smat_all.at[-1, :-1].set(smat_left.conj().T)
+        smat_all = smat_all.at[-1, -1].set(s_new)
+        return proj_new, smat_all
+    else:
+        return proj_new, None
 
 
 def criteria_all(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None, 

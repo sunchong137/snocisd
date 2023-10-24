@@ -340,12 +340,13 @@ def expand_smat(smat_fix, rmats_fix, rmats_new):
     n_fix = len(rmats_fix)
     n_new = len(rmats_new)
     n_tot = n_fix + n_new
-    smat = jnp.zeros((n_tot, n_tot))
-    smat = smat.at[:n_fix, :n_fix].set(smat_fix)
     metrics_mix = jnp.einsum('nsji, msjk -> nmsik', rmats_fix.conj(), rmats_new)
     smat_left = jnp.prod(jnp.linalg.det(metrics_mix), axis=-1)
     metrics_new = jnp.einsum('nsji, msjk -> nmsik', rmats_new.conj(), rmats_new)
     smat_new = jnp.prod(jnp.linalg.det(metrics_new), axis=-1)
+
+    smat = jnp.zeros((n_tot, n_tot))
+    smat = smat.at[:n_fix, :n_fix].set(smat_fix)
     smat = smat.at[:n_fix, n_fix:].set(smat_left)
     smat = smat.at[n_fix:, :n_fix].set(smat_left.conj().T)
     smat = smat.at[n_fix:, n_fix:].set(smat_new)

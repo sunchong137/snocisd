@@ -49,18 +49,18 @@ nelec = mol.nelectron
 # # fci
 # myfci = fci.FCI(mf)
 # e_fci, v = myfci.kernel()
+# print("FCI:", e_fci)
+# # ccsd
+# mycc = cc.UCCSD(mf)
+# mycc.run()
+# de = mycc.e_corr
+# e_cc = e_hf + de
 
-# ccsd
-mycc = cc.UCCSD(mf)
-mycc.run()
-de = mycc.e_corr
-e_cc = e_hf + de
-
-print("CCSD: {}".format(e_cc))
+# print("CCSD: {}".format(e_cc))
 
 
 # Step 4: NOCI with res HF
-ndets = 2
+ndets = 3
 save_file = "data/h{}_R{}_{}_ndet{}.npy".format(nH, bl, mol.basis, ndets)
 try:
     # raise ValueError
@@ -78,7 +78,7 @@ except:
 t_all = slater.add_tvec_hf(tnew)
 r_fix = slater.tvecs_to_rmats(t_all, nvir, nocc)
 r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-5)
-m_tol = 1e-6
+m_tol = 1e-4
 # e_tol = 1e-6
 t1 = time.time()
 # r_select, _ = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=m_tol, e_tol=e_tol)
