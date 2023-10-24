@@ -207,6 +207,7 @@ def criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=None, m_tol=1e-5):
         smat_all = smat_all.at[-1, :-1].set(smat_left.conj().T)
         smat_all = smat_all.at[-1, -1].set(s_new)
         return proj_new, smat_all
+    
     else:
         return proj_new, None
 
