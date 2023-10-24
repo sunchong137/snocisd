@@ -15,8 +15,7 @@
 import numpy as np
 from pyscf import gto, scf, fci, cc
 from noci_jax import nocisd, slater, pyscf_helper, thouless, opt_res, select_ci
-
-
+import time
 from jax.config import config
 config.update("jax_enable_x64", True)
 
@@ -30,7 +29,7 @@ for i in range(nH):
 mol = gto.Mole()
 mol.atom = geom
 mol.unit='angstrom'
-mol.basis = "sto3g"
+mol.basis = "631g"
 mol.build()
 
 # Step 2: Run the UHF calculation
@@ -51,15 +50,17 @@ nelec = mol.nelectron
 # myfci = fci.FCI(mf)
 # e_fci, v = myfci.kernel()
 
-# # ccsd
-# mycc = cc.UCCSD(mf)
-# mycc.run()
-# de = mycc.e_corr
-# e_cc = e_hf + de
+# ccsd
+mycc = cc.UCCSD(mf)
+mycc.run()
+de = mycc.e_corr
+e_cc = e_hf + de
+
+print("CCSD: {}".format(e_cc))
 
 
 # Step 4: NOCI with res HF
-ndets = 1
+ndets = 2
 save_file = "data/h{}_R{}_{}_ndet{}.npy".format(nH, bl, mol.basis, ndets)
 try:
     # raise ValueError
@@ -77,8 +78,15 @@ except:
 t_all = slater.add_tvec_hf(tnew)
 r_fix = slater.tvecs_to_rmats(t_all, nvir, nocc)
 r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-5)
-
-r_select, _ = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=5e-6, e_tol=1e-6)
+m_tol = 1e-6
+# e_tol = 1e-6
+t1 = time.time()
+# r_select, _ = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=m_tol, e_tol=e_tol)
+t2 = time.time()
+r_select, _ = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol)
+t3 = time.time()
+# print(t2-t1, t3-t2)
+# exit()
 E = slater.noci_energy(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
 print(E)
 

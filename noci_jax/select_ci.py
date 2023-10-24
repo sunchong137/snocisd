@@ -91,7 +91,7 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
 
     for i in range(num_new):
         r_new = rmats_new[i][None, :]
-        m, e = criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
+        m, e = criteria_all_single_det(rmats_fix, r_new[0], mo_coeff, h1e, h2e, 
                                          smat_fix=smat_fix, hmat_fix=hmat_fix)
         # print(m, e)
         if m > m_tol and abs(e) > e_tol:
@@ -110,9 +110,10 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
     return selected_rmats, selected_indices
 
 
-def select_rmats_ovlp(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5):
+def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
     '''
     Only consider the overlap criteria.
+    Much faster than the select_rmat, and serve the same purpose.
     '''
     print("***Selecting determinants based on overlap.")
     smat_fix = slater.get_smat(rmats_fix)
@@ -122,8 +123,8 @@ def select_rmats_ovlp(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5):
 
     for i in range(num_new):
         r_new = rmats_new[i][None, :]
-        m = criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=smat_fix)
-       
+        m = criterial_ovlp_single_det(rmats_fix, r_new[0], smat_fix=smat_fix)
+        print(m)
         if m > m_tol:
             smat_fix = slater.expand_smat(smat_fix, rmats_fix, r_new)
             rmats_fix = jnp.vstack([rmats_fix, r_new])
@@ -159,7 +160,6 @@ def criteria_ovlp(rmats_fix, rmats_new, smat_fix=None):
     Check if a new vector is not linearly dependent to the existing NOCI pool.
     '''
     nr0 = len(rmats_fix)
-    nr = nr0 + len(rmats_new)
 
     if smat_fix is None:
         rmats_all = jnp.vstack([rmats_fix, rmats_new])

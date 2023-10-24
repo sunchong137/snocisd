@@ -80,6 +80,14 @@ def test_criteria():
     print(m1, e1)
 
     t_select = select_ci.select_tvecs(t_vecs, t_new, mo_coeff, h1e, h2e, nocc, nvir)
-    print(len(t_select))
+
+    t_s = select_ci.select_rmats_ovlp(rmats, r_n)
+    
+    lt = len(t_select)
+    lt2 = len(t_s)
+
+    assert lt > 0
+    assert lt2 > 0
+
 
 test_criteria()
