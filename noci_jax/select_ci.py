@@ -22,7 +22,7 @@ from noci_jax import slater
 
 
 def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
-           m_tol=1e-5, e_tol=5e-8):
+           m_tol=1e-5, e_tol=5e-8, max_ndets=100):
     '''
     Select Thouless matrices from tvecs_new such that they are linearly independent
     to tvecs_fix and have enough energy contribution.
@@ -52,7 +52,11 @@ def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
 
     selected_tvecs = tvecs_fix 
     selected_indices = []
+    count = 0
     for i in range(num_new):
+        if count == max_ndets:
+            print("Maximum number of determinant exceeded, please try to increase the overlap threshold.")
+            break
         r_new = rmats_new[i]
         m, e = criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, 
                                          smat_fix=smat_fix, hmat_fix=hmat_fix)
@@ -62,6 +66,7 @@ def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
             rmats_fix = np.vstack([rmats_fix, r_new[None, :]])
             selected_tvecs = np.vstack([selected_tvecs, tvecs_new[i][None, :]])
             selected_indices.append(i)
+            count += 1
         else:
             continue
 
@@ -73,7 +78,8 @@ def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
     return selected_tvecs, selected_indices
 
 
-def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-8):
+def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, 
+                 e_tol=5e-8, max_ndets=100):
     '''
     Similar to select_tvecs(), this function selects rotation 
     matrices of size (N, 2, norb, nocc). One should use this function
@@ -86,7 +92,12 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
     selected_rmats = rmats_fix
     selected_indices = []
 
+    count = 0
     for i in range(num_new):
+        if count == max_ndets:
+            print("Maximum number of determinant exceeded, please try to increase the overlap threshold.")
+            break
+
         r_new = rmats_new[i][None, :]
         m, e = criteria_all_single_det(rmats_fix, r_new[0], mo_coeff, h1e, h2e, 
                                          smat_fix=smat_fix, hmat_fix=hmat_fix)
@@ -96,6 +107,7 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
             rmats_fix = np.vstack([rmats_fix, r_new])
             selected_rmats = np.vstack([selected_rmats, r_new])
             selected_indices.append(i)
+            count += 1
         else:
             continue
 
@@ -107,7 +119,7 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
     return selected_rmats, selected_indices
 
 
-def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
+def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=100):
     '''
     Only consider the overlap criteria.
     Much faster than the select_rmat, and serve the same purpose.
@@ -117,7 +129,12 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
     num_new = len(rmats_new)
     selected_indices = []
 
+    count = 0
     for i in range(num_new):
+        if count == max_ndets:
+            print("Maximum number of determinant exceeded, please try to increase the overlap threshold.")
+            break
+
         r_new = rmats_new[i][None, :]
         m, s = criterial_ovlp_single_det(rmats_fix, r_new[0], smat_fix=smat_fix, m_tol=m_tol)
         # print(m)
@@ -125,6 +142,7 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
             smat_fix = s
             rmats_fix = np.vstack([rmats_fix, r_new])
             selected_indices.append(i)
+            count += 1
         else:
             continue
 
@@ -133,6 +151,41 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
     print("Metric Threshold: {:.1e}".format(m_tol))
     print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
     return rmats_fix, selected_indices
+
+def select_rmats_energy(rmats_fix, rmats_new, mo_coeff, h1e, h2e, e_tol=1e-5, max_ndets=100):
+    '''
+    Select via energy.
+    '''
+    print("***Selecting determinants based on overlap and energy contribution.")
+    hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
+    num_new = len(rmats_new)
+    selected_rmats = rmats_fix
+    selected_indices = []
+
+    count = 0
+    for i in range(num_new):
+        if count == max_ndets:
+            print("Maximum number of determinant exceeded, please try to increase the overlap threshold.")
+            break
+
+        r_new = rmats_new[i][None, :]
+        m, e = criteria_all_single_det(rmats_fix, r_new[0], mo_coeff, h1e, h2e, 
+                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
+        # print(m, e)
+        if abs(e) > e_tol:
+            hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new, rmats_fix, h1e, h2e, mo_coeff)
+            rmats_fix = np.vstack([rmats_fix, r_new])
+            selected_rmats = np.vstack([selected_rmats, r_new])
+            selected_indices.append(i)
+            count += 1
+        else:
+            continue
+
+    num_added = len(selected_indices)
+    print("***Selected CI Summary:***")
+    print("Energy Threshold: {:.1e}".format(e_tol))
+    print("Reduced {} determinants to {} determinants.".format(num_new, num_added))
+    return selected_rmats, selected_indices
 
 
 def check_linear_depend(ovlp_mat, tol=1e-10):
@@ -297,3 +350,46 @@ def criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
 
     return proj_new, de_ratio
 
+
+def criteria_energy_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None, 
+                   noci_vec=None, smat_fix=None, hmat_fix=None, metric_tol=1e-6):
+    '''
+    Evaluate the energy contribution of one new vector.
+    '''
+
+    if smat_fix is None or hmat_fix is None:
+        rmats_all = np.vstack([rmats_fix, r_new[None, :]])
+        hmat_all, smat_all = slater.noci_matrices(rmats_all, mo_coeff, h1e, h2e)
+        smat_fix = smat_all[:-1, :-1]
+        hmat_fix = hmat_all[:-1, :-1]
+    else:
+        hmat_all, smat_all = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
+    
+    # calculate the residual 
+    smat_mix_l = smat_all[:-1, -1] # (nr0, 1)
+    s_new = smat_all[-1, -1]
+    inv_fix = np.linalg.inv(smat_fix)
+    proj_old = smat_mix_l.T.conj()@inv_fix@smat_mix_l
+    norm_new = s_new
+    proj_new = 1.0 - proj_old/norm_new
+    sdiag_new = norm_new - proj_old
+
+    if proj_new < metric_tol:
+        de_ratio = 0
+    else:
+        # calculate the energy contribution
+        if E_fix is None:
+            E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
+
+        norm_fix = np.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+        H_fix = E_fix * norm_fix
+        alpha = inv_fix @ smat_mix_l  # (nr0, 1) array 
+        hmat_mix_l = hmat_all[:-1, -1]
+        T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
+        H_new = hmat_all[-1, -1] - 2*np.real(alpha.conj().T@hmat_mix_l)
+        H_new = H_new + alpha.conj().T@hmat_fix@alpha
+        E_new = H_new / sdiag_new
+        R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(np.abs(T_part))**2) 
+        de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
+
+    return de_ratio

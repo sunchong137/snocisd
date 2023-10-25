@@ -15,6 +15,7 @@
 import numpy as np
 from pyscf import gto, scf, fci, cc
 from noci_jax import nocisd, slater, pyscf_helper, thouless, opt_res, select_ci
+from noci_jax import slater_jax
 import time
 
 
@@ -87,6 +88,6 @@ t3 = time.time()
 print(t3-t2)
 # print(t2-t1, t3-t2)
 # exit()
-E = slater.noci_energy(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+E = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
 print(E)
 
