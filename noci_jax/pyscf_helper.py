@@ -22,7 +22,6 @@ Includes:
 import numpy as np
 from scipy import linalg as sla
 from pyscf import ao2mo, ci, scf
-import logging 
 
 # mean-field helpers
 def uhf_with_ortho_ao(mol):
