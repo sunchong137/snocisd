@@ -79,15 +79,9 @@ t_all = slater.add_tvec_hf(tnew)
 r_fix = slater.tvecs_to_rmats(t_all, nvir, nocc)
 r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-5)
 m_tol = 1e-4
-# e_tol = 1e-6
-t1 = time.time()
-# r_select, _ = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=m_tol, e_tol=e_tol)
-t2 = time.time()
-r_select, _ = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol)
-t3 = time.time()
-print(t3-t2)
-# print(t2-t1, t3-t2)
-# exit()
-E = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
-print(E)
+e_tol = 1e-6
+n_ref = len(r_fix)
+r_select = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=m_tol, e_tol=e_tol)
+E2 = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+print(E2)
 

@@ -289,6 +289,7 @@ def get_smat(rmats):
     smat = np.prod(np.linalg.det(metrics), axis=-1)   
     return smat
 
+
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     '''
     Expand the H matrix and S matrix
