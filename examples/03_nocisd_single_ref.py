@@ -3,10 +3,6 @@ from pyscf import gto, scf, ci
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
 from noci_jax import slater, pyscf_helper
-import jax
-from jax.config import config
-config.update("jax_debug_nans", True)
-config.update("jax_enable_x64", True)
 
 
 bond_length = 1.09768

@@ -3,7 +3,7 @@ from pyscf import gto, scf, ci
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
 from noci_jax import slater, pyscf_helper
-import logging
+
 
 
 # System set up
