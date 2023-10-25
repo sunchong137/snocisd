@@ -16,8 +16,7 @@ import numpy as np
 from pyscf import gto, scf, fci, cc
 from noci_jax import nocisd, slater, pyscf_helper, thouless, opt_res, select_ci
 import time
-from jax.config import config
-config.update("jax_enable_x64", True)
+
 
 # Step 1: Set up the system
 nH = 4

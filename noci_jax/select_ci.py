@@ -17,11 +17,8 @@ Selected NOCI.
 Following Dutta et. al., J. Chem. Phys. 154, 114112 (2021)
 '''
 import numpy as np
-from jax import numpy as jnp
 from noci_jax import slater
-import jax
-from jax.config import config
-config.update("jax_enable_x64", True)
+
 
 
 def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
@@ -62,8 +59,8 @@ def select_tvecs(tvecs_fix, tvecs_new, mo_coeff, h1e, h2e, nocc=None, nvir=None,
         # print(m, e)
         if m > m_tol and abs(e) > e_tol:
             hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
-            rmats_fix = jnp.vstack([rmats_fix, r_new[None, :]])
-            selected_tvecs = jnp.vstack([selected_tvecs, tvecs_new[i][None, :]])
+            rmats_fix = np.vstack([rmats_fix, r_new[None, :]])
+            selected_tvecs = np.vstack([selected_tvecs, tvecs_new[i][None, :]])
             selected_indices.append(i)
         else:
             continue
@@ -96,8 +93,8 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, e_tol=5e-
         # print(m, e)
         if m > m_tol and abs(e) > e_tol:
             hmat_fix, smat_fix = slater.expand_hs(hmat_fix, smat_fix, r_new, rmats_fix, h1e, h2e, mo_coeff)
-            rmats_fix = jnp.vstack([rmats_fix, r_new])
-            selected_rmats = jnp.vstack([selected_rmats, r_new])
+            rmats_fix = np.vstack([rmats_fix, r_new])
+            selected_rmats = np.vstack([selected_rmats, r_new])
             selected_indices.append(i)
         else:
             continue
@@ -126,7 +123,7 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5):
         # print(m)
         if m > m_tol:
             smat_fix = s
-            rmats_fix = jnp.vstack([rmats_fix, r_new])
+            rmats_fix = np.vstack([rmats_fix, r_new])
             selected_indices.append(i)
         else:
             continue
@@ -160,7 +157,7 @@ def criteria_ovlp(rmats_fix, rmats_new, smat_fix=None):
     nr0 = len(rmats_fix)
 
     if smat_fix is None:
-        rmats_all = jnp.vstack([rmats_fix, rmats_new])
+        rmats_all = np.vstack([rmats_fix, rmats_new])
         smat_all = slater.get_smat(rmats_all)
         smat_fix = smat_all[:nr0, :nr0]
     else:
@@ -170,9 +167,9 @@ def criteria_ovlp(rmats_fix, rmats_new, smat_fix=None):
     smat_new = smat_all[nr0:, nr0:]
 
     # calculate the residual 
-    inv_fix = jnp.linalg.inv(smat_fix)
-    proj_old = jnp.einsum("np, pq, qn -> n", smat_mix_l.T.conj(), inv_fix, smat_mix_l)
-    norm_new_proj = 1.0 - proj_old/jnp.diag(smat_new)
+    inv_fix = np.linalg.inv(smat_fix)
+    proj_old = np.einsum("np, pq, qn -> n", smat_mix_l.T.conj(), inv_fix, smat_mix_l)
+    norm_new_proj = 1.0 - proj_old/np.diag(smat_new)
 
     return norm_new_proj
 
@@ -182,30 +179,30 @@ def criterial_ovlp_single_det(rmats_fix, r_new, smat_fix=None, m_tol=1e-5):
     Linear independence criterial for one determinant.
     '''
     if smat_fix is None:
-        rmats_all = jnp.vstack([rmats_fix, r_new[None, :]])
+        rmats_all = np.vstack([rmats_fix, r_new[None, :]])
         smat_all = slater.get_smat(rmats_all)
         smat_fix = smat_all[:-1, :-1]
         smat_left = smat_all[:-1, -1] # (nr0, 1)
         s_new = smat_all[-1, -1]
     else:
-        metrics_mix = jnp.einsum('nsji, sjk -> nsik', rmats_fix.conj(), r_new)
-        smat_left = jnp.prod(jnp.linalg.det(metrics_mix), axis=-1)
-        s_new = jnp.einsum("sji, sjk -> sik", r_new.conj(), r_new)
-        s_new = jnp.prod(jnp.linalg.det(s_new), axis=-1)
+        metrics_mix = np.einsum('nsji, sjk -> nsik', rmats_fix.conj(), r_new)
+        smat_left = np.prod(np.linalg.det(metrics_mix), axis=-1)
+        s_new = np.einsum("sji, sjk -> sik", r_new.conj(), r_new)
+        s_new = np.prod(np.linalg.det(s_new), axis=-1)
 
 
     # calculate the residual 
-    inv_fix = jnp.linalg.inv(smat_fix)
+    inv_fix = np.linalg.inv(smat_fix)
     proj_old = smat_left.T.conj() @ inv_fix @ smat_left
     proj_new = 1.0 - proj_old/s_new
 
     if proj_new > m_tol:
         nr = len(rmats_fix) + 1
-        smat_all = jnp.zeros((nr, nr))
-        smat_all = smat_all.at[:-1, :-1].set(smat_fix)
-        smat_all = smat_all.at[:-1, -1].set(smat_left)
-        smat_all = smat_all.at[-1, :-1].set(smat_left.conj().T)
-        smat_all = smat_all.at[-1, -1].set(s_new)
+        smat_all = np.zeros((nr, nr))
+        smat_all[:-1, :-1] = smat_fix
+        smat_all[:-1, -1]  = smat_left
+        smat_all[-1, :-1]  = smat_left.conj().T
+        smat_all[-1, -1]   = s_new
         return proj_new, smat_all
     
     else:
@@ -221,7 +218,7 @@ def criteria_all(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None,
     nr0 = len(rmats_fix)
 
     if smat_fix is None or hmat_fix is None:
-        rmats_all = jnp.vstack([rmats_fix, rmats_new])
+        rmats_all = np.vstack([rmats_fix, rmats_new])
         hmat_all, smat_all = slater.noci_matrices(rmats_all, mo_coeff, h1e, h2e)
         smat_fix = smat_all[:nr0, :nr0]
         hmat_fix = hmat_all[:nr0, :nr0]
@@ -231,9 +228,9 @@ def criteria_all(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None,
     # calculate the residual 
     smat_mix_l = smat_all[:nr0, nr0:]
     smat_new = smat_all[nr0:, nr0:]
-    inv_fix = jnp.linalg.inv(smat_fix)
-    proj_old = jnp.einsum("np, pq, qn -> n", smat_mix_l.T.conj(), inv_fix, smat_mix_l)
-    norm_new = jnp.diag(smat_new)
+    inv_fix = np.linalg.inv(smat_fix)
+    proj_old = np.einsum("np, pq, qn -> n", smat_mix_l.T.conj(), inv_fix, smat_mix_l)
+    norm_new = np.diag(smat_new)
     proj_new = 1.0 - proj_old/norm_new
     sdiag_new = norm_new - proj_old
 
@@ -242,16 +239,16 @@ def criteria_all(rmats_fix, rmats_new, mo_coeff, h1e, h2e, E_fix=None,
     if E_fix is None:
         E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
 
-    norm_fix = jnp.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+    norm_fix = np.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
     H_fix = E_fix * norm_fix
     alpha = inv_fix @ smat_mix_l  # (nr0, nr) array 
     hmat_mix_l = hmat_all[:nr0, nr0:]
     hmat_new = hmat_all[nr0:, nr0:]
     T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
-    H_new = jnp.diag(hmat_new) - 2*jnp.real(jnp.einsum("pn, pn -> n", alpha.conj(), hmat_mix_l))
-    H_new = H_new + jnp.einsum("pn, pq, qn -> n", alpha.conj(), hmat_fix, alpha)
+    H_new = np.diag(hmat_new) - 2*np.real(np.einsum("pn, pn -> n", alpha.conj(), hmat_mix_l))
+    H_new = H_new + np.einsum("pn, pq, qn -> n", alpha.conj(), hmat_fix, alpha)
     E_new = H_new / sdiag_new
-    R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(jnp.abs(T_part))**2) 
+    R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(np.abs(T_part))**2) 
     de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
 
     return proj_new, de_ratio
@@ -264,7 +261,7 @@ def criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
     '''
 
     if smat_fix is None or hmat_fix is None:
-        rmats_all = jnp.vstack([rmats_fix, r_new[None, :]])
+        rmats_all = np.vstack([rmats_fix, r_new[None, :]])
         hmat_all, smat_all = slater.noci_matrices(rmats_all, mo_coeff, h1e, h2e)
         smat_fix = smat_all[:-1, :-1]
         hmat_fix = hmat_all[:-1, :-1]
@@ -274,7 +271,7 @@ def criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
     # calculate the residual 
     smat_mix_l = smat_all[:-1, -1] # (nr0, 1)
     s_new = smat_all[-1, -1]
-    inv_fix = jnp.linalg.inv(smat_fix)
+    inv_fix = np.linalg.inv(smat_fix)
     proj_old = smat_mix_l.T.conj()@inv_fix@smat_mix_l
     norm_new = s_new
     proj_new = 1.0 - proj_old/norm_new
@@ -287,15 +284,15 @@ def criteria_all_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
         if E_fix is None:
             E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
 
-        norm_fix = jnp.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+        norm_fix = np.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
         H_fix = E_fix * norm_fix
         alpha = inv_fix @ smat_mix_l  # (nr0, 1) array 
         hmat_mix_l = hmat_all[:-1, -1]
         T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
-        H_new = hmat_all[-1, -1] - 2*jnp.real(alpha.conj().T@hmat_mix_l)
+        H_new = hmat_all[-1, -1] - 2*np.real(alpha.conj().T@hmat_mix_l)
         H_new = H_new + alpha.conj().T@hmat_fix@alpha
         E_new = H_new / sdiag_new
-        R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(jnp.abs(T_part))**2) 
+        R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(np.abs(T_part))**2) 
         de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
 
     return proj_new, de_ratio

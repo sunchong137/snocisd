@@ -20,9 +20,7 @@ import numpy as np
 import copy
 from pyscf import ci
 from noci_jax import slater
-from jax import numpy as jnp
-from jax.config import config
-config.update("jax_enable_x64", True)
+
 
 def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
     '''
@@ -200,7 +198,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
 
     U_on_ref = slater.orthonormal_mos(tvecs_ref)
     mo_coeff = mf.mo_coeff # HF MO coeffs
-    mo_ref = jnp.einsum("sij, nsjk -> nsik", mo_coeff, U_on_ref)
+    mo_ref = np.einsum("sij, nsjk -> nsik", mo_coeff, U_on_ref)
     
     my_mf = copy.copy(mf)
     # generate the CISD compressed NOSDs

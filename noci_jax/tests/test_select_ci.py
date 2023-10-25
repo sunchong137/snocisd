@@ -31,7 +31,8 @@ def test_metric():
     nocc = 2
     nvir = 2
     norb = nocc + nvir
-    t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy")
+    t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy").reshape(-1, 2, nvir, nocc)
+    t_vecs = slater.add_tvec_hf(t_vecs)
     rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
     r_n = np.random.rand(2, 2, norb, nocc)
     r_n[0,0,:nocc] = np.eye(nocc)
@@ -74,10 +75,10 @@ def test_criteria():
     r_n = slater.tvecs_to_rmats(t_new, nvir, nocc)
 
     m, e = select_ci.criteria_all(rmats, r_n, mo_coeff, h1e, h2e)
-    print(m, e)
+    # print(m, e)
     # single det
     m1, e1 = select_ci.criteria_all_single_det(rmats, r_n[0], mo_coeff, h1e, h2e)
-    print(m1, e1)
+    # print(m1, e1)
 
     t_select = select_ci.select_tvecs(t_vecs, t_new, mo_coeff, h1e, h2e, nocc, nvir)
 
