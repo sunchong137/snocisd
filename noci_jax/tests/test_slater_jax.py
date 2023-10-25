@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import slater, pyscf_helper, opt_res 
+from noci_jax import slater_jax, pyscf_helper
 from pyscf import gto, scf
 
 def test_tvecs_to_rmats():
@@ -28,7 +28,7 @@ def test_tvecs_to_rmats():
 
     tvecs = np.arange(nocc*nvir*2)
 
-    rmats = slater.tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=occ_mat)
+    rmats = slater_jax.tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=occ_mat)
     ref = np.array([[[[ 1.,  -0.1], [-0.1,  1. ], [ 0.,1. ],[ 2., 3. ], [ 4.,5. ]],
                      [[ 1.,-0.1],[-0.1,  1. ],[ 6., 7. ],[ 8., 9. ],[10.,  11. ]]]])
     assert np.allclose(rmats, ref)
@@ -50,7 +50,7 @@ def test_solve_lc():
     hmat = jnp.array(hmat)
     smat = jnp.array(smat)
 
-    e, v = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
+    e, v = slater_jax.solve_lc_coeffs(hmat, smat, return_vec=True)
     v = np.array(v)
 
     h = v.conj().T.dot(hmat).dot(v)
@@ -85,10 +85,10 @@ def test_make_rdm1():
 
     t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy")
 
-    rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
-    hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
-    energy, c = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
-    rdm1 = slater.make_rdm1(rmats, mo_coeff, c)
+    rmats = slater_jax.tvecs_to_rmats(t_vecs, nvir, nocc)
+    hmat, smat = slater_jax.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    energy, c = slater_jax.solve_lc_coeffs(hmat, smat, return_vec=True)
+    rdm1 = slater_jax.make_rdm1(rmats, mo_coeff, c)
     ne_a = np.sum(np.diag(rdm1[0]))
     ne_b = np.sum(np.diag(rdm1[1]))
 
@@ -120,12 +120,12 @@ def test_make_rdm12s():
     t_vecs = np.random.rand(1, 2*nvir*nocc)-0.5
     t_vecs[0] = 0
 
-    rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
-    hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
-    energy, c = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
+    rmats = slater_jax.tvecs_to_rmats(t_vecs, nvir, nocc)
+    hmat, smat = slater_jax.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+    energy, c = slater_jax.solve_lc_coeffs(hmat, smat, return_vec=True)
     rmats = rmats.at[1].set(rmats[1]/np.sqrt(smat[0,0]))
-    rdm1s, rdm2s = slater.make_rdm12(rmats, mo_coeff, c)
-    # rdm1 = slater.make_rdm1(rmats, mo_coeff, c)
+    rdm1s, rdm2s = slater_jax.make_rdm12(rmats, mo_coeff, c)
+    # rdm1 = slater_jax.make_rdm1(rmats, mo_coeff, c)
     ne_a = np.sum(np.diag(rdm1s[0]))
     ne_b = np.sum(np.diag(rdm1s[1]))
 
@@ -147,7 +147,7 @@ def test_orthonormal():
     nocc = 3
     norb = nvir + nocc
     tmats = np.random.rand(nvir, nocc)
-    r = slater.orthonormal_mos(tmats)
+    r = slater_jax.orthonormal_mos(tmats)
     I = np.eye(norb)
     assert np.allclose(np.dot(r.T, r), I)
 
@@ -155,7 +155,7 @@ def test_orthonormal():
     nt = 3
     spin = 2
     tmats = np.random.rand(nt, spin, nvir, nocc)
-    rotm = slater.orthonormal_mos(tmats)
+    rotm = slater_jax.orthonormal_mos(tmats)
     x = np.moveaxis(rotm, -2, -1).conj() @ rotm
     I_all = np.tile(I, nt*spin).T.reshape(nt, spin, norb, norb)
 
