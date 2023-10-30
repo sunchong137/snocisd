@@ -20,7 +20,7 @@ import time
 
 
 # Step 1: Set up the system
-nH = 4
+nH = 6
 bl = 1.5
 geom = []
 for i in range(nH):
@@ -29,7 +29,7 @@ for i in range(nH):
 mol = gto.Mole()
 mol.atom = geom
 mol.unit='angstrom'
-mol.basis = "631g"
+mol.basis = "ccpvdz"
 mol.build()
 
 # Step 2: Run the UHF calculation
@@ -46,27 +46,32 @@ norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 e_hf = mf.energy_tot()
 nelec = mol.nelectron
 
-# # fci
+# fci
 # myfci = fci.FCI(mf)
 # e_fci, v = myfci.kernel()
 # print("FCI:", e_fci)
-# # ccsd
-# mycc = cc.UCCSD(mf)
-# mycc.run()
-# de = mycc.e_corr
-# e_cc = e_hf + de
 
-# print("CCSD: {}".format(e_cc))
+# ccsd
+mycc = cc.UCCSD(mf)
+mycc.run()
+de = mycc.e_corr
+e_cc = e_hf + de
+print("CCSD: {}".format(e_cc))
 
+# CCSD(T)
+et = mycc.ccsd_t()
+e_ccsdt = e_cc + et
+print("CCSD(T): ", e_ccsdt)
 
+exit()
 # Step 4: NOCI with res HF
-ndets = 3
+ndets = 2
 save_file = "data/h{}_R{}_{}_ndet{}.npy".format(nH, bl, mol.basis, ndets)
 try:
     # raise ValueError
     tnew = np.load(save_file) # shape of (ndets, 2, nvir, nocc)
 except:
-    niter = 5000
+    niter = 8000
     print_step = 1000
     t0 = thouless.gen_init_singles(nocc, nvir, max_nt=ndets, zmax=2, zmin=0.1)
 
@@ -77,11 +82,12 @@ except:
 
 t_all = slater.add_tvec_hf(tnew)
 r_fix = slater.tvecs_to_rmats(t_all, nvir, nocc)
-r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-5)
-m_tol = 1e-4
-e_tol = 1e-6
+r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-8)
+m_tol = 1e-6
+e_tol = 1e-8
 n_ref = len(r_fix)
-r_select = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=m_tol, e_tol=e_tol)
+# r_select = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=m_tol, e_tol=e_tol)
+r_select = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol)
 E2 = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
 print(E2)
 

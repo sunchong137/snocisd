@@ -44,6 +44,7 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
     matrices of size (N, 2, norb, nocc). One should use this function
     when there is multi-reference, i.e. more than one set of MO 
     coefficients.
+    TODO: Rewrite to save time. First evaluate overlap, then hmat, and energy.
     '''
     print("***Selecting determinants based on overlap and energy contribution.")
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)

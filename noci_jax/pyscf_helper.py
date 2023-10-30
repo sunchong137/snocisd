@@ -21,7 +21,7 @@ Includes:
 '''
 import numpy as np
 from scipy import linalg as sla
-from pyscf import ao2mo, ci, scf
+from pyscf import ao2mo, ci, scf, fci
 
 # mean-field helpers
 def uhf_with_ortho_ao(mol):
@@ -69,7 +69,6 @@ def get_integrals(mf, ortho_ao=False):
 
 def get_mos(mf):
     '''
-    TODO
     This is wrong because the ortho_ao is not considered.
     '''
 
@@ -166,3 +165,33 @@ def sep_cisdvec(norb, nelec):
     loc = np.cumsum(size)
     
     return size, loc
+
+
+def run_shci(mol, max_cycle=100, tol=1e-8):
+    '''
+    Interface to the selected CI in PySCF.
+    We use the RHF instance because at this accuracy,
+    RHF or UHF will not be very different, and RHF
+    is cheaper.
+
+    Args:
+        mol: the PySCF datatype that stores the 
+        information of the molecule.
+    '''
+
+    mf = scf.RHF(mol) 
+    mf.kernel()
+    norb = mol.nao
+    nelec = mol.nelectron
+    mo_coeff = mf.mo_coeff
+    h1e = mf.get_hcore()
+    eri = mf._eri
+    h1e_mo = mo_coeff.T @ h1e @ mo_coeff
+    eri_mo = ao2mo.kernel(eri, mo_coeff, compact=False).reshape(norb, norb, norb, norb)
+    e_nuc = mf.energy_nuc()
+    scisolver = fci.SCI()
+    scisolver.max_cycle = max_cycle
+    scisolver.conv_tol = tol
+    e, civec = scisolver.kernel(h1e_mo, eri_mo, norb, nelec)
+
+    return e + e_nuc, civec
