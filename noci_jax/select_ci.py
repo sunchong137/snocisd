@@ -150,7 +150,7 @@ def select_rmats_energy(rmats_fix, rmats_new, mo_coeff, h1e, h2e, e_tol=1e-5, ma
     return rmats_fix
 
 
-def check_linear_depend(ovlp_mat, tol=1e-10):
+def check_linear_depend(rmats, ovlp_mat=None, tol=1e-6):
     '''
     Check the linear dependancy of a set of vectors.
     Args:
@@ -160,6 +160,10 @@ def check_linear_depend(ovlp_mat, tol=1e-10):
     Returns:
         Dimension of the space spanned by the vectors, i.e., number of linearly-independent vectors.
     '''
+    if ovlp_mat is None:
+        metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+        ovlp_mat = np.prod(np.linalg.det(metrics_all), axis=-1)
+
     _, s, _ = np.linalg.svd(ovlp_mat)
     num_ind = np.sum(s > tol) # S is positive semi definite
     

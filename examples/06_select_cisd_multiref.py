@@ -29,7 +29,7 @@ for i in range(nH):
 mol = gto.Mole()
 mol.atom = geom
 mol.unit='angstrom'
-mol.basis = "ccpvdz"
+mol.basis = "631g"
 mol.build()
 
 # Step 2: Run the UHF calculation
@@ -63,7 +63,6 @@ et = mycc.ccsd_t()
 e_ccsdt = e_cc + et
 print("CCSD(T): ", e_ccsdt)
 
-exit()
 # Step 4: NOCI with res HF
 ndets = 2
 save_file = "data/h{}_R{}_{}_ndet{}.npy".format(nH, bl, mol.basis, ndets)
