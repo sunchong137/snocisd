@@ -19,7 +19,7 @@ NOTE: assumed nocca = noccb.
 import numpy as np
 import copy
 from pyscf import ci
-from noci_jax import slater
+from noci_jax import slater, select_ci
 
 def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
     '''
@@ -95,6 +95,44 @@ def gen_nocid_two_layers(mf, nocc, nroots1=4, nroots2=2, dt=0.1):
         r = slater.tvecs_to_rmats(t2_n, nvir, nocc)
         r = slater.rotate_rmats(r, U2[i])
         r_all = np.vstack([r_all, r])
+
+    return r_all
+
+
+def gen_two_layers_w_selection(mf, nocc, nroots1=4, nroots2=2, dt=0.1, m_tol=1e-6):
+    '''
+    Generate NOCI as following:
+    |HF> -> CISD -> choose |mu> with largest coeff -> CISD on |mu> -> choose ...
+    '''
+    # Generate the first layer
+    mo_coeff = mf.mo_coeff
+    norb = mo_coeff.shape[-1]
+    nvir = norb - nocc
+    my_ci = ci.UCISD(mf)
+    t_hf = np.zeros((1, 2, nvir, nocc))
+    r_all = slater.tvecs_to_rmats(t_hf, nvir, nocc)
+
+    # first layer
+    c2 = ucisd_amplitudes_doubles(my_ci)
+    t2 = c2t_doubles_truncate(c2, num_roots=nroots1, dt=dt, nvir=nvir, nocc=nocc)
+    r2 = slater.tvecs_to_rmats(t2, nvir, nocc)
+    r_all, idx1 = select_ci.select_rmats_ovlp(r_all, r2, m_tol=m_tol, return_indices=True)
+    t2 = t2[idx1]
+    num_layer1 = len(t2)    
+    
+    U2 = slater.orthonormal_mos(t2)
+    mo_2 = np.einsum("sij, nsjk -> nsik", mo_coeff, U2)
+
+    my_mf = copy.copy(mf)
+    # do cisd on the first layer
+    for i in range(num_layer1):
+        my_mf.mo_coeff = mo_2[i]
+        my_ci = ci.UCISD(my_mf)
+        c2_n = ucisd_amplitudes_doubles(my_ci)
+        t2_n = c2t_doubles_truncate(c2_n, num_roots=nroots2, dt=dt, nvir=nvir, nocc=nocc)
+        r2_n = slater.tvecs_to_rmats(t2_n, nvir, nocc)
+        r2_n = slater.rotate_rmats(r2_n, U2[i])
+        r_all, idx2 = select_ci.select_rmats_ovlp(r_all, r2_n, m_tol=m_tol, return_indices=True)
 
     return r_all
 

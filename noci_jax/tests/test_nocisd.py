@@ -1,8 +1,8 @@
 import numpy as np
-from pyscf import gto, scf, ci
+from pyscf import gto, scf, ci, cc
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
-from noci_jax import slater, pyscf_helper
+from noci_jax import slater, pyscf_helper, slater_jax
 
 
 
@@ -33,6 +33,14 @@ nelec = mol.nelectron
 myci = ci.UCISD(mf)
 e_corr, civec = myci.kernel()
 e_cisd = e_hf + e_corr 
+
+
+# ccsd
+mycc = cc.UCCSD(mf)
+mycc.run()
+de = mycc.e_corr
+e_cc = e_hf + de
+
 
 
 def test_get_ci_coeff():
@@ -84,4 +92,9 @@ def test_gen_2layers():
     r = nocisd.gen_nocid_two_layers(mf, nocc, nroots1=4, nroots2=2, dt=0.1)
     print(r.shape)
 
-test_gen_2layers()
+
+def test_gen_2layers_select():
+    r = nocisd.gen_two_layers_w_selection(mf, nocc, nroots1=10, nroots2=2, dt=0.1)
+    E2 = slater_jax.noci_energy_jit(r, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+    print(E2)
+test_gen_2layers_select()

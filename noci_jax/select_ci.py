@@ -80,7 +80,7 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
     print("Reduced {} determinants to {} determinants.".format(n_new, count))
     return rmats_fix
 
-def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None):
+def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_indices=False):
     '''
     Only consider the overlap criteria.
     Much faster than the select_rmat, and serve the same purpose.
@@ -92,6 +92,7 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None):
         max_ndets = n_new
     # selected_indices = []
     count = 0
+    idx_select = []
 
     for i in range(n_new):
         if count == max_ndets:
@@ -103,7 +104,7 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None):
         if m > m_tol:
             smat_fix = s
             rmats_fix = np.vstack([rmats_fix, r_new])
-            # selected_indices.append(i)
+            idx_select.append(i)
             count += 1
         else:
             continue
@@ -112,7 +113,11 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None):
     print("***Selected CI Summary:***")
     print("Metric Threshold: {:.1e}".format(m_tol))
     print("Reduced {} determinants to {} determinants.".format(n_new, count))
-    return rmats_fix
+    if return_indices:
+        return rmats_fix, idx_select
+    else:
+        return rmats_fix
+
 
 def select_rmats_energy(rmats_fix, rmats_new, mo_coeff, h1e, h2e, e_tol=1e-5, max_ndets=None):
     '''
