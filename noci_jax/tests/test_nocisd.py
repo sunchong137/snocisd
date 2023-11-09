@@ -78,9 +78,10 @@ def test_given_mo():
 
 
 def test_c2t_doubles_truncate():
-    t2aa, t2ab, t2bb = nocisd.gen_nocid_truncate(mf, nocc, nlayer=2, nroots_layer=2, dt=0.1)
-    print(t2aa.shape)
-    print(t2ab.shape)
-    print(t2bb.shape)
+    t2 = nocisd.gen_nocid_truncate(mf, nocc, nroots=2, dt=0.1)
 
-test_c2t_doubles_truncate()
+def test_gen_2layers():
+    r = nocisd.gen_nocid_two_layers(mf, nocc, nroots=4, dt=0.1)
+
+
+test_gen_2layers()

@@ -63,19 +63,33 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
 
     return r_cisd
 
-def gen_nocid_truncate(mf, nocc, nlayer=2, nroots_layer=4, dt=0.1):
+def gen_nocid_two_layers(mf, nocc, nroots=4, dt=0.1):
     '''
     Generate NOCI as following:
     |HF> -> CISD -> choose |mu> with largest coeff -> CISD on |mu> -> choose ...
-    First write a one layer
+    '''
+    # Generate the first layer
+    mo_coeff = mf.mo_coeff
+    norb = mo_coeff.shape[-1]
+    nvir = norb - nocc
+    my_ci = ci.UCISD(mf)
+    c2 = ucisd_amplitudes_doubles(my_ci)
+    t2 = c2t_doubles_truncate(c2, num_roots=nroots, dt=dt, nvir=nvir, nocc=nocc)
+    # TODO to be continued
+
+    return None
+
+def gen_nocid_truncate(mf, nocc, nroots=4, dt=0.1):
+    '''
+    Return the doubly excited states that has largest contribution.
     '''
     mo_coeff = mf.mo_coeff
     norb = mo_coeff.shape[-1]
     nvir = norb - nocc
     my_ci = ci.UCISD(mf)
     c2 = ucisd_amplitudes_doubles(my_ci)
-    t2aa, t2ab, t2bb = c2t_doubles_truncate(c2, num_roots=nroots_layer, dt=dt, nvir=nvir, nocc=nocc)
-    return t2aa, t2ab, t2bb
+    t2 = c2t_doubles_truncate(c2, num_roots=nroots, dt=dt, nvir=nvir, nocc=nocc)
+    return t2
 
 
 def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
@@ -290,35 +304,40 @@ def c2t_doubles_truncate(c2, num_roots=4, dt=0.1, nvir=None, nocc=None):
     e_all = np.abs(np.concatenate([e_aa, e_ab, e_bb]))
 
     idx_all = np.argsort(e_all)[::-1][:num_roots]
-    tmats_aa, tmats_ab, tmats_bb = [], [], []
+    tmats = []
+    ns_aa, ns_ab, ns_bb = 0, 0, 0
+    # tmats_aa, tmats_ab, tmats_bb = [], [], []
     for i in idx_all:
         if i < n_aa:
+            ns_aa += 1
             idx_aa = i
             z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
             pad_aa = np.zeros_like(z_aa)
             t_a = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))[0]
-            tmats_aa.append(t_a*dt)
-            tmats_aa.append(-t_a*dt)
+            tmats.append(t_a*dt)
+            tmats.append(-t_a*dt)
 
         elif i < (n_aa + n_ab):
+            ns_ab += 1
             idx_ab = i - n_aa
             z_a = u_a[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
             z_b = v_b[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
             t_ab_p = np.transpose(np.array([z_a, z_b]), (1,0,2,3))[0]
             t_ab_m = np.transpose(np.array([z_a, -z_b]), (1,0,2,3))[0]
-            tmats_ab.append(t_ab_p*dt/2.)
-            tmats_ab.append(-t_ab_p*dt/2.)
-            tmats_ab.append(t_ab_m*dt/2.)
-            tmats_ab.append(-t_ab_m*dt/2.)
+            tmats.append(t_ab_p*dt/2.)
+            tmats.append(-t_ab_p*dt/2.)
+            tmats.append(t_ab_m*dt/2.)
+            tmats.append(-t_ab_m*dt/2.)
         else:
+            ns_bb += 1
             idx_bb = i - n_aa - n_ab
             z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
             pad_bb = np.zeros_like(z_bb)
             t_b = np.transpose(np.array([z_bb, pad_bb]), (1,0,2,3))[0]
-            tmats_bb.append(t_b*dt)
-            tmats_bb.append(-t_b*dt)
-
-    return np.asarray(tmats_aa), np.asarray(tmats_ab), np.asarray(tmats_bb)
+            tmats.append(t_b*dt)
+            tmats.append(-t_b*dt)
+    print(f"Selected doubles with {ns_aa*2} aa, {ns_bb*2} bb, and {ns_ab*4} ab.")
+    return np.asarray(tmats)
 
 
 
