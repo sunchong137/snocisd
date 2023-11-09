@@ -74,5 +74,13 @@ def test_given_mo():
     myci_n = ci.UCISD(mymf)
     my_corr, civec = myci_n.kernel()
     my_e = e_hf + my_corr 
-    print(e_cisd, my_e)
+    assert my_e >= e_cisd
 
+
+def test_c2t_doubles_truncate():
+    t2aa, t2ab, t2bb = nocisd.gen_nocid_truncate(mf, nocc, nlayer=2, nroots_layer=2, dt=0.1)
+    print(t2aa.shape)
+    print(t2ab.shape)
+    print(t2bb.shape)
+
+test_c2t_doubles_truncate()

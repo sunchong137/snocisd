@@ -63,7 +63,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
 
     return r_cisd
 
-def gen_nocisd_ladder(mf, nocc, nlayer=2, ndet_layer=4, dt=0.1):
+def gen_nocid_truncate(mf, nocc, nlayer=2, nroots_layer=4, dt=0.1):
     '''
     Generate NOCI as following:
     |HF> -> CISD -> choose |mu> with largest coeff -> CISD on |mu> -> choose ...
@@ -72,13 +72,57 @@ def gen_nocisd_ladder(mf, nocc, nlayer=2, ndet_layer=4, dt=0.1):
     mo_coeff = mf.mo_coeff
     norb = mo_coeff.shape[-1]
     nvir = norb - nocc
-    tmats_ref = np.zeros((1, 2, nvir, nocc))
-    rmats_ref = slater.tvecs_to_rmats(tmats_ref, nvir, nocc)
     my_ci = ci.UCISD(mf)
     c2 = ucisd_amplitudes_doubles(my_ci)
+    t2aa, t2ab, t2bb = c2t_doubles_truncate(c2, num_roots=nroots_layer, dt=dt, nvir=nvir, nocc=nocc)
+    return t2aa, t2ab, t2bb
 
 
+def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
+    '''
+    Approximate an orthogonal CISD expansion with the compressed non-orthogonal
+    expansion. 
+
+    Args:
+        myci: PySCF CISD object.
+    Kwargs:
+        civec: the coefficients of the CISD expansion
+        dt1: difference for the two-point derivative for the singles expansion.
+        dt2: difference for the two-point derivative for the doubles expansion.
+        tol2: tolerance to truncate the doubles expansion.
+    Returns:
+        t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
+        coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
+    '''
+    c0, c1, c2 = ucisd_amplitudes(myci, civec=civec)
+    coeff0 = c0
+    # get the CIS thouless
+    t1s = np.array(c2t_singles(c1, dt=dt1))
+    coeff1 = np.array([1/dt1, -1/dt1]*2)
+
+    # get the CID thouless for same spin
+    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
+    t2s = np.vstack(t2s)
     
+    coeff2 = np.concatenate([lam2s[0],]*2 + [lam2s[1],]*2 + [-lam2s[1],]*2 + [ lam2s[2],]*2)
+    coeff2 /= (dt2**2)
+
+    # CID also has the contribution of HF GS
+    nvir, nocc = t1s.shape[2:]
+    t0 = np.zeros((1, 2, nvir, nocc))
+    coeff2_0 = np.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt2**2)
+    coeff0 -= 2*np.sum(coeff2_0)
+    coeff0 = np.array([coeff0])
+
+    t_all = np.vstack([t0, t1s, t2s])
+    num_t = len(t_all) 
+    print("Compressed CISD to {} NOSDs.".format(num_t))
+    coeff_all = np.concatenate([coeff0, coeff1, coeff2])
+    coeff_all /= np.linalg.norm(coeff_all)
+
+    return t_all, coeff_all
+
+
 def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
     '''
     Return the CISD coefficients.
@@ -130,9 +174,6 @@ def ucisd_amplitudes_doubles(myci, civec=None):
         _, civec = myci.kernel()
     
     c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
-
-    # NOTE assumed alpha and beta same number of electrons
-    nocc, nvir = c1[0].shape
 
     # transpose c2
     c2_n = np.transpose(np.array(c2), (0, 3, 1, 4, 2)) 
@@ -244,10 +285,11 @@ def c2t_doubles_truncate(c2, num_roots=4, dt=0.1, nvir=None, nocc=None):
     u_a, e_ab, v_bt = np.linalg.svd(c2[1])
     v_b = v_bt.conj().T
     e_bb, v_bb = np.linalg.eigh(c2[2])
-    n_aa, n_ab, n_bb = len(e_aa), len(e_ab), len(e_bb)
+    n_aa, n_ab = len(e_aa), len(e_ab)
 
     e_all = np.abs(np.concatenate([e_aa, e_ab, e_bb]))
-    idx_all = np.argsort(e_all)[num_roots]
+
+    idx_all = np.argsort(e_all)[::-1][:num_roots]
     tmats_aa, tmats_ab, tmats_bb = [], [], []
     for i in idx_all:
         if i < n_aa:
@@ -276,51 +318,8 @@ def c2t_doubles_truncate(c2, num_roots=4, dt=0.1, nvir=None, nocc=None):
             tmats_bb.append(t_b*dt)
             tmats_bb.append(-t_b*dt)
 
-    return tmats_aa, tmats_ab, tmats_bb
+    return np.asarray(tmats_aa), np.asarray(tmats_ab), np.asarray(tmats_bb)
 
 
-def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
-    '''
-    Approximate an orthogonal CISD expansion with the compressed non-orthogonal
-    expansion. 
-
-    Args:
-        myci: PySCF CISD object.
-    Kwargs:
-        civec: the coefficients of the CISD expansion
-        dt1: difference for the two-point derivative for the singles expansion.
-        dt2: difference for the two-point derivative for the doubles expansion.
-        tol2: tolerance to truncate the doubles expansion.
-    Returns:
-        t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
-        coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
-    '''
-    c0, c1, c2 = ucisd_amplitudes(myci, civec=civec)
-    coeff0 = c0
-    # get the CIS thouless
-    t1s = np.array(c2t_singles(c1, dt=dt1))
-    coeff1 = np.array([1/dt1, -1/dt1]*2)
-
-    # get the CID thouless for same spin
-    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
-    t2s = np.vstack(t2s)
-    
-    coeff2 = np.concatenate([lam2s[0],]*2 + [lam2s[1],]*2 + [-lam2s[1],]*2 + [ lam2s[2],]*2)
-    coeff2 /= (dt2**2)
-
-    # CID also has the contribution of HF GS
-    nvir, nocc = t1s.shape[2:]
-    t0 = np.zeros((1, 2, nvir, nocc))
-    coeff2_0 = np.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt2**2)
-    coeff0 -= 2*np.sum(coeff2_0)
-    coeff0 = np.array([coeff0])
-
-    t_all = np.vstack([t0, t1s, t2s])
-    num_t = len(t_all) 
-    print("Compressed CISD to {} NOSDs.".format(num_t))
-    coeff_all = np.concatenate([coeff0, coeff1, coeff2])
-    coeff_all /= np.linalg.norm(coeff_all)
-
-    return t_all, coeff_all
 
 
