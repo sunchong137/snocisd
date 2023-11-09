@@ -63,7 +63,8 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
 
     return r_cisd
 
-def gen_nocid_two_layers(mf, nocc, nroots=4, dt=0.1):
+
+def gen_nocid_two_layers(mf, nocc, nroots1=4, nroots2=2, dt=0.1):
     '''
     Generate NOCI as following:
     |HF> -> CISD -> choose |mu> with largest coeff -> CISD on |mu> -> choose ...
@@ -73,11 +74,30 @@ def gen_nocid_two_layers(mf, nocc, nroots=4, dt=0.1):
     norb = mo_coeff.shape[-1]
     nvir = norb - nocc
     my_ci = ci.UCISD(mf)
-    c2 = ucisd_amplitudes_doubles(my_ci)
-    t2 = c2t_doubles_truncate(c2, num_roots=nroots, dt=dt, nvir=nvir, nocc=nocc)
-    # TODO to be continued
 
-    return None
+    # first layer
+    c2 = ucisd_amplitudes_doubles(my_ci)
+    t2 = c2t_doubles_truncate(c2, num_roots=nroots1, dt=dt, nvir=nvir, nocc=nocc)
+    num_layer1 = len(t2)
+    t_hf = np.zeros((1, 2, nvir, nocc))
+    r_all = slater.tvecs_to_rmats(np.vstack([t_hf, t2]), nvir, nocc) # store all the rmats
+    
+    U2 = slater.orthonormal_mos(t2)
+    mo_2 = np.einsum("sij, nsjk -> nsik", mo_coeff, U2)
+
+    my_mf = copy.copy(mf)
+    # do cisd on the first layer
+    for i in range(num_layer1):
+        my_mf.mo_coeff = mo_2[i]
+        my_ci = ci.UCISD(my_mf)
+        c2_n = ucisd_amplitudes_doubles(my_ci)
+        t2_n = c2t_doubles_truncate(c2_n, num_roots=nroots2, dt=dt, nvir=nvir, nocc=nocc)
+        r = slater.tvecs_to_rmats(t2_n, nvir, nocc)
+        r = slater.rotate_rmats(r, U2[i])
+        r_all = np.vstack([r_all, r])
+
+    return r_all
+
 
 def gen_nocid_truncate(mf, nocc, nroots=4, dt=0.1):
     '''

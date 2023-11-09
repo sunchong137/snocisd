@@ -81,7 +81,7 @@ def test_c2t_doubles_truncate():
     t2 = nocisd.gen_nocid_truncate(mf, nocc, nroots=2, dt=0.1)
 
 def test_gen_2layers():
-    r = nocisd.gen_nocid_two_layers(mf, nocc, nroots=4, dt=0.1)
-
+    r = nocisd.gen_nocid_two_layers(mf, nocc, nroots1=4, nroots2=2, dt=0.1)
+    print(r.shape)
 
 test_gen_2layers()
