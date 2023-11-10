@@ -63,9 +63,8 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     init_tvecs = init_tvecs.flatten(order="C")
 
     # first construct the HF state
-    rot0_u = jnp.zeros((nvir+nocc, nocc))
-    rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
-    rot_hf = jnp.array([[rot0_u, rot0_u]]) # the HF state
+    rot_hf = jnp.zeros((nvir+nocc, nocc))
+    rot_hf = rot_hf.at[:nocc, :nocc].set(jnp.eye(nocc))[None, :]
 
     E0 = slater_jax_spin0.noci_energy(rot_hf, mo_coeff, h1e, h2e, return_mats=False)
 
@@ -114,5 +113,5 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     print("********End optimization*********")
     print("The final energy from Res HF is {}".format(energy))
 
-    return energy, vecs.reshape(nvecs, 2, nvir, nocc)
+    return energy, vecs.reshape(nvecs, nvir, nocc)
 

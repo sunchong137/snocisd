@@ -86,35 +86,10 @@ def gen_thouless_doubles_cross(nocc, nvir, max_nt=1, zmax=5, zmin=0.1):
     return tmats[:max_nt]
 
 
-def gen_thouless_active(nocc, nvir, max_nt=1, ncas=6, ncas_elec=None, zmax=5, zmin=0.1):
-    '''
-    Generate all spinless excitations in the active space.
-    Args:
-        ncas: the number of active orbitals.
-    '''
-    if ncas_elec is None: # only for spin up
-        ncas_elec = int(ncas/2)
-
-    ncas_occ = int(ncas / 2)
-    ncas_vir = ncas - ncas_occ 
-
-    # single excitation ncas_occ * ncas_vir 
-
-    # double excitation (ncas_occ)*(ncas_occ-1)*(ncas_vir)*(ncas_vir-1)/4
-
-    # Triple excitation a lot
-
-
-
 def gen_thouless_random(nocc, nvir, max_nt):
 
-    tmats = []
-    for i in range(max_nt):
-        t = np.random.rand(2, nvir, nocc) - 0.5
-        #t = np.random.normal(size=tshape)
-        tmats.append(t)
-
-    return np.asarray(tmats)
+    tmats = np.random.rand(max_nt, 2, nvir, nocc) - 0.5
+    return tmats
 
 
 def gen_thouless_doubles(nocc, nvir, max_nt=None, zmax=10, zmin=0.1):
