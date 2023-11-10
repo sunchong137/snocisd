@@ -5,7 +5,7 @@ import sys
 sys.path.append("../..")
 import thouless
 import time
-import opt_res as optdets
+import reshf as optdets
 
 mol = gto.Mole()
 a = 2.0

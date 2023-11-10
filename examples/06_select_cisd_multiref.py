@@ -14,7 +14,7 @@
 
 import numpy as np
 from pyscf import gto, scf, fci, cc
-from noci_jax import nocisd, slater, pyscf_helper, thouless, opt_res, select_ci
+from noci_jax import nocisd, slater, pyscf_helper, thouless, reshf, select_ci
 from noci_jax import slater_jax
 import time
 
@@ -75,7 +75,7 @@ except:
     t0 = thouless.gen_init_singles(nocc, nvir, max_nt=ndets, zmax=2, zmin=0.1)
 
     t0 = t0.reshape(ndets, -1)
-    E, tnew = opt_res.optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=ndets, 
+    E, tnew = reshf.optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=ndets, 
                                 init_tvecs=t0, MaxIter=niter, print_step=print_step, e_nuc=e_nuc)
     np.save(save_file, tnew)
 

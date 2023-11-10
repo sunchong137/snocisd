@@ -193,7 +193,7 @@ def solve_lc_coeffs(hmat, smat, return_vec=False):
         if return_vec:
             1D array, linear combination coefficient
     '''
-    energy, c = math_helpers.generalized_eigh(hmat, smat)
+    energy, c = _generalized_eigh(hmat, smat)
 
     if return_vec:
         return energy, c
@@ -341,6 +341,16 @@ def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
    
     return hmat, smat
 
+def _generalized_eigh(A, B):
+    L = jnp.linalg.cholesky(B)
+    L_inv = jnp.linalg.inv(L)
+    A_redo = L_inv @ A @ L_inv.T
+    e, v = jnp.linalg.eigh(A_redo)
+    e0 = e[0]
+    v0 = v[:, 0]
+    c0 = L_inv.T @ v0 # rotate back 
+
+    return e0, c0
 
 if __name__ == "__main__":
     print("Main function:\n")

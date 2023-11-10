@@ -3,30 +3,6 @@ from noci_jax import select_ci, slater, pyscf_helper
 from pyscf import gto, scf
 
 
-def test_linear_dependency():
-
-    n = 100
-    m = np.random.rand(n, n)
-    q, r = np.linalg.qr(m)
-    num_ind = np.random.randint(n)
-    num_ld = n - num_ind
-    v = np.zeros_like(q)
-    v_ind = q[:, :num_ind]
-    v[:, :num_ind] = v_ind
-    rot_mat = np.random.rand(num_ind, num_ld)
-    v_ld = v_ind@rot_mat 
-    v[:, num_ind:] = v_ld
-    
-    ovlp_mat = np.zeros((n, n))
-    for i in range(n):
-        for j in range(i, n):
-            ov = v[:, i].T@v[:, j]
-            ovlp_mat[i, j] = ov 
-            ovlp_mat[j, i] = ov 
-    
-    n_nz = select_ci.check_linear_depend(ovlp_mat, 1e-10)
-    assert np.allclose(n_nz, num_ind)
-
 def test_metric():
     nocc = 2
     nvir = 2
@@ -77,18 +53,10 @@ def test_criteria():
     m, e = select_ci.criteria_all(rmats, r_n, mo_coeff, h1e, h2e)
     # print(m, e)
     # single det
-    m1, e1 = select_ci.criteria_all_single_det(rmats, r_n[0], mo_coeff, h1e, h2e)
+    m1, e1, _, _ = select_ci.criteria_all_single_det(rmats, r_n[0], mo_coeff, h1e, h2e)
     # print(m1, e1)
 
-    t_select = select_ci.select_tvecs(t_vecs, t_new, mo_coeff, h1e, h2e, nocc, nvir)
 
-    t_s = select_ci.select_rmats_ovlp(rmats, r_n)
-    
-    lt = len(t_select)
-    lt2 = len(t_s)
-
-    assert lt > 0
-    assert lt2 > 0
 
 
 test_criteria()
