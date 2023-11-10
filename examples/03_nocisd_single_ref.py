@@ -33,16 +33,11 @@ e_corr, civec = myci.kernel()
 e_cisd = e_hf + e_corr 
 c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
 
-print(c2[0])
-
-fcivec = myci.to_fcivec(civec, norb, nelec)
-print(fcivec[0,-1])
-# print(fcivec)
-exit()
 
 dt = 0.1
 tmats, coeffs = nocisd.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)
 nvir, nocc = tmats.shape[2:]
 rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
 
-# E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
+print(E)

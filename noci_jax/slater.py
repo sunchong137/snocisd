@@ -45,13 +45,20 @@ def add_tvec_hf(tmats):
     t_all = np.vstack([t0, tmats])
     return t_all
 
+def r2u_dets(mats):
+    ndim = mats.ndim
+    mats_n = np.array([mats, mats])
+    if ndim > 2: 
+        mats_n = mats_n.transpose(1, 0, 2, 3)
+
+    return mats_n
+
 def metric_rmats(rmat1, rmat2):
     '''
     Evaluate the overlap between the two Slater determinants represented by rotation matrices.
     '''
     mat = np.einsum('sji, sjk -> sik', rmat1.conj(), rmat2)
     ovlp = np.prod(np.linalg.det(mat), axis=-1)
-
     return ovlp
 
 

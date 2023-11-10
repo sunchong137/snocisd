@@ -50,6 +50,14 @@ def metric_rmats(rmat1, rmat2):
     ovlp = np.linalg.det(mat) ** 2
     return ovlp
 
+def r2u_dets(mats):
+    ndim = mats.ndim
+    mats_n = np.array([mats, mats])
+    if ndim > 2: 
+        mats_n = mats_n.transpose(1, 0, 2, 3)
+
+    return mats_n
+
 
 def orthonormal_mos(tmats):
     return slater.orthonormal_mos(tmats)

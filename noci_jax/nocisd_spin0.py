@@ -156,17 +156,16 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
 
     if nvir is None:
         nvir, nocc = c2[0].shape[:2]
-    
-    c2 = c2.reshape(3, nvir*nocc, nvir*nocc)
+
     # aaaa
-    e_aa, v_aa = np.linalg.eigh(c2[0])
+    e_aa, v_aa = np.linalg.eigh(c2[0].reshape(nvir*nocc, nvir*nocc))
     idx_aa = np.where(np.abs(e_aa) > tol)
     z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     pad_aa = np.zeros_like(z_aa)
     t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
     c_aa = e_aa[idx_aa]
     # aabb
-    u_a, e_ab, v_bt = np.linalg.svd(c2[1])
+    u_a, e_ab, v_bt = np.linalg.svd(c2[1].reshape(nvir*nocc, nvir*nocc))
     v_b = v_bt.conj().T
     idx_ab = np.where(np.abs(e_ab) > tol)
     z_a = u_a[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
