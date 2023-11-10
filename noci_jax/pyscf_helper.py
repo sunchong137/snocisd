@@ -74,7 +74,6 @@ def get_mos(mf):
 
     norb = mf.mol.nao # number of orbitals
     occ = mf.get_occ()
-    print(occ)
     ndim = occ.ndim
     if ndim > 1:
         nocc = int(np.sum(occ[0])) # number of occupied orbitals for spin up

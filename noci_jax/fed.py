@@ -56,10 +56,7 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         init_tvecs = np.random.rand(nvecs, -1)
     init_tvecs = jnp.array(init_tvecs)
 
-    rot0_u = jnp.zeros((nvir+nocc, nocc))
-    rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
-    rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
-
+    rmats_new = slater_jax.gen_rmat_hf(nvir, nocc)
     hmat, smat = slater_jax.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
     e_hf = slater_jax.solve_lc_coeffs(hmat, smat)
     E0 = e_hf 
@@ -102,9 +99,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
         print("Number of new determinants needs to be > !")
         print("No sweep performed.")
         if E0 is None:
-            rot0_u = jnp.zeros((nvir+nocc, nocc))
-            rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
-            rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
+            rmats_new = slater_jax.gen_rmat_hf(nvir, nocc)
             rmats_n = slater_jax.tvecs_to_rmats(init_tvecs, nvir, nocc)
             rmats_new = jnp.vstack([rmats_new, rmats_n])
         
@@ -119,10 +114,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
     nvir = norb - nocc
     tshape = (nvir, nocc)
 
-
-    rot0_u = jnp.zeros((nvir+nocc, nocc))
-    rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
-    rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
+    rmats_new = slater_jax.gen_rmat_hf(nvir, nocc)
     rmats_n = slater_jax.tvecs_to_rmats(init_tvecs, nvir, nocc)
     rmats_new = jnp.vstack([rmats_new, rmats_n])
     # Start sweeping
