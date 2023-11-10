@@ -63,9 +63,7 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     init_tvecs = init_tvecs.flatten(order="C")
 
     # first construct the HF state
-    rot_hf = jnp.zeros((nvir+nocc, nocc))
-    rot_hf = rot_hf.at[:nocc, :nocc].set(jnp.eye(nocc))[None, :]
-
+    rot_hf = slater_jax_spin0.gen_rmat_hf(nvir, nocc)
     E0 = slater_jax_spin0.noci_energy(rot_hf, mo_coeff, h1e, h2e, return_mats=False)
 
     def cost_func(t):

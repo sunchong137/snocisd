@@ -18,7 +18,7 @@ import jax.numpy as jnp
 from jax.config import config
 config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
-from noci_jax import slater_jax
+from noci_jax import slater_jax_spin0
 
 def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None, 
                  MaxIter=100, print_step=1000, lrate=1e-2, schedule=False,
@@ -56,12 +56,9 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         init_tvecs = np.random.rand(nvecs, -1)
     init_tvecs = jnp.array(init_tvecs)
 
-    rot0_u = jnp.zeros((nvir+nocc, nocc))
-    rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
-    rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
-
-    hmat, smat = slater_jax.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
-    e_hf = slater_jax.solve_lc_coeffs(hmat, smat)
+    rmats_new = slater_jax_spin0.gen_rmat_hf(nvir, nocc)
+    hmat, smat = slater_jax_spin0.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
+    e_hf = slater_jax_spin0.solve_lc_coeffs(hmat, smat)
     E0 = e_hf 
     if nvecs is None:
         nvecs = len(init_tvecs)
@@ -81,8 +78,8 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         print("Iter {}: energy lowered {}".format(iter+1, de))
         E0 = E
         init_tvecs = init_tvecs.at[iter].set(jnp.copy(t))
-        r = slater_jax.tvecs_to_rmats(t, nvir, nocc) 
-        hmat, smat = slater_jax.expand_hs(hmat0, smat0, r, rmats_new, h1e, h2e, mo_coeff)
+        r = slater_jax_spin0.tvecs_to_rmats(t, nvir, nocc) 
+        hmat, smat = slater_jax_spin0.expand_hs(hmat0, smat0, r, rmats_new, h1e, h2e, mo_coeff)
         rmats_new = jnp.vstack([rmats_new, r])
 
     de_fed = E - e_hf  
@@ -102,13 +99,11 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
         print("Number of new determinants needs to be > !")
         print("No sweep performed.")
         if E0 is None:
-            rot0_u = jnp.zeros((nvir+nocc, nocc))
-            rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
-            rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
-            rmats_n = slater_jax.tvecs_to_rmats(init_tvecs, nvir, nocc)
+            rmats_new = slater_jax_spin0.gen_rmat_hf(nvir, nocc)
+            rmats_n = slater_jax_spin0.tvecs_to_rmats(init_tvecs, nvir, nocc)
             rmats_new = jnp.vstack([rmats_new, rmats_n])
         
-            E0 = slater_jax.noci_energy(rmats_new, mo_coeff, h1e, h2e)
+            E0 = slater_jax_spin0.noci_energy(rmats_new, mo_coeff, h1e, h2e)
         return E0, init_tvecs
 
     mo_coeff = jnp.array(mo_coeff)
@@ -119,15 +114,12 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
     nvir = norb - nocc
     tshape = (nvir, nocc)
 
-
-    rot0_u = jnp.zeros((nvir+nocc, nocc))
-    rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
-    rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
-    rmats_n = slater_jax.tvecs_to_rmats(init_tvecs, nvir, nocc)
+    rmats_new = slater_jax_spin0.gen_rmat_hf(nvir, nocc)
+    rmats_n = slater_jax_spin0.tvecs_to_rmats(init_tvecs, nvir, nocc)
     rmats_new = jnp.vstack([rmats_new, rmats_n])
     # Start sweeping
     if E0 is None:
-        E0 = slater_jax.noci_energy(rmats_new, mo_coeff, h1e, h2e)
+        E0 = slater_jax_spin0.noci_energy(rmats_new, mo_coeff, h1e, h2e)
 
     e_hf = E0
 
@@ -138,7 +130,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
         for iter in range(nvecs):
             t0 = init_tvecs[iter]
             rmats_new = jnp.delete(rmats_new, 1, axis=0)
-            hmat0, smat0= slater_jax.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
+            hmat0, smat0= slater_jax_spin0.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
             E, t, = opt_one_thouless(t0, rmats_new, mo_coeff, h1e, h2e, tshape, 
                                     hmat=hmat0, smat=smat0, MaxIter=MaxIter, 
                                     print_step=print_step, lrate=lrate, schedule=schedule)
@@ -146,7 +138,7 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
             print("Iter {}: energy lowered {}".format(iter+1, de))
             E0 = E
             init_tvecs = init_tvecs.at[iter].set(jnp.copy(t))
-            r = slater_jax.tvecs_to_rmats(jnp.array([t]), nvir, nocc)
+            r = slater_jax_spin0.tvecs_to_rmats(jnp.array([t]), nvir, nocc)
             rmats_new = jnp.vstack([rmats_new, r])
         de_s = E - E_s 
         print("***Energy lowered after Sweep {}: {}".format(isw+1, de_s))
@@ -168,13 +160,13 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
     nvir, nocc = tshape
 
     if hmat is None:
-        hmat, smat = slater_jax.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
+        hmat, smat = slater_jax_spin0.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
 
     def cost_func(t): 
         # thouless to rotation
-        r_n = slater_jax.tvecs_to_rmats(t, nvir, nocc)
-        hm, sm = slater_jax.expand_hs(hmat, smat, r_n, rmats, h1e, h2e, mo_coeff)
-        energy = slater_jax.solve_lc_coeffs(hm, sm)
+        r_n = slater_jax_spin0.tvecs_to_rmats(t, nvir, nocc)
+        hm, sm = slater_jax_spin0.expand_hs(hmat, smat, r_n, rmats, h1e, h2e, mo_coeff)
+        energy = slater_jax_spin0.solve_lc_coeffs(hm, sm)
         return energy  
           
     init_params = jnp.array(tvec0)

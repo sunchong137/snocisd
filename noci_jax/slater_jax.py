@@ -56,6 +56,13 @@ def add_tvec_hf(tmats):
     t_all = np.vstack([t0, tmats])
     return t_all
 
+def gen_rmat_hf(nvir, nocc):
+    rot0_u = jnp.zeros((nvir+nocc, nocc))
+    rot0_u = rot0_u.at[:nocc, :nocc].set(jnp.eye(nocc))
+    rmats_new = jnp.array([[rot0_u, rot0_u]]) # the HF state
+
+    return rmats_new
+
 def metric_rmats(rmat1, rmat2):
     '''
     Evaluate the overlap between the two Slater determinants represented by rotation matrices.
