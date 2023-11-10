@@ -5,12 +5,14 @@ from noci_jax import nocisd
 from noci_jax import slater, pyscf_helper
 
 
-bond_length = 1.09768
+bl = 1.0
 mol = gto.Mole()
-mol.atom = '''
-N   0   0   0
-N   0   0   {}
-'''.format(bond_length)
+mol.atom = f'''
+H   0   0   0
+H   0   0   {bl}
+H   0   0   {2*bl}
+H   0   0   {3*bl}
+'''
 mol.unit = "angstrom"
 mol.basis = "sto3g"
 mol.cart = True
@@ -18,9 +20,9 @@ mol.build()
 
 mf = scf.UHF(mol)
 mf.kernel()
-mo1 = mf.stability()[0]                                                             
-init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
-mf.kernel(init) 
+# mo1 = mf.stability()[0]                                                             
+# init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
+# mf.kernel(init) 
 
 h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
 norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
@@ -29,6 +31,14 @@ nelec = mol.nelectron
 myci = ci.UCISD(mf)
 e_corr, civec = myci.kernel()
 e_cisd = e_hf + e_corr 
+c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
+
+print(c2[0])
+
+fcivec = myci.to_fcivec(civec, norb, nelec)
+print(fcivec[0,-1])
+# print(fcivec)
+exit()
 
 dt = 0.1
 tmats, coeffs = nocisd.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)
