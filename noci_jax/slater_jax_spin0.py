@@ -46,7 +46,7 @@ def metric_rmats(rmat1, rmat2):
     Evaluate the overlap between the two Slater determinants represented by rotation matrices.
     '''
     mat = jnp.einsum('ji, jk -> ik', rmat1.conj(), rmat2)
-    ovlp = jnp.linalg.det(mat)
+    ovlp = jnp.linalg.det(mat) ** 2
     return ovlp
 
 
@@ -79,7 +79,7 @@ def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_
 
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = jnp.linalg.det(metrics_all)
+    smat = jnp.linalg.det(metrics_all) ** 2
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
@@ -113,7 +113,7 @@ def noci_energy_jit(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None
 
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = jnp.linalg.det(metrics_all)
+    smat = jnp.linalg.det(metrics_all) ** 2
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
@@ -138,7 +138,7 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
 
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = jnp.linalg.det(metrics_all)
+    smat = jnp.linalg.det(metrics_all) ** 2
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
@@ -165,7 +165,7 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
 def noci_matrices(rmats, mo_coeff, h1e, h2e):
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = jnp.linalg.det(metrics_all)
+    smat = jnp.linalg.det(metrics_all) ** 2
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
@@ -208,7 +208,7 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
     '''
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = jnp.linalg.det(metrics_all)
+    smat = jnp.linalg.det(metrics_all) ** 2
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
@@ -230,7 +230,7 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
 
     '''
     metrics_all = jnp.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = jnp.linalg.det(metrics_all)
+    smat = jnp.linalg.det(metrics_all) ** 2
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
@@ -257,7 +257,7 @@ def get_smat(rmats):
     Get the overlap matrix of the given determinants.
     '''
     metrics = jnp.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = jnp.prod(jnp.linalg.det(metrics), axis=-1)   
+    smat = jnp.linalg.det(metrics) ** 2
     return smat
 
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
@@ -301,9 +301,9 @@ def expand_smat(smat_fix, rmats_fix, rmats_new):
     n_new = len(rmats_new)
     n_tot = n_fix + n_new
     metrics_mix = jnp.einsum('nji, mjk -> nmik', rmats_fix.conj(), rmats_new)
-    smat_left = jnp.linalg.det(metrics_mix)
+    smat_left = jnp.linalg.det(metrics_mix) ** 2
     metrics_new = jnp.einsum('nji, mjk -> nmik', rmats_new.conj(), rmats_new)
-    smat_new = jnp.linalg.det(metrics_new)
+    smat_new = jnp.linalg.det(metrics_new) ** 2
 
     smat = jnp.zeros((n_tot, n_tot))
     smat = smat.at[:n_fix, :n_fix].set(smat_fix)
@@ -321,7 +321,7 @@ def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
 
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nji, mjk -> nmik', rmats1.conj(), rmats2)
-    smat = jnp.linalg.det(metrics_all)
+    smat = jnp.linalg.det(metrics_all) ** 2
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
