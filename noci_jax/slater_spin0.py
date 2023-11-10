@@ -52,55 +52,7 @@ def metric_rmats(rmat1, rmat2):
 
 
 def orthonormal_mos(tmats):
-    '''
-    Get the orthonormalization matrix given a Thouless rotation. 
-    Args:
-        tmat: 3D array or 4D array, the thouless rotation of size (nt, nvir, nocc) 
-    Returns:
-        3D array: full rotation matrices to generate the new set of MOs.
-    '''
-    tshape = tmats.shape
-    if len(tshape) <= 2: # matrices
-        nvir, nocc = tshape
-        norb = nvir + nocc
-        Iocc = np.eye(nocc)
-        Ivir = np.eye(nvir)
-
-        Mocc = np.linalg.inv(Iocc + tmats.T.conj()@tmats).T.conj()
-        Mvir = np.linalg.inv(Ivir + tmats@tmats.T.conj()).T.conj()
-        Uocc = np.linalg.cholesky(Mocc)
-        Uvir = np.linalg.cholesky(Mvir)
-        mat_on = np.zeros((norb, norb))
-        mat_on[:nocc, :nocc] = Uocc 
-        mat_on[nocc:, :nocc] = tmats@Uocc 
-        mat_on[:nocc, nocc:] = -tmats.conj().T@Uvir 
-        mat_on[nocc:, nocc:] =  Uvir
-
-    else: # more than one matrices
-        Nt = tshape[0]
-        nvir, nocc = tshape[1:]
-        norb = nocc + nvir
-        Iocc = np.eye(nocc)
-        Ivir = np.eye(nvir)
-        ts = tmats
-
-        Mocc = np.tile(Iocc, Nt).T.reshape(Nt, nocc, nocc)\
-            + np.moveaxis(ts, -2, -1).conj()@ts
-        Mvir = np.tile(Ivir, Nt).T.reshape(Nt, nvir, nvir)\
-            + ts@np.moveaxis(ts, -2, -1).conj()
-
-        Uocc = np.linalg.cholesky(Mocc)
-        Uocc = np.moveaxis(np.linalg.inv(Uocc), -2, -1).conj()
-        Uvir = np.linalg.cholesky(Mvir)
-        Uvir = np.moveaxis(np.linalg.inv(Uvir), -2, -1).conj()
-
-        mat_on = np.zeros((Nt, norb, norb))
-        mat_on[:, :nocc, :nocc] = Uocc 
-        mat_on[:, nocc:, :nocc] = ts@Uocc
-        mat_on[:, :nocc, nocc:] = -np.moveaxis(ts, -2, -1).conj()@Uvir 
-        mat_on[:, nocc:, nocc:] = Uvir 
-        
-    return mat_on
+    return slater.orthonormal_mos(tmats)
 
 
 def rotate_rmats(rmats, U):
@@ -155,7 +107,7 @@ def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_
 def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
     # first calculate metric and thus overlap
     metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = np.prod(np.linalg.det(metrics_all), axis=-1)
+    smat = np.linalg.det(metrics_all)
 
     # transition density matrices
     sdets = np.einsum("ij, njk -> nik", mo_coeff, rmats)
@@ -185,7 +137,7 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
 def noci_matrices(rmats, mo_coeff, h1e, h2e):
     # first calculate metric and thus overlap
     metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = np.prod(np.linalg.det(metrics_all), axis=-1)
+    smat = np.linalg.det(metrics_all)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
@@ -230,7 +182,7 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
     '''
     # first calculate metric and thus overlap
     metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = np.prod(np.linalg.det(metrics_all), axis=-1)
+    smat = np.linalg.det(metrics_all)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
@@ -252,7 +204,7 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
 
     '''
     metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
-    smat = np.prod(np.linalg.det(metrics_all), axis=-1)
+    smat = np.linalg.det(metrics_all)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
