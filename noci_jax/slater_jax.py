@@ -17,6 +17,7 @@ Using Jax data structures.
 import numpy as np
 import jax.numpy as jnp
 import jax
+from noci_jax import math_helpers
 from jax.config import config
 config.update("jax_enable_x64", True)
 # import os 
@@ -265,7 +266,7 @@ def solve_lc_coeffs(hmat, smat, return_vec=False):
         if return_vec:
             1D array, linear combination coefficient
     '''
-    energy, c = _generalized_eigh(hmat, smat)
+    energy, c = math_helpers.generalized_eigh(hmat, smat)
 
     if return_vec:
         return energy, c
@@ -422,17 +423,6 @@ def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
    
     return hmat, smat
 
-
-def _generalized_eigh(A, B):
-    L = jnp.linalg.cholesky(B)
-    L_inv = jnp.linalg.inv(L)
-    A_redo = L_inv.dot(A).dot(L_inv.T)
-    e, v = jnp.linalg.eigh(A_redo)
-    e0 = e[0]
-    v0 = v[:, 0]
-    c0 = L_inv.T.dot(v0) # rotate back 
-
-    return e0, c0
 
 if __name__ == "__main__":
     print("Main function:\n")

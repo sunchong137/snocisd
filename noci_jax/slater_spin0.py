@@ -12,46 +12,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+'''
+Restricted spin symmetry calculations. 
+'''
+
 import numpy as np
-from noci_jax import math_helpers
+from noci_jax import slater, math_helpers
 
 def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):
     '''
     Transform Thouless vectors into rotation matrices.
     Args:
-        tvecs: array, can be size (N, 2*nvir*nocc), (2*nvir*nocc) or (N, 2, nvir, nocc).
-        nvir: int, number of virtual orbitals.
-        nocc: int, number of occupied orbitals.
-    Kwargs:
-        occ_mat: the rotation matrices for the occupied orbitals.
+        tvecs: shape (N, nvir, nocc) or (N, nvir*nocc)
     Returns:
-        array of size (N, 2, nvir, nocc)
+        array of size (N, nvir, nocc)
     '''
 
     vecs_all = tvecs.reshape(-1, nvir, nocc)
     nvecs = vecs_all.shape[0]
     if occ_mat is None:
         occ_mat = np.eye(nocc)
-    Imats = np.tile(occ_mat, (nvecs)).T.reshape(nvecs, nocc, nocc) # 2 for spins
+    Imats = np.tile(occ_mat, (nvecs)).T.reshape(nvecs, nocc, nocc) 
     rmats = np.concatenate([Imats, vecs_all], axis=1)
-    rmats = rmats.reshape(-1, 2, nvir+nocc, nocc)
+    # rmats = rmats.reshape(-1, nvir+nocc, nocc)
     return rmats
 
+
 def add_tvec_hf(tmats):
-    '''
-    Add the Hartree-Fock Thouless matrices to the list of Thouless
-    '''
-    t0 = np.zeros_like(tmats[0])[None, :] # add another axis
-    t_all = np.vstack([t0, tmats])
-    return t_all
+    return slater.add_tvec_hf(tmats)
+
 
 def metric_rmats(rmat1, rmat2):
     '''
     Evaluate the overlap between the two Slater determinants represented by rotation matrices.
     '''
-    mat = np.einsum('sji, sjk -> sik', rmat1.conj(), rmat2)
-    ovlp = np.prod(np.linalg.det(mat), axis=-1)
-
+    mat = rmat1.T.conj() @ rmat2 
+    ovlp = np.linalg.det(mat) ** 2
     return ovlp
 
 
@@ -59,7 +55,7 @@ def orthonormal_mos(tmats):
     '''
     Get the orthonormalization matrix given a Thouless rotation. 
     Args:
-        tmat: 3D array or 4D array, the thouless rotation of size (nt, spin, nvir, nocc)
+        tmat: 3D array or 4D array, the thouless rotation of size (nt, nvir, nocc) 
     Returns:
         3D array: full rotation matrices to generate the new set of MOs.
     '''
@@ -81,12 +77,12 @@ def orthonormal_mos(tmats):
         mat_on[nocc:, nocc:] =  Uvir
 
     else: # more than one matrices
-        Nt = np.prod(tshape[:-2])
-        nvir, nocc = tshape[-2:]
+        Nt = tshape[0]
+        nvir, nocc = tshape[1:]
         norb = nocc + nvir
         Iocc = np.eye(nocc)
         Ivir = np.eye(nvir)
-        ts = tmats.reshape(Nt, nvir, nocc)
+        ts = tmats
 
         Mocc = np.tile(Iocc, Nt).T.reshape(Nt, nocc, nocc)\
             + np.moveaxis(ts, -2, -1).conj()@ts
@@ -104,18 +100,19 @@ def orthonormal_mos(tmats):
         mat_on[:, :nocc, nocc:] = -np.moveaxis(ts, -2, -1).conj()@Uvir 
         mat_on[:, nocc:, nocc:] = Uvir 
         
-    return mat_on.reshape(*list(tmats.shape[:-2]), norb, norb)
+    return mat_on
+
 
 def rotate_rmats(rmats, U):
     '''
     Rotate the rmats based on Unitary matrix U.
     args:
-        rmats: (nr, s, norb, nocc) array
-        U: (s, norb, norb) array
+        rmats: (nr, norb, nocc) array
+        U: (norb, norb) array
     Returns:
         UR for each R
     '''
-    return np.einsum('sij, nsjk -> nsik', U, rmats)
+    return np.einsum('ij, njk -> nik', U, rmats)
 
 
 def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=0.0):
@@ -132,51 +129,51 @@ def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_
         return noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc)
 
     # first calculate metric and thus overlap
-    metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
-    smat = np.prod(np.linalg.det(metrics_all), axis=-1)
+    metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
+    smat = np.linalg.det(metrics_all)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+    sdets = np.einsum("ij, njk -> nik", mo_coeff, rmats)
+    trdms = np.einsum("mij, nmjk, nlk -> nmil", sdets, inv_metrics, sdets.conj())
 
-    # transition hamiltonian
-    E1 = np.einsum("ij, nmsji -> nm", h1e, trdms)
-    J = np.einsum("ijkl, nmslk -> nmij", h2e, trdms)
-    E2J = np.einsum("nmij, nmsji -> nm", J, trdms)
-    K = np.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
-    E2K = np.einsum("nmsij, nmsji ->nm", K, trdms)
+    # transition hamiltonian for RHF
+    E1 = np.einsum("ij, nmji -> nm", h1e, trdms) * 2
+    J = np.einsum("ijkl, nmlk -> nmij", h2e, trdms)
+    E2J = np.einsum("nmij, nmji -> nm", J, trdms) * 2
+    K = np.einsum("ijkl, nmjk -> nmil", h2e, trdms)
+    E2K = np.einsum("nmij, nmji ->nm", K, trdms)
 
     E2 = E2J - E2K
 
-    hmat = (E1 + 0.5*E2) * smat
+    hmat = (E1 + E2) * smat
 
     energy = solve_lc_coeffs(hmat, smat, return_vec=False)
     return energy + e_nuc
 
+
 def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
     # first calculate metric and thus overlap
-    metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
     # transition density matrices
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, np.linalg.inv(metrics_all), sdets.conj())
+    sdets = np.einsum("ij, njk -> nik", mo_coeff, rmats)
+    trdms = np.einsum("mij, nmjk, nlk -> nmil", sdets, np.linalg.inv(metrics_all), sdets.conj())
     sdets = None
     metrics_all = None
     
     # E1 = np.einsum("")
-    # transition hamiltonian
-    E1 = np.einsum("ij, nmsji -> nm", h1e, trdms)
-    J = np.einsum("ijkl, nmslk -> nmij", h2e, trdms)
-    J = np.einsum("nmij, nmsji -> nm", J, trdms)
-    K = np.einsum("ilkj, nmslk -> nmsij", h2e, trdms)
-    K = np.einsum("nmsij, nmsji ->nm", K, trdms)
-    E2 = J - K
-    # E2 = E2J - E2K
-    trdms = None
+    # transition hamiltonian for RHF
+    E1 = np.einsum("ij, nmji -> nm", h1e, trdms) * 2
+    J = np.einsum("ijkl, nmlk -> nmij", h2e, trdms)
+    E2J = np.einsum("nmij, nmji -> nm", J, trdms) * 2
+    K = np.einsum("ijkl, nmjk -> nmil", h2e, trdms)
+    E2K = np.einsum("nmij, nmji ->nm", K, trdms)
 
-    hmat = (E1 + 0.5*E2) * smat
+    E2 = E2J - E2K
+
+    hmat = (E1 + E2) * smat
 
     h = lc_coeffs.T.conj().dot(hmat).dot(lc_coeffs)
     s = lc_coeffs.T.conj().dot(smat).dot(lc_coeffs)
@@ -187,24 +184,25 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
 
 def noci_matrices(rmats, mo_coeff, h1e, h2e):
     # first calculate metric and thus overlap
-    metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+    sdets = np.einsum("ij, njk -> nik", mo_coeff, rmats)
+    trdms = np.einsum("mij, nmjk, nlk -> nmil", sdets, inv_metrics, sdets.conj())
 
-    # transition hamiltonian
-    E1 = np.einsum("ij, nmsji -> nm", h1e, trdms)
-    J = np.einsum("ijkl, nmslk -> nmij", h2e, trdms)
-    E2J = np.einsum("nmij, nmsji -> nm", J, trdms)
-    K = np.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
-    E2K = np.einsum("nmsij, nmsji ->nm", K, trdms)
+    # transition hamiltonian for RHF
+    E1 = np.einsum("ij, nmji -> nm", h1e, trdms) * 2
+    J = np.einsum("ijkl, nmlk -> nmij", h2e, trdms)
+    E2J = np.einsum("nmij, nmji -> nm", J, trdms) * 2
+    K = np.einsum("ijkl, nmjk -> nmil", h2e, trdms)
+    E2K = np.einsum("nmij, nmji ->nm", K, trdms)
 
     E2 = E2J - E2K
 
-    hmat = (E1 + 0.5*E2) * smat
+    hmat = (E1 + E2) * smat
+    
     return hmat, smat
 
 
@@ -231,16 +229,16 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
     Return: array of size (2, N, N)
     '''
     # first calculate metric and thus overlap
-    metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
-    trdms = np.einsum("nmsij, nm -> nmsij", trdms, smat)
+    sdets = np.einsum("ij, njk -> nik", mo_coeff, rmats)
+    trdms = np.einsum("mij, nmjk, nlk -> nmil", sdets, inv_metrics, sdets.conj())
+    trdms = np.einsum("nmij, nm -> nmij", trdms, smat)
 
-    top = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, trdms) 
+    top = np.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, trdms) 
     bot = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
 
     return top/bot
@@ -253,29 +251,23 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     order: uuuu, uudd, dduu, dddd
 
     '''
-    metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    metrics_all = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
-    dm1s = np.einsum("nmsij, nm -> nmsij", trdms, smat)
-    dm1_u = trdms[:, :, 0]
-    dm1_d = trdms[:, :, 1]
-    dm2s_uu = np.einsum("nmij, nmkl -> nmijkl", dm1_u, dm1_u) \
+    sdets = np.einsum("ij, njk -> nik", mo_coeff, rmats)
+    trdms = np.einsum("mij, nmjk, nlk -> nmil", sdets, inv_metrics, sdets.conj())
+    dm1s = np.einsum("nmij, nm -> nmij", trdms, smat)
+    dm1_u = trdms
+
+    dm2s = np.einsum("nmij, nmkl -> nmijkl", dm1_u, dm1_u) \
              - np.einsum("nmil, nmkj -> nmijkl", dm1_u, dm1_u)
-    dm2s_dd = np.einsum("nmij, nmkl -> nmijkl", dm1_d, dm1_d) \
-             - np.einsum("nmil, nmkj -> nmijkl", dm1_d, dm1_d)
-    dm2s_ud = np.einsum("nmij, nmkl -> nmijkl", dm1_u, dm1_d)
-    dm2s_du = np.einsum("nmij, nmkl -> nmijkl", dm1_d, dm1_u)
+    
+    dm2s = np.einsum("nmijkl, nm -> nmijkl", dm2s, smat)
 
-    dm2s = np.array([dm2s_uu, dm2s_ud, dm2s_du, dm2s_dd])
-    dm2s = np.einsum("snmijkl, nm -> snmijkl", dm2s, smat)
-
-    dm1s = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
-    dm2s = np.einsum("n, m, snmijkl -> sijkl", lc_coeff.conj(), lc_coeff, dm2s)
-
+    dm1s = np.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, dm1s) 
+    dm2s = np.einsum("n, m, nmijkl -> ijkl", lc_coeff.conj(), lc_coeff, dm2s)
 
     phi_norm = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
 
@@ -286,12 +278,13 @@ def get_smat(rmats):
     '''
     Get the overlap matrix of the given determinants.
     '''
-    metrics = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
-    smat = np.prod(np.linalg.det(metrics), axis=-1)   
+    metrics = np.einsum('nji, mjk -> nmik', rmats.conj(), rmats)
+    smat = np.linalg.det(metrics)
     return smat
 
 
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
+
     '''
     Expand the H matrix and S matrix
     | (fix, fix)   (fix, n)|
@@ -323,8 +316,6 @@ def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
 
     return hm, sm
 
-
-
 def expand_smat(smat_fix, rmats_fix, rmats_new):
     '''
     Given the previous smat from rmats_fix, add the rows and columns from
@@ -333,10 +324,10 @@ def expand_smat(smat_fix, rmats_fix, rmats_new):
     n_fix = len(rmats_fix)
     n_new = len(rmats_new)
     n_tot = n_fix + n_new
-    metrics_mix = np.einsum('nsji, msjk -> nmsik', rmats_fix.conj(), rmats_new)
-    smat_left = np.prod(np.linalg.det(metrics_mix), axis=-1)
-    metrics_new = np.einsum('nsji, msjk -> nmsik', rmats_new.conj(), rmats_new)
-    smat_new = np.prod(np.linalg.det(metrics_new), axis=-1)
+    metrics_mix = np.einsum('nji, mjk -> nmik', rmats_fix.conj(), rmats_new)
+    smat_left = np.linalg.det(metrics_mix)
+    metrics_new = np.einsum('nji, mjk -> nmik', rmats_new.conj(), rmats_new)
+    smat_new = np.linalg.det(metrics_new)
 
     smat = np.zeros((n_tot, n_tot))
     smat[:n_fix, :n_fix] = smat_fix
@@ -347,7 +338,6 @@ def expand_smat(smat_fix, rmats_fix, rmats_new):
     return smat
     
 
-
 def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
     '''
     Return the matrices of the Hamiltonian and overlap matrix with
@@ -355,26 +345,27 @@ def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
     '''
 
     # first calculate metric and thus overlap
-    metrics_all = np.einsum('nsji, msjk -> nmsik', rmats1.conj(), rmats2)
-    smat = np.prod(np.linalg.det(metrics_all), axis=-1)
+    metrics_all = np.einsum('nji, mjk -> nmik', rmats1.conj(), rmats2)
+    smat = np.linalg.det(metrics_all)
 
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets1 = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats1)
-    sdets2 = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats2)
-    trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets2, inv_metrics, sdets1.conj())
+    sdets1 = np.einsum("ij, njk -> nik", mo_coeff, rmats1)
+    sdets2 = np.einsum("ij, njk -> nik", mo_coeff, rmats2)
+    trdms = np.einsum("mij, nmjk, nlk -> nmil", sdets2, inv_metrics, sdets1.conj())
 
-    # transition hamiltonian
-    E1 = np.einsum("ij, nmsji -> nm", h1e, trdms)
-    J = np.einsum("ijkl, nmslk -> nmij", h2e, trdms)
-    E2J = np.einsum("nmij, nmsji -> nm", J, trdms)
-    K = np.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
-    E2K = np.einsum("nmsij, nmsji ->nm", K, trdms)
+    # transition hamiltonian for RHF
+    E1 = np.einsum("ij, nmji -> nm", h1e, trdms) * 2
+    J = np.einsum("ijkl, nmlk -> nmij", h2e, trdms)
+    E2J = np.einsum("nmij, nmji -> nm", J, trdms) * 2
+    K = np.einsum("ijkl, nmjk -> nmil", h2e, trdms)
+    E2K = np.einsum("nmij, nmji ->nm", K, trdms)
 
     E2 = E2J - E2K
-    hmat = (E1 + 0.5*E2) * smat
+    hmat = (E1 + E2) * smat
    
     return hmat, smat
+
 
 
 if __name__ == "__main__":
