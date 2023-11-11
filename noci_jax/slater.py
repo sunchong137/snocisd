@@ -142,9 +142,17 @@ def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_
     metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = np.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
 
     # transition hamiltonian
@@ -167,7 +175,16 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
     # transition density matrices
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = np.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
+
     trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, np.linalg.inv(metrics_all), sdets.conj())
     sdets = None
     metrics_all = None
@@ -197,9 +214,18 @@ def noci_matrices(rmats, mo_coeff, h1e, h2e):
     metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = np.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
+
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
 
     # transition hamiltonian
@@ -241,9 +267,17 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
     metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = np.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
     trdms = np.einsum("nmsij, nm -> nmsij", trdms, smat)
 
@@ -263,9 +297,18 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = np.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
+
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
     dm1s = np.einsum("nmsij, nm -> nmsij", trdms, smat)
     dm1_u = trdms[:, :, 0]

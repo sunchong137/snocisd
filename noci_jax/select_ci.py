@@ -80,6 +80,7 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
     print("Reduced {} determinants to {} determinants.".format(n_new, count))
     return rmats_fix
 
+
 def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_indices=False):
     '''
     Only consider the overlap criteria.
