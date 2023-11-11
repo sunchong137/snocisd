@@ -153,7 +153,6 @@ def c2t_singles(c1, dt=0.1):
 
 def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     # TODO make it more efficient
-
     if nvir is None:
         nvir, nocc = c2[0].shape[:2]
 
@@ -174,10 +173,13 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     t_ab_m = np.transpose(np.array([z_a, -z_b]), (1,0,2,3))
     c_ab = e_ab[idx_ab]
  
+    t_bb = np.transpose(np.array([pad_aa, z_aa]), (1,0,2,3))
+    # found the bug tmat_bb
     tmat_aa = np.vstack([t_aa, -t_aa])*dt
+    tmat_bb = np.vstack([t_bb, -t_bb])*dt
     tmat_ab = np.vstack([t_ab_p, -t_ab_p, t_ab_m, -t_ab_m])*dt/2.
 
-    return [tmat_aa, tmat_ab, tmat_aa], [c_aa, c_ab, c_aa]
+    return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_aa]
 
 
 

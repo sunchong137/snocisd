@@ -120,6 +120,20 @@ def rotate_ham(mf):
 
     return h1_mo, h2_mo
 
+def rotate_ham_spin0(mf):
+    '''
+    Rotate the Hamiltonian from AO to MO.
+    '''
+    h1e = mf.get_hcore()
+    norb = mf.mol.nao
+    eri = mf._eri
+    C = mf.mo_coeff
+    # aaaa, aabb, bbbb
+    aaaa = (C,)*4
+    h1_mo = C.T @ h1e @ C
+    h2_mo = ao2mo.incore.general(eri, aaaa, compact=False).reshape(norb, norb, norb, norb)
+    return h1_mo, h2_mo
+
 # CISD helpers
 def cisd_energy_from_vec(vec, mf):
     '''
