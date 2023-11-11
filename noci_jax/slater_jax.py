@@ -153,9 +153,17 @@ def noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
 
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
-    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
 
     # transition hamiltonian
@@ -189,10 +197,17 @@ def noci_energy_jit(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
-
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
-    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
 
     # transition hamiltonian
@@ -215,8 +230,16 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
 
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
-    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, jnp.linalg.inv(metrics_all), sdets.conj())
     sdets = None
     metrics_all = None
@@ -245,10 +268,17 @@ def noci_matrices(rmats, mo_coeff, h1e, h2e):
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
-
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
-    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
 
     # transition hamiltonian
@@ -289,10 +319,17 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
     # first calculate metric and thus overlap
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
-
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
-    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
     trdms = jnp.einsum("nmsij, nm -> nmsij", trdms, smat)
 
@@ -311,10 +348,17 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     '''
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
-
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
-    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
     dm1s = jnp.einsum("nmsij, nm -> nmsij", trdms, smat)
     dm1_u = trdms[:, :, 0]
