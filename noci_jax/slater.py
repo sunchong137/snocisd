@@ -14,6 +14,7 @@
 
 import numpy as np
 from noci_jax import math_helpers
+import logging
 
 def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):
     '''
@@ -425,6 +426,29 @@ def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
     hmat = (E1 + 0.5*E2) * smat
    
     return hmat, smat
+
+def half_spin(mo_coeffs, rmats, tol=1e-5):
+    '''
+    Swap the spin-up and spin-down MOs for the determinant.
+
+    '''
+    Ca = mo_coeffs[0]
+    Cb = mo_coeffs[1]
+    len_C = Ca.shape[0]
+
+    # check if RHF 
+    diff = Ca - Cb 
+    if np.linalg.norm(diff)/len_C**2 < tol:
+        logging.warning("Two spins are degenerate.")
+        return None
+    else:
+        # evaluate the rotation matrix
+        U = np.linalg.inv(Ca) @ Cb
+        rmats_n = np.zeros_like(rmats)
+        rmats_n[:, 0] = np.einsum('ij, njk -> nik', U, rmats[:, 1])
+        rmats_n[:, 1] = np.einsum('ji, njk -> nik', U.conj(), rmats[:, 0])
+        return rmats_n
+
 
 
 if __name__ == "__main__":

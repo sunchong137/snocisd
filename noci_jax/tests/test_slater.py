@@ -162,4 +162,30 @@ def test_orthonormal():
     assert np.allclose(x, I_all)
 
 
-test_orthonormal()
+def test_spin_flip():
+    mol = gto.Mole()
+    mol.atom = "H 0 0 0; H 0 0 1.5; H 0 0 3.0; H 0 0 4.5"
+    mol.unit='angstrom'
+    mol.basis = "sto6g"
+
+    # mol.symmetry = True
+    mol.build()
+    norb = mol.nao
+    nocc = 2
+    mf = scf.UHF(mol)
+    pyscf_helper.run_stab_scf(mf)
+    Cmo = np.asarray(mf.mo_coeff)
+    Ca = Cmo[0]
+    Cb = Cmo[1]
+    U = np.linalg.inv(Ca) @ Cb
+    assert np.allclose(U.T.conj()@U, np.eye(norb))
+
+    rmats = np.random.rand(3, 2, norb, 2)
+    rmats_n = slater.half_spin(Cmo, rmats)
+
+    dets = np.einsum("sij, nsjk -> nsik", Cmo, rmats)
+    dets_n = np.einsum("sij, nsjk -> nsik", Cmo, rmats_n)
+    assert np.allclose(dets[:, 0], dets_n[:, 1])
+    assert np.allclose(dets[:, 1], dets_n[:, 0])
+
+test_spin_flip()
