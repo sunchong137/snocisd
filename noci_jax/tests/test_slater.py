@@ -180,12 +180,23 @@ def test_spin_flip():
     U = np.linalg.inv(Ca) @ Cb
     assert np.allclose(U.T.conj()@U, np.eye(norb))
 
-    rmats = np.random.rand(3, 2, norb, 2)
-    rmats_n = slater.half_spin(Cmo, rmats)
+    rmats = np.random.rand(3, 2, norb, nocc)
+    rmats_n = slater.half_spin(rmats, U=U)
 
     dets = np.einsum("sij, nsjk -> nsik", Cmo, rmats)
     dets_n = np.einsum("sij, nsjk -> nsik", Cmo, rmats_n)
     assert np.allclose(dets[:, 0], dets_n[:, 1])
     assert np.allclose(dets[:, 1], dets_n[:, 0])
+
+    rmats = np.zeros((1, 2, norb, nocc))
+    rmats[0, 0, :nocc] = np.eye(nocc)
+    rmats[0, 1, :nocc] = np.eye(nocc)
+
+    rmats_n = slater.half_spin(rmats, U=U)
+    rmats_all = np.vstack([rmats, rmats_n])
+    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
+    e = slater.noci_energy(rmats_all, Cmo, h1e, h2e, e_nuc=e_nuc)
+    print(e)
+
 
 test_spin_flip()
