@@ -99,11 +99,12 @@ def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=None, spin=1):
     
     mol.nelectron = nelec
     mol.nao = nsite
-    mol.incore_anyway = True
+    
     h1e = np.zeros((nsite, nsite))
     for i in range(nsite-1):
         h1e[i, i+1] = -1
         h1e[i+1, i] = -1
+
     eri = np.zeros((nsite, )*4)
     for i in range(nsite):
         eri[i,i,i,i] = U
@@ -120,6 +121,7 @@ def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=None, spin=1):
     mf.get_hcore = lambda *args: h1e 
     mf.get_ovlp = lambda *args: np.eye(nsite)
     mf._eri = ao2mo.restore(8, eri, nsite)
+    mol.incore_anyway = True
     return mf
     
 

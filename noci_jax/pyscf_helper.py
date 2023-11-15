@@ -49,7 +49,8 @@ def get_integrals(mf, ortho_ao=False):
     Return essential values needed for NOCI calculations.
     '''
     h1e = mf.get_hcore()
-    h2e = mf.mol.intor('int2e')
+    norb = mf.mol.nao
+    h2e = ao2mo.restore(1, mf._eri, norb) # mol.intor('int2e')
     e_nuc = mf.energy_nuc()
 
     if ortho_ao:
