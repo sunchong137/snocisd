@@ -84,7 +84,7 @@ def gen_mol_hlatt(nx, ny, bl=1.1, basis="sto3g", cartesian=False):
     return mol
 
 
-def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=0.5, spin=1):
+def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=None, spin=1):
     '''
     1D Hubbard model.
     Returns:
@@ -94,8 +94,8 @@ def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=0.5, spin=1):
 
     if nelec is None:
         nelec = int(nsite * filling + 1e-10)
-    if abs(nelec - nsite * filling) > 1e-2:
-        logging.warning("Changing filling from {:0.2f} to {:0.2f} to keep integer number of electrons!".format(filling, nelec/nsite))
+        if abs(nelec - nsite * filling) > 1e-2:
+            logging.warning("Changing filling from {:0.2f} to {:0.2f} to keep integer number of electrons!".format(filling, nelec/nsite))
     
     mol.nelectron = nelec
     mol.nao = nsite
@@ -123,7 +123,7 @@ def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=0.5, spin=1):
     return mf
     
 
-def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=0.5, spin=1):
+def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=None, spin=1):
     '''
     2D Hubbard model.
       nx
@@ -138,8 +138,8 @@ def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=0.5, spin=1):
     nsite = nx * ny
     if nelec is None:
         nelec = int(nsite * filling + 1e-10)
-    if abs(nelec - nsite * filling) > 1e-2:
-        logging.warning("Changing filling from {:0.2f} to {:0.2f} to keep integer number of electrons!".format(filling, nelec/nsite))
+        if abs(nelec - nsite * filling) > 1e-2:
+            logging.warning("Changing filling from {:0.2f} to {:0.2f} to keep integer number of electrons!".format(filling, nelec/nsite))
     
     mol.nelectron = nelec
     mol.nao = nsite
