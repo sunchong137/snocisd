@@ -84,7 +84,7 @@ def gen_mol_hlatt(nx, ny, bl=1.1, basis="sto3g", cartesian=False):
     return mol
 
 
-def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=0.5):
+def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=0.5, spin=1):
     '''
     1D Hubbard model.
     Returns:
@@ -110,14 +110,20 @@ def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=0.5):
     if pbc:
         h1e[0, -1] = h1e[-1, 0] = -1
 
-    mf = scf.UHF(mol)
+    if spin == 1:
+        mf = scf.UHF(mol)
+    elif spin == 0:
+        mf = scf.RHF(mol)
+    else:
+        raise ValueError("Spin can only be 0 or 1!")
+    
     mf.get_hcore = lambda *args: h1e 
     mf.get_ovlp = lambda *args: np.eye(nsite)
     mf._eri = ao2mo.restore(8, eri, nsite)
     return mf
     
 
-def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=0.5):
+def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=0.5, spin=1):
     '''
     2D Hubbard model.
       nx
@@ -171,7 +177,13 @@ def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=0.5):
     for i in range(nsite):
         eri[i,i,i,i] = U
 
-    mf = scf.UHF(mol)
+    if spin == 1:
+        mf = scf.UHF(mol)
+    elif spin == 0:
+        mf = scf.RHF(mol)
+    else:
+        raise ValueError("Spin can only be 0 or 1!")
+    
     mf.get_hcore = lambda *args: h1e 
     mf.get_ovlp = lambda *args: np.eye(nsite)
     mf._eri = ao2mo.restore(8, eri, nsite)

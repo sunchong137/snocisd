@@ -21,135 +21,6 @@ import copy
 from pyscf import ci
 from noci_jax import slater, select_ci
 
-def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
-    '''
-    Given a set of non-orthogonal SDs, generate the compressed 
-    non-orthogonal CISD expansion from each SD.
-    Args:
-        tvec_ref: (N, 2, nvir, nocc) array, the reference NOSDs. 
-                  The first one is the HF state.
-        mf: the converged PySCF scf object.
-    Returns: 
-        (M, 2, norb, nocc) array, the rotation matrices
-        from the CISD expansion from each reference. 
-        All the Thouless matrices are based on the HF state.
-    '''
-    num_ref = len(tvecs_ref)
-    if nvir is None:
-        nvir, nocc = tvecs_ref.shape[-2:]
-    # generate orthonormal MOs for each determinant
-
-    U_on_ref = slater.orthonormal_mos(tvecs_ref)
-    mo_coeff = mf.mo_coeff # HF MO coeffs
-    mo_ref = np.einsum("sij, nsjk -> nsik", mo_coeff, U_on_ref)
-    
-    my_mf = copy.copy(mf)
-    # generate the CISD compressed NOSDs
-    # first do HF
-    my_ci = ci.UCISD(mf)
-    _, civec = my_ci.kernel()
-    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
-    r = slater.tvecs_to_rmats(t, nvir, nocc)
-    r_cisd = r[1:] # only choose the singles and doubles 
-
-    for i in range(num_ref-1):
-        my_mf.mo_coeff = mo_ref[i+1]
-        my_ci = ci.UCISD(my_mf)
-        _, civec = my_ci.kernel()
-        t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
-        r = slater.tvecs_to_rmats(t, nvir, nocc)
-        r = slater.rotate_rmats(r, U_on_ref[i+1])
-        r_cisd = np.vstack([r_cisd, r[1:]])
-
-    return r_cisd
-
-
-def gen_nocid_two_layers(mf, nocc, nroots1=4, nroots2=2, dt=0.1):
-    '''
-    Generate NOCI as following:
-    |HF> -> CISD -> choose |mu> with largest coeff -> CISD on |mu> -> choose ...
-    '''
-    # Generate the first layer
-    mo_coeff = mf.mo_coeff
-    norb = mo_coeff.shape[-1]
-    nvir = norb - nocc
-    my_ci = ci.UCISD(mf)
-
-    # first layer
-    c2 = ucisd_amplitudes_doubles(my_ci)
-    t2 = c2t_doubles_truncate(c2, num_roots=nroots1, dt=dt, nvir=nvir, nocc=nocc)
-    num_layer1 = len(t2)
-    t_hf = np.zeros((1, 2, nvir, nocc))
-    r_all = slater.tvecs_to_rmats(np.vstack([t_hf, t2]), nvir, nocc) # store all the rmats
-    
-    U2 = slater.orthonormal_mos(t2)
-    mo_2 = np.einsum("sij, nsjk -> nsik", mo_coeff, U2)
-
-    my_mf = copy.copy(mf)
-    # do cisd on the first layer
-    for i in range(num_layer1):
-        my_mf.mo_coeff = mo_2[i]
-        my_ci = ci.UCISD(my_mf)
-        c2_n = ucisd_amplitudes_doubles(my_ci)
-        t2_n = c2t_doubles_truncate(c2_n, num_roots=nroots2, dt=dt, nvir=nvir, nocc=nocc)
-        r = slater.tvecs_to_rmats(t2_n, nvir, nocc)
-        r = slater.rotate_rmats(r, U2[i])
-        r_all = np.vstack([r_all, r])
-
-    return r_all
-
-
-def gen_two_layers_w_selection(mf, nocc, nroots1=4, nroots2=2, dt=0.1, m_tol=1e-6):
-    '''
-    Generate NOCI as following:
-    |HF> -> CISD -> choose |mu> with largest coeff -> CISD on |mu> -> choose ...
-    '''
-    # Generate the first layer
-    mo_coeff = mf.mo_coeff
-    norb = mo_coeff.shape[-1]
-    nvir = norb - nocc
-    my_ci = ci.UCISD(mf)
-    t_hf = np.zeros((1, 2, nvir, nocc))
-    r_all = slater.tvecs_to_rmats(t_hf, nvir, nocc)
-
-    # first layer
-    c2 = ucisd_amplitudes_doubles(my_ci)
-    t2 = c2t_doubles_truncate(c2, num_roots=nroots1, dt=dt, nvir=nvir, nocc=nocc)
-    r2 = slater.tvecs_to_rmats(t2, nvir, nocc)
-    r_all, idx1 = select_ci.select_rmats_ovlp(r_all, r2, m_tol=m_tol, return_indices=True)
-    t2 = t2[idx1]
-    num_layer1 = len(t2)    
-    
-    U2 = slater.orthonormal_mos(t2)
-    mo_2 = np.einsum("sij, nsjk -> nsik", mo_coeff, U2)
-
-    my_mf = copy.copy(mf)
-    # do cisd on the first layer
-    for i in range(num_layer1):
-        my_mf.mo_coeff = mo_2[i]
-        my_ci = ci.UCISD(my_mf)
-        c2_n = ucisd_amplitudes_doubles(my_ci)
-        t2_n = c2t_doubles_truncate(c2_n, num_roots=nroots2, dt=dt, nvir=nvir, nocc=nocc)
-        r2_n = slater.tvecs_to_rmats(t2_n, nvir, nocc)
-        r2_n = slater.rotate_rmats(r2_n, U2[i])
-        r_all, idx2 = select_ci.select_rmats_ovlp(r_all, r2_n, m_tol=m_tol, return_indices=True)
-
-    return r_all
-
-
-def gen_nocid_truncate(mf, nocc, nroots=4, dt=0.1):
-    '''
-    Return the doubly excited states that has largest contribution.
-    '''
-    mo_coeff = mf.mo_coeff
-    norb = mo_coeff.shape[-1]
-    nvir = norb - nocc
-    my_ci = ci.UCISD(mf)
-    c2 = ucisd_amplitudes_doubles(my_ci)
-    t2 = c2t_doubles_truncate(c2, num_roots=nroots, dt=dt, nvir=nvir, nocc=nocc)
-    return t2
-
-
 def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     '''
     Approximate an orthogonal CISD expansion with the compressed non-orthogonal
@@ -193,6 +64,62 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
     coeff_all /= np.linalg.norm(coeff_all)
 
     return t_all, coeff_all
+
+
+def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
+    '''
+    Given a set of non-orthogonal SDs, generate the compressed 
+    non-orthogonal CISD expansion from each SD.
+    Args:
+        tvec_ref: (N, 2, nvir, nocc) array, the reference NOSDs. 
+                  The first one is the HF state.
+        mf: the converged PySCF scf object.
+    Returns: 
+        (M, 2, norb, nocc) array, the rotation matrices
+        from the CISD expansion from each reference. 
+        All the Thouless matrices are based on the HF state.
+    '''
+    num_ref = len(tvecs_ref)
+    if nvir is None:
+        nvir, nocc = tvecs_ref.shape[-2:]
+    # generate orthonormal MOs for each determinant
+
+    U_on_ref = slater.orthonormal_mos(tvecs_ref)
+    mo_coeff = mf.mo_coeff # HF MO coeffs
+    mo_ref = np.einsum("sij, nsjk -> nsik", mo_coeff, U_on_ref)
+    
+    my_mf = copy.copy(mf)
+    # generate the CISD compressed NOSDs
+    # first do HF
+    my_ci = ci.UCISD(mf)
+    _, civec = my_ci.kernel()
+    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
+    r = slater.tvecs_to_rmats(t, nvir, nocc)
+    r_cisd = r[1:] # only choose the singles and doubles 
+
+    for i in range(num_ref-1):
+        my_mf.mo_coeff = mo_ref[i+1]
+        my_ci = ci.UCISD(my_mf)
+        _, civec = my_ci.kernel()
+        t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
+        r = slater.tvecs_to_rmats(t, nvir, nocc)
+        r = slater.rotate_rmats(r, U_on_ref[i+1])
+        r_cisd = np.vstack([r_cisd, r[1:]])
+
+    return r_cisd
+
+
+def gen_nocid_truncate(mf, nocc, nroots=4, dt=0.1):
+    '''
+    Return the doubly excited states that has largest contribution.
+    '''
+    mo_coeff = mf.mo_coeff
+    norb = mo_coeff.shape[-1]
+    nvir = norb - nocc
+    my_ci = ci.UCISD(mf)
+    c2 = ucisd_amplitudes_doubles(my_ci)
+    t2 = c2t_doubles_truncate(c2, num_roots=nroots, dt=dt, nvir=nvir, nocc=nocc)
+    return t2
 
 
 def ucisd_amplitudes(myci, civec=None, flatten_c2=False):

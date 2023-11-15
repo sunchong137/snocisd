@@ -20,7 +20,7 @@ import time
 
 
 # Step 1: Set up the system
-nH = 6
+nH = 4
 bl = 1.5
 geom = []
 for i in range(nH):
@@ -64,7 +64,7 @@ e_ccsdt = e_cc + et
 print("CCSD(T): ", e_ccsdt)
 
 # Step 4: NOCI with res HF
-ndets = 2
+ndets = 1
 save_file = "data/h{}_R{}_{}_ndet{}.npy".format(nH, bl, mol.basis, ndets)
 try:
     # raise ValueError
@@ -82,11 +82,14 @@ except:
 t_all = slater.add_tvec_hf(tnew)
 r_fix = slater.tvecs_to_rmats(t_all, nvir, nocc)
 r_new = nocisd.gen_nocisd_multiref(t_all, mf, nvir, nocc, dt=0.1, tol2=1e-8)
-m_tol = 1e-6
+m_tol = 1e-5
 e_tol = 1e-8
 n_ref = len(r_fix)
 # r_select = select_ci.select_rmats(r_fix, r_new, mo_coeff, h1e, h2e, m_tol=m_tol, e_tol=e_tol)
 r_select = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol)
-E2 = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
-print(E2)
+E = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+r_spin = slater.half_spin(r_select, mo_coeffs=mo_coeff)
+r_all = np.vstack([r_select, r_spin])
+E2 = slater_jax.noci_energy_jit(r_all, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+print(E, E2)
 

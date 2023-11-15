@@ -444,12 +444,12 @@ def half_spin(rmats, U=None, mo_coeffs=None, tol=1e-5):
             return None
         else:
             U = np.linalg.inv(Ca) @ Cb
-    else:
-        # evaluate the rotation matrix
-        rmats_n = np.zeros_like(rmats)
-        rmats_n[:, 0] = np.einsum('ij, njk -> nik', U, rmats[:, 1])
-        rmats_n[:, 1] = np.einsum('ji, njk -> nik', U.conj(), rmats[:, 0])
-        return rmats_n
+
+    # evaluate the rotation matrix
+    rmats_n = np.zeros_like(rmats)
+    rmats_n[:, 0] = np.einsum('ij, njk -> nik', U, rmats[:, 1])
+    rmats_n[:, 1] = np.einsum('ji, njk -> nik', U.conj(), rmats[:, 0])
+    return rmats_n
 
 
 if __name__ == "__main__":
