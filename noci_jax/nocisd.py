@@ -21,7 +21,7 @@ import copy
 from pyscf import ci
 from noci_jax import slater, select_ci
 
-def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
+def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=False):
     '''
     Approximate an orthogonal CISD expansion with the compressed non-orthogonal
     expansion. 
@@ -37,7 +37,7 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
         t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
         coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
     '''
-    c0, c1, c2 = ucisd_amplitudes(myci, civec=civec)
+    c0, c1, c2 = ucisd_amplitudes(myci, civec=civec, silent=silent)
     coeff0 = c0
     # get the CIS thouless
     t1s = np.array(c2t_singles(c1, dt=dt1))
@@ -59,14 +59,15 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5):
 
     t_all = np.vstack([t0, t1s, t2s])
     num_t = len(t_all) 
-    print("Compressed CISD to {} NOSDs.".format(num_t))
+    if not silent:
+        print("Compressed CISD to {} NOSDs.".format(num_t))
     coeff_all = np.concatenate([coeff0, coeff1, coeff2])
     coeff_all /= np.linalg.norm(coeff_all)
 
     return t_all, coeff_all
 
 
-def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
+def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):
     '''
     Given a set of non-orthogonal SDs, generate the compressed 
     non-orthogonal CISD expansion from each SD.
@@ -93,7 +94,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
     # first do HF
     my_ci = ci.UCISD(mf)
     _, civec = my_ci.kernel()
-    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
+    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
     r = slater.tvecs_to_rmats(t, nvir, nocc)
     r_cisd = r[1:] # only choose the singles and doubles 
 
@@ -101,7 +102,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5):
         my_mf.mo_coeff = mo_ref[i+1]
         my_ci = ci.UCISD(my_mf)
         _, civec = my_ci.kernel()
-        t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2)
+        t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
         r = slater.tvecs_to_rmats(t, nvir, nocc)
         r = slater.rotate_rmats(r, U_on_ref[i+1])
         r_cisd = np.vstack([r_cisd, r[1:]])
@@ -122,7 +123,7 @@ def gen_nocid_truncate(mf, nocc, nroots=4, dt=0.1):
     return t2
 
 
-def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
+def ucisd_amplitudes(myci, civec=None, flatten_c2=False, silent=False):
     '''
     Return the CISD coefficients.
     Args:
@@ -139,7 +140,8 @@ def ucisd_amplitudes(myci, civec=None, flatten_c2=False):
     if civec is None:                                                                 
         _, civec = myci.kernel()
     lci = len(civec)
-    print("There are {} CISD dets.".format(lci))
+    if not silent:
+        print("There are {} CISD dets.".format(lci))
     c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
 
     # NOTE assumed alpha and beta same number of electrons

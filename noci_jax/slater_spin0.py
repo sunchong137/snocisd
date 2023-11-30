@@ -17,7 +17,8 @@ Restricted spin symmetry calculations.
 '''
 
 import numpy as np
-from noci_jax import slater, math_helpers
+from noci_jax import slater
+from noci_jax.misc import math_helpers
 
 def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):
     '''

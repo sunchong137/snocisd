@@ -1,5 +1,5 @@
 import numpy as np
-from noci_jax import slater_spin0, pyscf_helper, slater
+from noci_jax import slater_spin0, slater
 from pyscf import gto, scf
 
 def test_tvecs_to_rmats():

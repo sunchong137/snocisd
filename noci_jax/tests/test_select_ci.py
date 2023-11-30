@@ -1,5 +1,6 @@
 import numpy as np
-from noci_jax import select_ci, slater, pyscf_helper
+from noci_jax import select_ci, slater 
+from noci_jax.misc import pyscf_helper
 from pyscf import gto, scf
 
 

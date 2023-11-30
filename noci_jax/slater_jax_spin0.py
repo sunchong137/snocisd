@@ -17,7 +17,7 @@ Using Jax data structures.
 import numpy as np
 import jax.numpy as jnp
 import jax
-from noci_jax import math_helpers, slater
+from noci_jax import slater
 from jax.config import config
 config.update("jax_enable_x64", True)
 # import os 

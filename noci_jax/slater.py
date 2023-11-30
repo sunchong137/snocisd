@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-from noci_jax import math_helpers
+from noci_jax.misc import math_helpers
 import logging
 
 def tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=None):

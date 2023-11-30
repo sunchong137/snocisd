@@ -90,13 +90,20 @@ def gen_scf_hubbard1D(nsite, U, nelec=None, pbc=True, filling=None, spin=1):
     Returns:
         PySCF scf object for Hubbard model.
     '''
-    mol = gto.M()
 
+    mol = gto.M()
     if nelec is None:
         nelec = int(nsite * filling + 1e-10)
         if abs(nelec - nsite * filling) > 1e-2:
             logging.warning("Changing filling from {:0.2f} to {:0.2f} to keep integer number of electrons!".format(filling, nelec/nsite))
-    
+    # print info
+    print("#####################################")
+    print("### One-dimensional Hubbard model ###")
+    print(f"### Number of sites: {nsite}")
+    print(f"### Number of electrons: {nelec}")
+    print(f"### U = {U}, PBC = {pbc}")
+    print("#####################################")
+
     mol.nelectron = nelec
     mol.nao = nsite
     
@@ -142,7 +149,14 @@ def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=None, spin=1):
         nelec = int(nsite * filling + 1e-10)
         if abs(nelec - nsite * filling) > 1e-2:
             logging.warning("Changing filling from {:0.2f} to {:0.2f} to keep integer number of electrons!".format(filling, nelec/nsite))
-    
+
+    # print info
+    print("#####################################")
+    print("### Two-dimensional Hubbard model ###")
+    print(f"### Number of sites: {nx} x {ny}")
+    print(f"### Number of electrons: {nelec}")
+    print(f"### U = {U}, PBC = {pbc}")
+    print("#####################################")
     mol.nelectron = nelec
     mol.nao = nsite
     mol.incore_anyway = True

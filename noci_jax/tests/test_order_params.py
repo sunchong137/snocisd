@@ -15,7 +15,8 @@
 import jax.numpy as jnp
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import slater, pyscf_helper, analysis
+from noci_jax import slater, analysis
+from noci_jax.misc import pyscf_helper
 from pyscf import gto, scf
 
 

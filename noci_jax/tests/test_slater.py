@@ -14,7 +14,8 @@
 
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import slater, pyscf_helper
+from noci_jax import slater 
+from noci_jax.misc import pyscf_helper
 from pyscf import gto, scf
 
 def test_tvecs_to_rmats():
