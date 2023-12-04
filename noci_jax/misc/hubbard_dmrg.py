@@ -17,7 +17,7 @@ from pyblock2.driver.core import DMRGDriver, SymmetryTypes
 # from pyblock2.algebra.io import MPSTools, MPOTools
 
 
-def hubbard1d_dmrg(nsite, U, nelec=None, pbc=False, filling=1.0, init_bdim=50, 
+def hubbard1d_dmrg(nsite, U, nelec=None, pbc=False, return_mps=False, filling=1.0, init_bdim=50, 
                    max_bdim=200, nsweeps=8, cutoff=1e-8, max_noise=1e-5):
     # set system
     if nelec is None:
@@ -66,4 +66,7 @@ def hubbard1d_dmrg(nsite, U, nelec=None, pbc=False, filling=1.0, init_bdim=50,
              thrds=thrds, cutoff=cutoff, iprint=0)
 
     print('DMRG total energy = {:2.6f}, energy per site = {:2.6f}'.format(energy, energy/nsite))
-    return energy, ket, ham_mpo
+    if return_mps:
+        return energy, ket, ham_mpo
+    else:
+        return energy

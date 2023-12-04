@@ -1,5 +1,5 @@
 # 1D Hubbard model w PBC and half-filling
-# Bethe Ansatz ground state energies
+# Bethe Ansatz ground state energies per site
 # rows: number of sites, columns: U value, t = -1.
  0              2             4             6             8
  6  -0.9015761452  -0.6114510301  -0.4414195941  -0.3413551480
