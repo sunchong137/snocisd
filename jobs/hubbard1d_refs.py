@@ -36,7 +36,7 @@ def gen_dmrg():
     # pbc
     # rows: lattice size
     # columns: U value
-    nsites = np.arange(6, 42, 2, dtype=int)
+    nsites = np.arange(6, 20, 2, dtype=int)
     Uvals = np.arange(2, 10, 2)
     with open(res_dir + "/hubbard1d_dmrg.txt", "w") as fin:
         fin.write("# 1D Hubbard model w PBC and half-filling\n")
