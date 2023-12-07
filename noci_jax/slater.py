@@ -430,7 +430,6 @@ def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
 def half_spin(rmats, U=None, mo_coeffs=None, tol=1e-5):
     '''
     Swap the spin-up and spin-down MOs for the determinant.
-
     '''
     if U is None:
         Ca = mo_coeffs[0]

@@ -98,6 +98,16 @@ def run_stab_scf(mf):
     init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
     mf.kernel(init) 
 
+def run_stab_scf_breaksymm(mf):
+    init_guess = mf.get_init_guess()
+    init_guess[0][0, 0] = 1
+    init_guess[1][0, 0] = 0
+    mf.kernel(init_guess)
+    mo1 = mf.stability()[0]                                                             
+    init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
+    mf.kernel(init) 
+
+
 
 def rotate_ham(mf):
     '''
