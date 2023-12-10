@@ -19,7 +19,8 @@ NOTE: assumed nocca = noccb.
 import numpy as np
 import copy
 from pyscf import ci
-from noci_jax import slater, select_ci
+from noci_jax import slater 
+import gc 
 
 def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=False):
     '''
@@ -106,6 +107,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         r = slater.tvecs_to_rmats(t, nvir, nocc)
         r = slater.rotate_rmats(r, U_on_ref[i+1])
         r_cisd = np.vstack([r_cisd, r[1:]])
+        gc.collect()
 
     return r_cisd
 

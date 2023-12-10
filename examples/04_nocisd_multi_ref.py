@@ -15,7 +15,8 @@
 import numpy as np
 from jax import numpy as jnp
 from pyscf import gto, scf, ci
-from noci_jax import nocisd, slater, pyscf_helper, thouless, reshf
+from noci_jax import nocisd, slater, thouless, reshf
+from noci_jax.misc import pyscf_helper
 import copy
 
 
