@@ -2,7 +2,7 @@ import numpy as np
 from pyscf import gto, scf, ci, cc
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
-from noci_jax import slater
+from noci_jax import slater, select_ci, slater_jax
 from noci_jax.misc import pyscf_helper
 
 
@@ -89,3 +89,12 @@ def test_given_mo():
 def test_c2t_doubles_truncate():
     t2 = nocisd.gen_nocid_truncate(mf, nocc, nroots=2, dt=0.1)
 
+def test_gen_nocisd_multiref_hsp():
+
+    m_tol = 1e-5
+    r_new, r_fix = nocisd.gen_nocisd_multiref_hsp(mf, nvir, nocc)
+    e_hsp = slater_jax.noci_energy_jit(r_fix, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+    r_select = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol, max_ndets=1000)
+    e_snoci = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+    print(e_hsp, e_snoci)
+test_gen_nocisd_multiref_hsp()

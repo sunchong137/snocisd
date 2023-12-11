@@ -21,6 +21,7 @@ import copy
 from pyscf import ci
 from noci_jax import slater 
 import gc 
+import logging
 
 def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=False):
     '''
@@ -64,7 +65,6 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=False):
         print("Compressed CISD to {} NOSDs.".format(num_t))
     coeff_all = np.concatenate([coeff0, coeff1, coeff2])
     coeff_all /= np.linalg.norm(coeff_all)
-
     return t_all, coeff_all
 
 
@@ -110,6 +110,55 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         gc.collect()
 
     return r_cisd
+
+
+def gen_nocisd_multiref_hsp(mf, nvir, nocc, dt=0.1, tol2=1e-5, silent=False):
+    '''
+    Generate nocisd from half-spin projection.
+    Args:
+        mf: the converged PySCF scf object.
+        nvir: int, number of virtual orbitals.
+        nocc: int, number of occupied orbitals.
+    Returns: 
+        (M, 2, norb, nocc) array, the rotation matrices
+        from the CISD expansion from each reference. 
+    '''
+
+    mo_coeff = mf.mo_coeff # HF MO coeffs
+    Ca = mo_coeff[0]
+    Cb = mo_coeff[1]
+    len_C = Ca.shape[0]
+
+    my_mf = copy.copy(mf)
+    # generate the CISD compressed NOSDs
+    # first do HF
+    my_ci = ci.UCISD(mf)
+    _, civec = my_ci.kernel()
+    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    r = slater.tvecs_to_rmats(t, nvir, nocc)
+    r_cisd = r[1:] # only choose the singles and doubles 
+    r_ref = np.array([r[0]])
+    gc.collect()
+    # check if RHF 
+    diff = Ca - Cb 
+    if np.linalg.norm(diff)/len_C**2 < 1e-10:
+        logging.warning("Two spins are degenerate.")
+        return r_cisd
+    else:
+        U = np.linalg.inv(Ca) @ Cb
+    
+    # next do hsp
+    my_mf.mo_coeff = np.array([Cb, Ca])
+
+    my_ci = ci.UCISD(my_mf)
+    _, civec = my_ci.kernel()
+    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    r = slater.tvecs_to_rmats(t, nvir, nocc)
+    r = slater.rotate_rmats(r, np.array([U, U.conj().T]))
+    r_cisd = np.vstack([r_cisd, r[1:]])
+    r_ref = np.vstack([r_ref, r[0][None, :]])
+
+    return r_cisd, r_ref
 
 
 def gen_nocid_truncate(mf, nocc, nroots=4, dt=0.1):

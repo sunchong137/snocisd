@@ -49,7 +49,7 @@ nelec = mol.nelectron
 
 
 # Step 4: NOCI with res HF
-ndets = 1
+ndets = 2
 save_file = "data/h{}_R{}_{}_ndet{}.npy".format(nH, bl, mol.basis, ndets)
 try:
     # raise ValueError
