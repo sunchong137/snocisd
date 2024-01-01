@@ -5,6 +5,33 @@ Reference: C. Jimenez-Hoyos et.al, JCP, 136, 164109 (2012)
 import numpy as np 
 from scipy.special import factorial 
 
+def gen_rotations_ao(beta, norb):
+    '''
+    Generate the GHF rotation matrices in the AO basis.
+    Args:
+        beta: float, angle.
+        norb: int, number of spatial orbitals.
+    Returns:
+        Array of (norbx2, norbx2) or a list of arrays of size (norbx2, norbx2)
+    '''
+    try:
+        lb = len(beta)
+        Rs = np.zeros((lb, norb*2, norb*2))
+        for i in range(lb):
+            R = np.eye(norb*2) * np.cos(beta[i]/2)
+            IS = np.eye(norb) * np.cos(beta[i]/2)
+            R[:norb, norb:] = IS
+            R[norb:, :norb] = - IS
+            Rs[i] = R
+
+    except:
+        Rs = np.eye(norb*2) * np.cos(beta/2)
+        IS = np.eye(norb) * np.sin(beta/2)
+        Rs[:norb, norb:] = IS
+        Rs[norb:, :norb] = - IS
+
+    return Rs
+
 def gen_roots_weights(ngrid, j, m):
     '''
     Generate the roots and weights for the integration.
@@ -16,10 +43,9 @@ def gen_roots_weights(ngrid, j, m):
         roots: 1D array of size ngrid.
         weights: 1D array of size ngrid.
     '''
-    # roots = np.zeros(ngrid)
     weights = np.zeros(ngrid)
     for i in range(ngrid-1):
-        coeff = (1-1/(i+2))/((2-1/(i+1))*(2-1/(i+2)))
+        coeff = (1 - 1/(i+2)) / ((2-1/(i+1)) * (2-1/(i+2)))
         weights[i] = np.sqrt(coeff)
     mat = np.zeros((ngrid, ngrid))
     for i in range(ngrid-1):
