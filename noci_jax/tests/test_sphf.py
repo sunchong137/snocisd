@@ -26,9 +26,11 @@ def test_root_weight():
     j = 2
     m = 1
     r, w = sphf.gen_roots_weights(ngrid, j, m)
+    r1 = sphf.gen_roots(ngrid, j, m)
     r_ref = np.array([0.21812657, 1.03675535, 2.1048373,  2.92346608])
     w_ref = np.array([ 0.11130528,  0.01199616, -0.43682783, -0.00413635])
     assert np.allclose(r, r_ref)
+    assert np.allclose(r, r1)
     assert np.allclose(w, w_ref)
 
 def test_rotation():
@@ -39,7 +41,9 @@ def test_rotation():
             [ 0.,          0.96480762,  0.,          0.26295675  ],
             [-0.26295675,  0.,          0.96480762, 0.          ],
             [ 0.,         -0.26295675,  0.,          0.96480762  ]])
-    
+    beta = np.pi 
+    # r1 = sphf.gen_rotations_ao(beta, norb)
+    # print(r1)
     assert np.allclose(r, r_ref)
 
-test_rotation()
+# test_rotation()

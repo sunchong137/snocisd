@@ -13,6 +13,7 @@ def gen_rotations_ao(beta, norb):
         norb: int, number of spatial orbitals.
     Returns:
         Array of (norbx2, norbx2) or a list of arrays of size (norbx2, norbx2)
+    NOTE: when beta = Pi, the rotation matrix flips the two spins. 
     '''
     try:
         lb = len(beta)
@@ -29,7 +30,6 @@ def gen_rotations_ao(beta, norb):
         IS = np.eye(norb) * np.sin(beta/2)
         Rs[:norb, norb:] = IS
         Rs[norb:, :norb] = - IS
-
     return Rs
 
 def gen_roots_weights(ngrid, j, m):
@@ -43,22 +43,30 @@ def gen_roots_weights(ngrid, j, m):
         roots: 1D array of size ngrid.
         weights: 1D array of size ngrid.
     '''
-    weights = np.zeros(ngrid)
-    for i in range(ngrid-1):
-        coeff = (1 - 1/(i+2)) / ((2-1/(i+1)) * (2-1/(i+2)))
-        weights[i] = np.sqrt(coeff)
+    coeff = np.arange(1, ngrid)
+    coeff = (1 - 1/(coeff+1)) / ((2 - 1/coeff) * (2 - 1/(coeff+1)))
     mat = np.zeros((ngrid, ngrid))
     for i in range(ngrid-1):
-        mat[i, i+1] = mat[i+1, i] = weights[i]
+        mat[i, i+1] = mat[i+1, i] = np.sqrt(coeff[i]) 
     vals, vecs = np.linalg.eigh(mat)
-    for i in range(ngrid):
-        weights[i] = 2 * vecs[0, i] ** 2    
-        roots = (vals + 1) * np.pi/2
-    weights = weights * np.pi/2
-    for i in range(ngrid):
-        wig = wignerd(roots[i], j, m, m)
-        weights[i] = weights[i] * np.sin(roots[i]) * wig
+    weights = np.pi * vecs[0] ** 2  
+    roots = (vals + 1) * np.pi/2
+    wig =  wignerd(roots, j, m, m)
+    weights *= np.sin(roots) * wig
     return roots, weights
+
+def gen_roots(ngrid, j, m):
+    '''
+    Only generate roots.
+    '''
+    coeff = np.arange(1, ngrid)
+    coeff = (1 - 1/(coeff+1)) / ((2 - 1/coeff) * (2 - 1/(coeff+1)))
+    mat = np.zeros((ngrid, ngrid))
+    for i in range(ngrid-1):
+        mat[i, i+1] = mat[i+1, i] = np.sqrt(coeff[i]) 
+    vals, vecs = np.linalg.eigh(mat)
+    roots = (vals + 1) * np.pi/2
+    return roots
 	
 def wignerd(beta, j, m, n):
     '''
