@@ -97,4 +97,5 @@ def test_gen_nocisd_multiref_hsp():
     r_select = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol, max_ndets=1000)
     e_snoci = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
     print(e_hsp, e_snoci)
+    
 test_gen_nocisd_multiref_hsp()
