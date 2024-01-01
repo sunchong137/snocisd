@@ -5,6 +5,34 @@ Reference: C. Jimenez-Hoyos et.al, JCP, 136, 164109 (2012)
 import numpy as np 
 from scipy.special import factorial 
 
+def gen_transmat_sphf(mo_coeffs, ngrid=2):
+    '''
+    Generate transition matrices of the SPHF mo_coeffs from the UHF mo_coeffs.
+    Args:
+        mo_coeffs: (2, norb, norb) array, MO coefficients.
+        ngrid: number of grids to generate
+    Returns:
+        (ngrid, 2, norb, norb) array
+    '''
+    norb = mo_coeffs.shape[-1]
+    betas = gen_roots(ngrid)
+    Ca = mo_coeffs[0]
+    Cb = mo_coeffs[1]
+    Ca_inv = np.linalg.inv(Ca)
+    Cb_inv = np.linalg.inv(Cb)
+    U_all = []
+    for b in betas:
+        R = gen_rotations_ao(b, norb) # 2N x 2N 
+        Ca_n = R[:norb, :norb] @ Ca + R[:norb, norb:] @ Cb 
+        Cb_n = R[norb:, :norb] @ Ca + R[norb:, norb:] @ Cb
+        Ua = Ca_inv @ Ca_n 
+        Ub = Cb_inv @ Cb_n 
+        U = np.array([Ua, Ub])
+        U_all.append(U)
+    
+    U_all = np.asarray(U_all)
+    return U_all
+
 def gen_rotations_ao(beta, norb):
     '''
     Generate the GHF rotation matrices in the AO basis.
@@ -55,7 +83,7 @@ def gen_roots_weights(ngrid, j, m):
     weights *= np.sin(roots) * wig
     return roots, weights
 
-def gen_roots(ngrid, j, m):
+def gen_roots(ngrid):
     '''
     Only generate roots.
     '''

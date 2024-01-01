@@ -46,4 +46,16 @@ def test_rotation():
     # print(r1)
     assert np.allclose(r, r_ref)
 
-# test_rotation()
+def test_transmat():
+    norb = 4
+    ngrid = 2
+    H = np.random.rand(norb, norb)
+    H += H.T 
+    e, v = np.linalg.eigh(H)
+    H = np.random.rand(norb, norb)
+    H += H.T 
+    e, v1 = np.linalg.eigh(H)
+    mo = np.array([v, v1]) 
+    U = sphf.gen_transmat_sphf(mo, ngrid)
+
+test_transmat()
