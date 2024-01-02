@@ -1,5 +1,7 @@
 import numpy as np
-from noci_jax import sphf 
+from noci_jax import sphf, slater
+from noci_jax.misc import pyscf_helper
+from pyscf import gto, scf
 
 def test_wignerd():
     beta = np.random.uniform(0, np.pi)
@@ -58,4 +60,42 @@ def test_transmat():
     mo = np.array([v, v1]) 
     U = sphf.gen_transmat_sphf(mo, ngrid)
 
-test_transmat()
+def test_bshf_energy():
+    bl = 1.4
+    mol = gto.Mole()
+    mol.atom = f'''
+    H   0   0   0
+    H   0   0   {bl}
+    H   0   0   {bl*2}
+    H   0   0   {bl*3}
+    '''
+    mol.unit = "angstrom"
+    mol.basis = "sto3g"
+    mol.cart = True
+    mol.build()
+
+    mf = scf.UHF(mol)
+    mf.kernel()
+    mo1 = mf.stability()[0]                                                             
+    init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
+    mf.kernel(init) 
+
+    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
+    norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
+
+    ngrid = 4
+    U = sphf.gen_transmat_sphf(mo_coeff, ngrid)
+    R = U[:,:,:,:nocc]
+    R_hf = np.zeros((1, 2, norb, nocc))
+    R_hf[0, 0, :nocc] = np.eye(nocc)
+    R_hf[0, 1, :nocc] = np.eye(nocc)
+    rmats = np.vstack([R_hf, R])
+    E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
+    
+    # compare to half_spin 
+    r_hsp = slater.half_spin(R_hf, mo_coeffs=mo_coeff)
+    rmats_hsp = np.vstack([R_hf, r_hsp])
+    E2 = slater.noci_energy(rmats_hsp, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=None, e_nuc=e_nuc)
+    print(E, E2)
+
+test_bshf_energy()
