@@ -82,10 +82,18 @@ def get_mos(mf):
         nocc = int(np.sum(occ)/2 + 1e-5)
     nvir = norb - nocc
     mo_coeff = np.asarray(mf.mo_coeff)
-    print("**********System information***********")
-    print("Number of orbitals: {}".format(norb))
-    print("Number of occupied orbitals: {}".format(nocc))
-    print("Number of virtual orbitals: {}".format(nvir))
+    try:
+        na, nb = mf.mol.nelectron
+        nelec = na + nb 
+    except:
+        nelec = mf.mol.nelectron
+    spin = mf.mol.spin 
+    print("########## System Information ##########")
+    print("# Number of orbitals: {}".format(norb))
+    print("# Number of occupied orbitals: {}".format(nocc))
+    print("# Number of virtual orbitals: {}".format(nvir))
+    print("# Number of electrons: {}; |Na - Nb| = {}".format(nelec, spin))
+    print("#"*40)
     return norb, nocc, nvir, mo_coeff
 
 
@@ -106,8 +114,6 @@ def run_stab_scf_breaksymm(mf):
     mo1 = mf.stability()[0]                                                             
     init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
     mf.kernel(init) 
-
-
 
 def rotate_ham(mf):
     '''

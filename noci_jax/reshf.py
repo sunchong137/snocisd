@@ -45,6 +45,7 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         energy
         optimized Thouless matrices
     '''
+  
 
     mo_coeff = jnp.array(mo_coeff)
     h1e = jnp.array(h1e)
@@ -59,6 +60,11 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     init_tvecs = jnp.array(init_tvecs)
     if nvecs is None:
         nvecs = len(init_tvecs)
+
+    # print information 
+    print("#"*40)
+    print("# Resonate Hartree-Fock Optimization")
+    print("# Number of Determinants to optimize: {}".format(nvecs))
     
         
     init_tvecs = init_tvecs.flatten(order="C")
@@ -109,8 +115,9 @@ def optimize_res(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
         energy, vecs = fit(init_tvecs, MaxIter, lrate)
     
     energy += e_nuc 
-    print("********End optimization*********")
-    print("The final energy from Res HF is {}".format(energy))
+    print("########### End optimization ###########")
+    print("# Final energy: {:1.8f}".format(energy))
+    print("#"*40)
 
     return energy, vecs.reshape(nvecs, 2, nvir, nocc)
 
