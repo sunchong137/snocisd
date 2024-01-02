@@ -93,7 +93,7 @@ def get_mos(mf):
     print("# Number of occupied orbitals: {}".format(nocc))
     print("# Number of virtual orbitals: {}".format(nvir))
     print("# Number of electrons: {}; |Na - Nb| = {}".format(nelec, spin))
-    print("#"*40)
+    # print("#"*40)
     return norb, nocc, nvir, mo_coeff
 
 

@@ -14,10 +14,10 @@
 
 import numpy as np
 from pyscf import gto, scf, fci, cc
-from noci_jax import nocisd, slater, pyscf_helper, thouless, reshf, select_ci
+from noci_jax import nocisd, slater, thouless, reshf, select_ci
+from noci_jax.misc import pyscf_helper
 from noci_jax import slater_jax
 import time
-
 
 # Step 1: Set up the system
 nH = 4

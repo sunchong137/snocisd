@@ -2,7 +2,8 @@ import numpy as np
 from pyscf import gto, scf, ci
 np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
-from noci_jax import slater, pyscf_helper, select_ci
+from noci_jax import slater, select_ci
+from noci_jax.misc import pyscf_helper
 
 
 
@@ -36,13 +37,13 @@ tmats, coeffs = nocisd.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)
 # rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
 tmats_fix = tmats[0][None, :]
 tmats_new = tmats[1:]
+rmats_fix = slater.tvecs_to_rmats(tmats_fix, nocc, nvir)
+rmats_new = slater.tvecs_to_rmats(tmats_new, nocc, nvir)
 m_tol = 1e-8
 e_tol = 1e-8
-select_ts, _ = select_ci.select_tvecs(tmats_fix, tmats_new, mo_coeff, h1e, h2e, nocc, nvir, m_tol=m_tol, e_tol=e_tol)
-n_tvecs = len(select_ts)
-np.save("results/snoci_N2_nvec{}.npy".format(n_tvecs), select_ts)
+r_select = select_ci.select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, 
+                 e_tol=5e-8, max_ndets=None)
 
-rmats = slater.tvecs_to_rmats(select_ts, nvir, nocc)
 
-E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+E = slater.noci_energy(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
 print(E)

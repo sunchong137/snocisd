@@ -86,7 +86,6 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_i
     Only consider the overlap criteria.
     Much faster than the select_rmat, and serve the same purpose.
     '''
-    print("***Selecting determinants based on overlap.")
     smat_fix = slater.get_smat(rmats_fix)
     n_new = len(rmats_new)
     if max_ndets is None:
@@ -95,9 +94,14 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_i
     count = 0
     idx_select = []
 
+    # print information
+    print("#"*40)
+    print("# Selecting determinants based on overlap.")
+    print("# overlap threshold: {:1.2e}".format(m_tol))
+
     for i in range(n_new):
         if count == max_ndets:
-            print("Maximum number of determinant exceeded, please try to increase the overlap threshold.")
+            print("# Maximum number of determinant exceeded, please try to increase the overlap threshold.")
             break
         r_new = rmats_new[i][None, :]
         m, s = criterial_ovlp_single_det(rmats_fix, r_new[0], smat_fix=smat_fix, m_tol=m_tol)
@@ -111,24 +115,27 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_i
             continue
 
     # num_added = len(selected_indices)
-    print("***Selected CI Summary:***")
-    print("Metric Threshold: {:.1e}".format(m_tol))
-    print("Reduced {} determinants to {} determinants.".format(n_new, count))
+    print("# Reduced {} determinants to {} determinants.".format(n_new, count))
     if return_indices:
         return rmats_fix, idx_select
     else:
         return rmats_fix
 
 
-def select_rmats_energy(rmats_fix, rmats_new, mo_coeff, h1e, h2e, e_tol=1e-5, max_ndets=None):
+def select_rmats_energy(rmats_fix, rmats_new, mo_coeff, h1e, h2e, 
+                        e_tol=1e-5, max_ndets=None):
     '''
     Select via energy.
     '''
-    print("***Selecting determinants based on energy contribution.")
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
     n_new = len(rmats_new)
     if max_ndets is None:
         max_ndets = n_new
+    
+    # print information
+    print("#"*40)
+    print("# Selecting determinants based on energy contribution.")
+    print("# overlap threshold: {:1.2e}".format(e_tol))
 
     count = 0
     # selected_indices = []
@@ -148,11 +155,7 @@ def select_rmats_energy(rmats_fix, rmats_new, mo_coeff, h1e, h2e, e_tol=1e-5, ma
             count += 1
         else:
             continue
-
-    # num_added = len(selected_indices)
-    print("***Selected CI Summary:***")
-    print("Energy Threshold: {:.1e}".format(e_tol))
-    print("Reduced {} determinants to {} determinants.".format(n_new, count))
+    print("# Reduced {} determinants to {} determinants.".format(n_new, count))
     return rmats_fix
 
 
