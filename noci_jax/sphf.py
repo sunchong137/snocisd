@@ -19,7 +19,7 @@ Reference: C. Jimenez-Hoyos et.al, JCP, 136, 164109 (2012)
 import numpy as np 
 from scipy.special import factorial 
 
-def gen_transmat_sphf(mo_coeffs, ngrid=2):
+def gen_transmat_sphf(mo_coeffs, ngrid=2, from_roots=False):
     '''
     Generate transition matrices of the SPHF mo_coeffs from the UHF mo_coeffs.
     Args:
@@ -29,7 +29,10 @@ def gen_transmat_sphf(mo_coeffs, ngrid=2):
         (ngrid, 2, norb, norb) array
     '''
     norb = mo_coeffs.shape[-1]
-    betas = gen_roots(ngrid)
+    if from_roots:
+        betas = gen_roots(ngrid)
+    else: # uniform distribution
+        betas = np.linspace(0, np.pi, ngrid+1, endpoint=True)[1:]
     Ca = mo_coeffs[0]
     Cb = mo_coeffs[1]
     Ca_inv = np.linalg.inv(Ca)
@@ -76,7 +79,10 @@ def gen_rotations_ao(beta, norb):
 
 def gen_roots_weights(ngrid, j, m):
     '''
-    Generate the roots and weights for the integration.
+    Generate the roots and weights for the integration. 
+    The roots and weights generated in this way make the integration less costy.
+    Reference: Golub, G.H. and Welsch, J.H. (1969) Calculation of Gauss Quadrature Rules. Mathematics of Computation, 23, 221-230. 
+
     Args:
         ngrid: int, number of grids.
         j: int, quantum number associated with S^2.
@@ -92,7 +98,7 @@ def gen_roots_weights(ngrid, j, m):
         mat[i, i+1] = mat[i+1, i] = np.sqrt(coeff[i]) 
     vals, vecs = np.linalg.eigh(mat)
     weights = np.pi * vecs[0] ** 2  
-    roots = (vals + 1) * np.pi/2
+    roots = (vals + 1) * np.pi / 2
     wig =  wignerd(roots, j, m, m)
     weights *= np.sin(roots) * wig
     return roots, weights
@@ -107,7 +113,7 @@ def gen_roots(ngrid):
     for i in range(ngrid-1):
         mat[i, i+1] = mat[i+1, i] = np.sqrt(coeff[i]) 
     vals, vecs = np.linalg.eigh(mat)
-    roots = (vals + 1) * np.pi/2
+    roots = (vals + 1) * np.pi / 2
     return roots
 	
 def wignerd(beta, j, m, n):

@@ -28,12 +28,13 @@ def test_root_weight():
     j = 2
     m = 1
     r, w = sphf.gen_roots_weights(ngrid, j, m)
-    r1 = sphf.gen_roots(ngrid, j, m)
+    r1 = sphf.gen_roots(ngrid)
     r_ref = np.array([0.21812657, 1.03675535, 2.1048373,  2.92346608])
     w_ref = np.array([ 0.11130528,  0.01199616, -0.43682783, -0.00413635])
     assert np.allclose(r, r_ref)
     assert np.allclose(r, r1)
     assert np.allclose(w, w_ref)
+
 
 def test_rotation():
     beta = 0.5321710512913808
@@ -83,7 +84,7 @@ def test_bshf_energy():
     h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
     norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
 
-    ngrid = 4
+    ngrid = 3
     U = sphf.gen_transmat_sphf(mo_coeff, ngrid)
     R = U[:,:,:,:nocc]
     R_hf = np.zeros((1, 2, norb, nocc))
