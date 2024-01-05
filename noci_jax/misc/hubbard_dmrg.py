@@ -70,3 +70,75 @@ def hubbard1d_dmrg(nsite, U, nelec=None, pbc=False, return_mps=False, filling=1.
         return energy, ket, ham_mpo
     else:
         return energy
+    
+
+def hubbard2d_dmrg(nx, ny, U, nelec=None, pbc=False, filling=1.0, init_bdim=50, 
+                   max_bdim=600, nsweeps=10, cutoff=1e-8, max_noise=1e-5):
+    
+    nsite = nx * ny
+    # set system
+    if nelec is None:
+        nelec = int(nsite * filling + 1e-10)
+        if abs(nelec/nsite - filling) > 1e-5:
+            print("WARNING: The filling is changed to {:1.2f}".format(nelec/nsite))
+        if nelec % 2 == 0:
+            spin = 0
+        else:
+            spin = 1
+    else:
+        try:
+            neleca, nelecb = nelec
+            spin = abs(neleca - nelecb)
+            nelec = neleca + nelecb 
+        except:
+            spin = 0  
+    
+    driver = DMRGDriver(scratch="./tmp", symm_type=SymmetryTypes.SZ, n_threads=4)
+    driver.initialize_system(n_sites=nsite, n_elec=nelec, spin=spin)
+
+    # build Hamiltonian
+    # c - creation spin up, d - annihilation spin up
+    # C - creation spin dn, D - annihilation spin dn
+    ham_str = driver.expr_builder() 
+    connected_pairs = []
+    for i in range(ny-1):
+        for j in range(nx-1):
+            idx = i*nx + j 
+            idx_r = i*nx + j + 1
+            idx_d = (i+1)*nx + j
+            connected_pairs += [idx, idx_r, idx_r, idx, idx, idx_d, idx_d, idx]
+        connected_pairs += [(i+1)*nx-1, (i+2)*nx-1, (i+2)*nx-1, (i+1)*nx-1]
+
+    dn = (ny-1) * nx
+    for j in range(nx-1):
+        connected_pairs += [dn+j, dn+j+1, dn+j+1, dn+j]
+
+    if pbc:
+        # down-up
+        for i in range(nx):
+            connected_pairs += [i, dn+i, dn+i, i]
+        # right-left
+        for j in range(ny):
+            connected_pairs += [nx*j, nx*(j+1)-1, nx*(j+1)-1, nx*j]
+            
+    connected_pairs = np.asarray(connected_pairs)
+    ham_str.add_term("cd", connected_pairs, -1)
+    ham_str.add_term("CD", connected_pairs, -1)
+
+    ham_str.add_term("cdCD", np.array([[i, ] * 4 for i in range(nsite)]).flatten(), U)
+    ham_mpo = driver.get_mpo(ham_str.finalize(), iprint=0)
+
+    # Schedule, using the linearly growing bond dimonsion
+    bdims = list(np.linspace(init_bdim, max_bdim, nsweeps//2, endpoint=True, dtype=int))
+    if max_noise < 1e-16:
+        noises = [0.0]
+    else:
+        noises = list(np.logspace(np.log(max_noise), -16, nsweeps//2, endpoint=True)) + [0.0]
+
+    ket = driver.get_random_mps(tag="KET", bond_dim=init_bdim, nroots=1)
+    thrds = [1e-10] * nsweeps
+    energy = driver.dmrg(ham_mpo, ket, n_sweeps=nsweeps, bond_dims=bdims, noises=noises,
+             thrds=thrds, cutoff=cutoff, iprint=0)
+
+    print('DMRG total energy = {:2.6f}, energy per site = {:2.6f}'.format(energy, energy/nsite))
+    return energy, ket, ham_mpo

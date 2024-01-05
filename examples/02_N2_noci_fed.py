@@ -8,8 +8,9 @@ CCSD(T): -109.2863
 from pyscf import gto, scf, cc
 import numpy as np
 import sys 
-from noci_jax import thouless, pyscf_helper
+from noci_jax import thouless 
 from noci_jax import fed as optdets
+from noci_jax.misc import pyscf_helper
 
 # set up the system with pyscf
 bond_length = 1.09768

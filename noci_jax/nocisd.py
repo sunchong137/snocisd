@@ -131,7 +131,7 @@ def gen_nocisd_multiref_hsp(mf, nvir, nocc, dt=0.1, tol2=1e-5, silent=False):
 
     my_mf = copy.copy(mf)
     # generate the CISD compressed NOSDs
-    # first do HF
+    # first do HF 
     my_ci = ci.UCISD(mf)
     _, civec = my_ci.kernel()
     t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)

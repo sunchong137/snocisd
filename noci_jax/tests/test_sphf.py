@@ -62,6 +62,7 @@ def test_transmat():
     U = sphf.gen_transmat_sphf(mo, ngrid)
 
 def test_bshf_energy():
+    from pyscf import fci
     bl = 1.4
     mol = gto.Mole()
     mol.atom = f'''
@@ -83,8 +84,11 @@ def test_bshf_energy():
 
     h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=False)
     norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
+    myci = fci.FCI(mf)
+    e, v = myci.kernel()
+    print("FCI energy: ", e)
 
-    ngrid = 3
+    ngrid = 4
     U = sphf.gen_transmat_sphf(mo_coeff, ngrid)
     R = U[:,:,:,:nocc]
     R_hf = np.zeros((1, 2, norb, nocc))
