@@ -55,6 +55,9 @@ def gen_mol_hchain(n_atom, bl=1.1, basis="sto3g", cartesian=False):
     '''
     1D Hydrogen chain.
     '''
+    print("########## Hydrogen chain ##########")
+    print(f"# NH = {n_atom}; bond = {bl}A; basis={basis}")
+    print("#----------------------------------#")
     geom = []
     for i in range(n_atom):
         geom.append(['H', 0.0, 0.0, i*bl])

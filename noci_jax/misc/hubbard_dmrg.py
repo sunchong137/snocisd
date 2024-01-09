@@ -93,7 +93,7 @@ def hubbard2d_dmrg(nx, ny, U, nelec=None, pbc=False, filling=1.0, init_bdim=50,
         except:
             spin = 0  
     
-    driver = DMRGDriver(scratch="./tmp", symm_type=SymmetryTypes.SZ, n_threads=4)
+    driver = DMRGDriver(scratch="./chkdir", symm_type=SymmetryTypes.SZ, n_threads=4)
     driver.initialize_system(n_sites=nsite, n_elec=nelec, spin=spin)
 
     # build Hamiltonian
