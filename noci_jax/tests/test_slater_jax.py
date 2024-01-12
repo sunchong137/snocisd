@@ -138,6 +138,7 @@ def test_make_rdm12s():
 
     dm2_hf = mf.make_rdm2()
 
+    assert np.allclose(rdm1s_n[0], np.diag(rdm1s[0]))
     assert np.allclose(dm2_hf[0], rdm2s[0])
     assert np.allclose(dm2_hf[1], rdm2s[1]) 
     assert np.allclose(dm2_hf[2], rdm2s[3])
