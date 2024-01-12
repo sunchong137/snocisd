@@ -96,6 +96,7 @@ def test_make_rdm1():
     assert np.allclose(ne_a, 2)
     assert np.allclose(ne_b, 2)
 
+
 def test_make_rdm12s():
     # construct molecule
     mol = gto.Mole()
@@ -126,6 +127,11 @@ def test_make_rdm12s():
     energy, c = slater_jax.solve_lc_coeffs(hmat, smat, return_vec=True)
     rmats = rmats.at[0].set(rmats[0]/np.sqrt(smat[0,0]))
     rdm1s, rdm2s = slater_jax.make_rdm12(rmats, mo_coeff, c)
+    rdm2s_ud_diag = np.zeros((norb, norb))
+    for i in range(norb):
+        for j in range(norb):
+            rdm2s_ud_diag[i,j] = rdm2s[1][i,i,j,j]
+    rdm1s_n, rdm2s_ud = slater_jax.make_rdm12_diag(rmats, mo_coeff, c)
     # rdm1 = slater_jax.make_rdm1(rmats, mo_coeff, c)
     ne_a = np.sum(np.diag(rdm1s[0]))
     ne_b = np.sum(np.diag(rdm1s[1]))
@@ -135,13 +141,14 @@ def test_make_rdm12s():
     assert np.allclose(dm2_hf[0], rdm2s[0])
     assert np.allclose(dm2_hf[1], rdm2s[1]) 
     assert np.allclose(dm2_hf[2], rdm2s[3])
+    assert np.allclose(rdm2s_ud, rdm2s_ud_diag)
 
     E1 = jnp.einsum("ij, sji ->", h1e, rdm1s)
     E2 = jnp.einsum("ijkl, sjilk ->", h2e, rdm2s)
     E = E1 + 0.5*E2
 
     assert np.allclose(E, mf.energy_elec()[0])
-test_make_rdm12s()
+
 
 def test_orthonormal():
 
@@ -164,4 +171,3 @@ def test_orthonormal():
     assert np.allclose(x, I_all)
 
 
-test_orthonormal()

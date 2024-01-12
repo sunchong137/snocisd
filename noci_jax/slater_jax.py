@@ -381,6 +381,41 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     return dm1s/phi_norm, dm2s/phi_norm
 
 
+def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
+    '''
+    Only make the diagonal term of the 2RDM of <up+ up dn+ dn>.
+    Return: (p,q) = <a^dag_p a_p a^_q a_q>
+    '''
+    metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    smat = jnp.prod(np.linalg.det(metrics_all), axis=-1)
+
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
+
+    # transition density matrices
+    inv_metrics = jnp.linalg.inv(metrics_all)
+    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+    dm1s = jnp.einsum("nmsij, nm -> nmsij", trdms, smat)
+    dm1_u = trdms[:, :, 0]
+    dm1_d = trdms[:, :, 1]
+
+    dm2s_ud = jnp.einsum("nmii, nmjj -> nmij", dm1_u, dm1_d)
+
+    dm2s_ud = jnp.einsum("nmij, nm -> nmij", dm2s_ud, smat)
+
+    dm1s = jnp.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
+    dm2s_ud = jnp.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, dm2s_ud)
+
+    phi_norm = jnp.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
+    return dm1s/phi_norm, dm2s_ud/phi_norm
+
 def get_smat(rmats):
     '''
     Get the overlap matrix of the given determinants.
