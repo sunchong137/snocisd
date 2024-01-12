@@ -233,5 +233,16 @@ def run_shci(mol, max_cycle=100, tol=1e-8):
     return e + e_nuc, civec
 
 
-def spin_correlation():
-    pass
+def spin_correlation(dm1_diag, dm2_diag, i, j):
+    '''
+    Spin correlation between ith and jth AO.
+    <n_iu n_jd> - <n_iu><n_jd>
+    Args:
+        dm1_diag: 2D array of size (2, norb), diagonal term of dm1s
+        dm2_diag: 2D array of size (norb, norb), <up+ up dn+ dn>
+        i: int, ith AO
+        j: int, jth AO
+    Returns:
+        float
+    '''
+    return dm2_diag[i, j] - dm1_diag[0][i]*dm1_diag[1][j]
