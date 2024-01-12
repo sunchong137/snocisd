@@ -231,3 +231,7 @@ def run_shci(mol, max_cycle=100, tol=1e-8):
     e, civec = scisolver.kernel(h1e_mo, eri_mo, norb, nelec)
 
     return e + e_nuc, civec
+
+
+def spin_correlation():
+    pass
