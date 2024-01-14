@@ -14,16 +14,18 @@
 
 
 import numpy as np
-from noci_jax.misc import block2_interface 
+from noci_jax.misc import solvers
 from pyscf import gto, scf, fci 
 
 def test_dmrg():
-    mol = gto.M(atom="H 0 0 0; H 0 0 1.1", basis="sto3g", verbose=0)
+    atom = ["H 0 0 0", "H 0 0 1.1"]
+    # mol = gto.M(atom="H 0 0 0; H 0 0 1.1", basis="sto3g", verbose=0)
+    mol = gto.M(atom=atom, basis="sto3g", verbose=0)
     mf = scf.UHF(mol).run(conv_tol=1E-14)
     myfci = fci.FCI(mf)
     e_fci, v = myfci.kernel()
     dm1_ci, dm2_ci = myfci.make_rdm12s(v, 2, 2)
-    e_dmrg, _, dm1, dm2 = block2_interface.run_block2(mf, init_bdim=100, max_bdim=200, 
+    e_dmrg, _, dm1, dm2 = solvers.run_block2(mf, init_bdim=100, max_bdim=200, 
                                                       spin_symm=False, return_pdms=True)
     assert abs(e_dmrg-e_fci) < 1e-10
     assert np.allclose(np.asarray(dm1_ci), np.asarray(dm1))
