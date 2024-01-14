@@ -15,6 +15,7 @@
 
 import numpy as np
 from noci_jax.misc import pyscf_helper
+from noci_jax import hamiltonians
 from pyscf import gto, scf, ci
 
 
@@ -46,4 +47,19 @@ def test_civec_size():
     assert np.allclose(loc[-1], lci)
 
 def test_ortho():
-    pass
+    nH = 4
+    bl = 1.6
+    mol = hamiltonians.gen_mol_hchain(nH, bl, "sto3g")
+    mf = scf.UHF(mol)
+    # mf.kernel()
+    # Step 3: Get attributes needed for the NOCI calculations
+    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=True)
+    mf.kernel()
+    norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
+    e_hf = mf.energy_tot()
+    nelec = mol.nelectron
+    CC = mo_coeff[0].T @ mo_coeff[0]
+    assert np.allclose(CC, np.eye(norb))
+
+    dm1 = mf.make_rdm1(mo_coeff)
+    assert np.allclose(np.sum(np.diag(dm1[0])), nelec//2)
