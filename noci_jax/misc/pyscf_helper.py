@@ -50,7 +50,7 @@ def get_integrals(mf, ortho_ao=False):
     '''
     h1e = mf.get_hcore()
     norb = mf.mol.nao
-    h2e = ao2mo.restore(1, mf._eri, norb) # mol.intor('int2e')
+    h2e = mf.mol.intor('int2e')
     e_nuc = mf.energy_nuc()
 
     if ortho_ao:
@@ -116,7 +116,18 @@ def run_stab_scf_breaksymm(mf):
     init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
     mf.kernel(init) 
 
-def rotate_ham(mf):
+
+def ortho_ao_mat(mat, ao_ovlp):
+    '''
+    Given a matrix in the AO basis, orthogonalize AO and 
+    return the matrix in the basis of orthogonalized AO.
+    Args
+    '''
+    ortho_ao = sla.sqrtm(ao_ovlp)  
+    return ortho_ao.T @ mat @ ortho_ao
+
+
+def ao2mo_ham(mf):
     '''
     Rotate the Hamiltonian from AO to MO.
     '''
@@ -138,7 +149,7 @@ def rotate_ham(mf):
 
     return h1_mo, h2_mo
 
-def rotate_ham_spin0(mf):
+def ao2mo_ham_spin0(mf):
     '''
     Rotate the Hamiltonian from AO to MO.
     '''

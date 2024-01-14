@@ -20,7 +20,7 @@ from pyblock2._pyscf.ao2mo import integrals as itg
 from pyblock2.driver.core import DMRGDriver, SymmetryTypes
 
 
-def run_block2(mf, init_bdim=20, max_bdim=100, nsweeps=10, max_noise=1e-4,
+def run_block2(mf, spin_symm=True, init_bdim=20, max_bdim=100, nsweeps=10, max_noise=1e-4,
                scratch_dir='./tmp', thr=1e-8, return_pdms=False, clean_scratch=True):
     '''
     Run DMRG calculation with block2.
@@ -30,7 +30,11 @@ def run_block2(mf, init_bdim=20, max_bdim=100, nsweeps=10, max_noise=1e-4,
     '''
     ncas, n_elec, spin, ecore, h1e, g2e, orb_sym = itg.get_rhf_integrals(mf,
     ncore=0, ncas=None, g2e_symm=8)
-    driver = DMRGDriver(scratch=scratch_dir, symm_type=SymmetryTypes.SU2, n_threads=4)
+    if spin_symm:
+        symm = SymmetryTypes.SU2
+    else:
+        symm = SymmetryTypes.SZ
+    driver = DMRGDriver(scratch=scratch_dir, symm_type=symm, n_threads=4)
     driver.initialize_system(n_sites=ncas, n_elec=n_elec, spin=spin, orb_sym=orb_sym)
 
     mpo = driver.get_qc_mpo(h1e=h1e, g2e=g2e, ecore=ecore, iprint=1)
@@ -46,13 +50,21 @@ def run_block2(mf, init_bdim=20, max_bdim=100, nsweeps=10, max_noise=1e-4,
         thrds=thrds, iprint=1)
     print('DMRG energy = %20.15f' % energy)
 
-    if clean_scratch:
-        import shutil
-        shutil.rmtree(scratch_dir)   
+    
     if return_pdms:
-
         pdm1 = driver.get_1pdm(ket)
-        pdm2 = driver.get_2pdm(ket).transpose(0, 3, 1, 2)
+        pdm2 = driver.get_2pdm(ket)#.transpose(0, 3, 1, 2)
+        if spin_symm:
+            pdm2 = pdm2.transpose(0, 3, 1, 2)
+        else:
+            for i in range(len(pdm2)):
+                pdm2[i] = pdm2[i].transpose(0, 3, 1, 2)
+        if clean_scratch:
+            import shutil
+            shutil.rmtree(scratch_dir)   
         return energy, ket, pdm1, pdm2 
     else:
+        if clean_scratch:
+            import shutil
+            shutil.rmtree(scratch_dir)   
         return energy, ket
