@@ -15,22 +15,23 @@
 
 import numpy as np
 from noci_jax.misc import pyscf_helper
-from pyscf import gto, scf, ci, fci
+from pyscf import gto, scf, ci
 
 
-mol = gto.Mole()
-mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
-mol.unit='angstrom'
-mol.basis = "sto6g"
 
-# mol.symmetry = True
-mol.build()
-mf = scf.UHF(mol)
-# Hartree-Fock
-mf.kernel(verbose=0, tol=1e-10)
 
 def test_cisd_energy():
 
+    mol = gto.Mole()
+    mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
+    mol.unit='angstrom'
+    mol.basis = "sto6g"
+
+    # mol.symmetry = True
+    mol.build()
+    mf = scf.UHF(mol)
+    # Hartree-Fock
+    mf.kernel(verbose=0, tol=1e-10)
     myci = ci.UCISD(mf)  
     eris = myci.ao2mo(mf.mo_coeff)
     e_corr, civec = myci.kernel()
@@ -44,14 +45,5 @@ def test_civec_size():
     assert np.allclose(np.sum(size), lci)
     assert np.allclose(loc[-1], lci)
 
-def test_sci_solver():
-
-    fcisolver = fci.FCI(mf)
-    e, c = fcisolver.kernel()
-    e1, c1 = pyscf_helper.run_shci(mol)
-    assert np.allclose(e, e1)
-
-
-
-
-test_sci_solver()
+def test_ortho():
+    pass

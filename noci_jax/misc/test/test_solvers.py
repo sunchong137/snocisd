@@ -31,3 +31,20 @@ def test_dmrg():
     assert np.allclose(np.asarray(dm1_ci), np.asarray(dm1))
     assert np.allclose(np.asarray(dm2_ci), np.asarray(dm2))
 
+
+def test_sci_solver():
+
+    mol = gto.Mole()
+    mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
+    mol.unit='angstrom'
+    mol.basis = "sto6g"
+
+    # mol.symmetry = True
+    mol.build()
+    mf = scf.UHF(mol)
+    # Hartree-Fock
+    mf.kernel(verbose=0, tol=1e-10)
+    fcisolver = fci.FCI(mf)
+    e, c = fcisolver.kernel()
+    e1, c1 = solvers.run_shci(mol)
+    assert np.allclose(e, e1)

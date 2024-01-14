@@ -21,7 +21,7 @@ Includes:
 '''
 import numpy as np
 from scipy import linalg as sla
-from pyscf import ao2mo, ci, scf, fci
+from pyscf import ao2mo, ci, scf, lo
 
 # mean-field helpers
 def uhf_with_ortho_ao(mol):
@@ -43,7 +43,6 @@ def uhf_with_ortho_ao(mol):
 
     return mf
 
-
 def get_integrals(mf, ortho_ao=False):
     '''
     Return essential values needed for NOCI calculations.
@@ -54,7 +53,31 @@ def get_integrals(mf, ortho_ao=False):
     e_nuc = mf.energy_nuc()
 
     if ortho_ao:
-        print("INFO: the AOs are orthogonalized!")
+        print("INFO: the AOs are being orthogonalized by the Lowdin method.")
+        norb = mf.mol.nao
+        C = lo.orth_ao(mf.mol, 'meta_lowdin') 
+        ao_ovlp = mf.get_ovlp()
+        trans_m = C.T @ ao_ovlp
+        h1e = trans_m @ h1e @ trans_m # trans_m.T = trans_m 
+        h2e = ao2mo.incore.full(h2e, trans_m)
+        # update the values 
+        mf.get_hcore = lambda *args: h1e     
+        mf._eri = ao2mo.restore(8, h2e, norb)                             
+        mf.get_ovlp = lambda *args: np.eye(norb)                      
+
+    return h1e, h2e, e_nuc
+
+def get_integrals_old(mf, ortho_ao=False):
+    '''
+    Return essential values needed for NOCI calculations.
+    '''
+    h1e = mf.get_hcore()
+    norb = mf.mol.nao
+    h2e = mf.mol.intor('int2e')
+    e_nuc = mf.energy_nuc()
+
+    if ortho_ao:
+        print("INFO: the AOs are being orthogonalized by diagonalizing AO ovlp!")
         norb = mf.mol.nao
         ao_ovlp = mf.get_ovlp()
         trans_m = sla.inv(sla.sqrtm(ao_ovlp))
