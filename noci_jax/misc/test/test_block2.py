@@ -19,7 +19,7 @@ from pyscf import gto, scf, fci
 
 def test_dmrg():
     mol = gto.M(atom="H 0 0 0; H 0 0 1.1", basis="sto3g", verbose=0)
-    mf = scf.RHF(mol).run(conv_tol=1E-14)
+    mf = scf.UHF(mol).run(conv_tol=1E-14)
     myfci = fci.FCI(mf)
     e_fci, v = myfci.kernel()
     dm1_ci, dm2_ci = myfci.make_rdm12s(v, 2, 2)

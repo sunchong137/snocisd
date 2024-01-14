@@ -28,12 +28,15 @@ def run_block2(mf, spin_symm=True, init_bdim=20, max_bdim=100, nsweeps=10, max_n
         mf: pyscf RHF object, converged mf;
     Kwargs:
     '''
-    ncas, n_elec, spin, ecore, h1e, g2e, orb_sym = itg.get_rhf_integrals(mf,
-    ncore=0, ncas=None, g2e_symm=8)
     if spin_symm:
+        ncas, n_elec, spin, ecore, h1e, g2e, orb_sym = itg.get_rhf_integrals(mf,
+                                        ncore=0, ncas=None, g2e_symm=8)
         symm = SymmetryTypes.SU2
     else:
+        ncas, n_elec, spin, ecore, h1e, g2e, orb_sym = itg.get_uhf_integrals(mf,
+                                        ncore=0, ncas=None, g2e_symm=8)
         symm = SymmetryTypes.SZ
+        
     driver = DMRGDriver(scratch=scratch_dir, symm_type=symm, n_threads=4)
     driver.initialize_system(n_sites=ncas, n_elec=n_elec, spin=spin, orb_sym=orb_sym)
 
