@@ -153,41 +153,7 @@ def ortho_ao_mat(mat, ao_ovlp):
     return ortho_ao.T @ mat @ ortho_ao
 
 
-def ao2mo_ham(mf):
-    '''
-    Rotate the Hamiltonian from AO to MO.
-    '''
-    h1e = mf.get_hcore()
-    norb = mf.mol.nao
-    eri = mf._eri
-    mo_coeff = mf.mo_coeff
-    # aaaa, aabb, bbbb
-    Ca, Cb = mo_coeff[0], mo_coeff[1]
-    aaaa = (Ca,)*4
-    bbbb = (Cb,)*4
-    aabb = (Ca, Ca, Cb, Cb)
 
-    h1_mo = np.array([Ca.T @ h1e @ Ca, Cb.T @ h1e @ Cb])
-    h2e_aaaa = ao2mo.incore.general(eri, aaaa, compact=False).reshape(norb, norb, norb, norb)
-    h2e_bbbb = ao2mo.incore.general(eri, bbbb, compact=False).reshape(norb, norb, norb, norb)
-    h2e_aabb = ao2mo.incore.general(eri, aabb, compact=False).reshape(norb, norb, norb, norb)
-    h2_mo = np.array([h2e_aaaa, h2e_aabb, h2e_bbbb])
-
-    return h1_mo, h2_mo
-
-def ao2mo_ham_spin0(mf):
-    '''
-    Rotate the Hamiltonian from AO to MO.
-    '''
-    h1e = mf.get_hcore()
-    norb = mf.mol.nao
-    eri = mf._eri
-    C = mf.mo_coeff
-    # aaaa, aabb, bbbb
-    aaaa = (C,)*4
-    h1_mo = C.T @ h1e @ C
-    h2_mo = ao2mo.incore.general(eri, aaaa, compact=False).reshape(norb, norb, norb, norb)
-    return h1_mo, h2_mo
 
 # CISD helpers
 def cisd_energy_from_vec(vec, mf):

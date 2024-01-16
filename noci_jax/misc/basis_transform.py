@@ -15,7 +15,7 @@
 
 import numpy as np
 from scipy import linalg as sla
-from pyscf import lo
+from pyscf import ao2mo
 
 
 def get_C_ortho(mol, method='lowdin'):
@@ -52,3 +52,58 @@ def C_ortho_schmidt(ao_ovlp):
     '''
     c = np.linalg.cholesky(ao_ovlp)
     return sla.solve_triangular(c, np.eye(c.shape[1]), lower=True, overwrite_b=False).conj().T
+
+
+def base_trans_mat(mat, C):
+    '''
+    Transform a matrix from one basis to another.
+    The basis are transformed in the way:
+         |new>_i = \sum_{ij} |old>_j C_{ji}
+    Args:
+        mat: 2D array or list of 2D array.
+        C: 2D array or list of 2D array.
+    '''
+    pass 
+
+def base_trans_tensor(tnsr, C):
+    '''
+    Transform a tensor from one basis to another.
+    The basis are transformed in the way:
+         |new>_i = \sum_{ij} |old>_j C_{ji}
+    '''
+    pass 
+
+def ao2mo_ham(mf):
+    '''
+    Rotate the Hamiltonian from AO to MO.
+    '''
+    h1e = mf.get_hcore()
+    norb = mf.mol.nao
+    eri = mf._eri
+    mo_coeff = mf.mo_coeff
+    # aaaa, aabb, bbbb
+    Ca, Cb = mo_coeff[0], mo_coeff[1]
+    aaaa = (Ca,)*4
+    bbbb = (Cb,)*4
+    aabb = (Ca, Ca, Cb, Cb)
+
+    h1_mo = np.array([Ca.T @ h1e @ Ca, Cb.T @ h1e @ Cb])
+    h2e_aaaa = ao2mo.incore.general(eri, aaaa, compact=False).reshape(norb, norb, norb, norb)
+    h2e_bbbb = ao2mo.incore.general(eri, bbbb, compact=False).reshape(norb, norb, norb, norb)
+    h2e_aabb = ao2mo.incore.general(eri, aabb, compact=False).reshape(norb, norb, norb, norb)
+    h2_mo = np.array([h2e_aaaa, h2e_aabb, h2e_bbbb])
+    return h1_mo, h2_mo
+
+def ao2mo_ham_spin0(mf):
+    '''
+    Rotate the Hamiltonian from AO to MO.
+    '''
+    h1e = mf.get_hcore()
+    norb = mf.mol.nao
+    eri = mf._eri
+    C = mf.mo_coeff
+    # aaaa, aabb, bbbb
+    aaaa = (C,)*4
+    h1_mo = C.T @ h1e @ C
+    h2_mo = ao2mo.incore.general(eri, aaaa, compact=False).reshape(norb, norb, norb, norb)
+    return h1_mo, h2_mo
