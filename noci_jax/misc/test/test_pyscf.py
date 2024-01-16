@@ -64,4 +64,22 @@ def test_compare_ortho_ao():
     '''
     check if the OAO and AO give the same energy.
     '''
-    pass 
+    # no orthogonalization
+    mf = scf.UHF(mol)
+    mf.kernel() 
+    e1 = mf.energy_tot() 
+
+    mf2 = pyscf_helper.mf_with_ortho_ao(mol)
+    mf2.kernel()
+    e2 = mf2.energy_tot() 
+
+    mf3 = scf.UHF(mol)
+    h1e, h2e, e_nuc = pyscf_helper.get_integrals_old(mf3, ortho_ao=True)
+    mf3.kernel() 
+    e3 = mf3.energy_tot()
+
+    assert np.allclose(e1, e2)
+    assert np.allclose(e1, e3)
+
+
+
