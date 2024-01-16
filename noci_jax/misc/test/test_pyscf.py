@@ -74,7 +74,7 @@ def test_compare_ortho_ao():
     e2 = mf2.energy_tot() 
 
     mf3 = scf.UHF(mol)
-    h1e, h2e, e_nuc = pyscf_helper.get_integrals_old(mf3, ortho_ao=True)
+    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf3, ortho_ao=True)
     mf3.kernel() 
     e3 = mf3.energy_tot()
 
