@@ -18,18 +18,17 @@ from noci_jax.misc import pyscf_helper
 from noci_jax import hamiltonians
 from pyscf import gto, scf, ci
 
+mol = gto.Mole()
+mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
+mol.unit='angstrom'
+mol.basis = "sto6g"
 
-
+# mol.symmetry = True
+mol.build()
 
 def test_cisd_energy():
 
-    mol = gto.Mole()
-    mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
-    mol.unit='angstrom'
-    mol.basis = "sto6g"
 
-    # mol.symmetry = True
-    mol.build()
     mf = scf.UHF(mol)
     # Hartree-Fock
     mf.kernel(verbose=0, tol=1e-10)
@@ -47,9 +46,6 @@ def test_civec_size():
     assert np.allclose(loc[-1], lci)
 
 def test_ortho():
-    nH = 4
-    bl = 1.6
-    mol = hamiltonians.gen_mol_hchain(nH, bl, "sto3g")
     mf = scf.UHF(mol)
     # mf.kernel()
     # Step 3: Get attributes needed for the NOCI calculations
@@ -63,3 +59,9 @@ def test_ortho():
 
     dm1 = mf.make_rdm1(mo_coeff)
     assert np.allclose(np.sum(np.diag(dm1[0])), nelec//2)
+
+def test_compare_ortho_ao():
+    '''
+    check if the OAO and AO give the same energy.
+    '''
+    pass 

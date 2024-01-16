@@ -30,9 +30,9 @@ def uhf_with_ortho_ao(mol):
     '''
     mf = scf.UHF(mol)
     norb = mf.mol.nao
-    ao_ovlp = mf.mol.intor_symmetric ('int1e_ovlp')
+    ao_ovlp = mf.mol.intor_symmetric('int1e_ovlp')
     trans_m = sla.inv(sla.sqrtm(ao_ovlp))
-    h1e = mf.get_ovlp()
+    h1e = mf.get_hcore()
     h2e = mf.mol.intor('int2e')
     h1e = trans_m @ h1e @ trans_m # trans_m.T = trans_m 
     h2e = ao2mo.incore.full(h2e, trans_m)
@@ -40,7 +40,6 @@ def uhf_with_ortho_ao(mol):
     mf.get_hcore = lambda *args: h1e     
     mf._eri = ao2mo.restore(8, h2e, norb)                             
     mf.get_ovlp = lambda *args: np.eye(norb)   
-
     return mf
 
 def get_integrals(mf, ortho_ao=False):
