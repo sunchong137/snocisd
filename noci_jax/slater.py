@@ -281,7 +281,6 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
 
     top = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, trdms) 
     bot = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
-
     return top/bot
 
 
@@ -295,11 +294,8 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
 
-    try:
-        ndim = mo_coeff.ndim 
-    except:
-        ndim = 3
-        mo_coeff = np.asarray(mo_coeff)
+    mo_coeff = np.asarray(mo_coeff)
+    ndim = mo_coeff.ndim 
     if ndim > 2:
         sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     else:
@@ -329,34 +325,44 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
 
 def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
     '''
-    Only make the diagonal term of the 2RDM.
-    Return: (p,q,r,s) = <a^dag_p a_p a^_q a_q>
-    order: uudd
+    Return the diagonal of rdm1 and rdm2_ud.
+    Returns:
+        rdm1: a list of two 1D arrays.
+        rdm2: 2D array of order uudd.
     '''
     metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
-
-    try:
-        ndim = mo_coeff.ndim 
-    except:
-        ndim = 3
-        mo_coeff = np.asarray(mo_coeff)
+    mo_coeff = np.asarray(mo_coeff)
+    ndim = mo_coeff.ndim 
     if ndim > 2:
         sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     else:
         sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
-    dm1s = np.einsum("nmsij, nm -> nmsij", trdms, smat)
-    dm1_u = trdms[:, :, 0]
-    dm1_d = trdms[:, :, 1]
-    dm2s_ud = np.einsum("nmii, nmjj -> nmij", dm1_u, dm1_d)
+    # trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+    # dm1s = np.einsum("nmsij, nm -> nmsij", trdms, smat)
+    # dm1_u = trdms[:, :, 0]
+    # dm1_d = trdms[:, :, 1]
+    # dm2s_ud = np.einsum("nmii, nmjj -> nmij", dm1_u, dm1_d)
+    # dm2s_ud = np.einsum("nmij, nm -> nmij", dm2s_ud, smat)
+    # dm1s = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
+    # dm2s_ud = np.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, dm2s_ud)
+    # phi_norm = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
+    # return dm1s/phi_norm, dm2s_ud/phi_norm
+    trdms_diag = np.einsum("msij, nmsjk, nsik -> nmsi", sdets, inv_metrics, sdets.conj())
+    dm1s_diag = np.einsum("nmsi, nm -> nmsi", trdms_diag, smat)
+    dm1_u = trdms_diag[:, :, 0]
+    dm1_d = trdms_diag[:, :, 1]
+
+    dm2s_ud = np.einsum("nmi, nmj -> nmij", dm1_u, dm1_d)
     dm2s_ud = np.einsum("nmij, nm -> nmij", dm2s_ud, smat)
-    dm1s = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
+
+    dm1s_diag = np.einsum("n, m, nmsi -> si", lc_coeff.conj(), lc_coeff, dm1s_diag) 
     dm2s_ud = np.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, dm2s_ud)
+
     phi_norm = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
-    return dm1s/phi_norm, dm2s_ud/phi_norm
+    return dm1s_diag/phi_norm, dm2s_ud/phi_norm
 
 def get_smat(rmats):
     '''
@@ -365,7 +371,6 @@ def get_smat(rmats):
     metrics = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics), axis=-1)   
     return smat
-
 
 def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
     '''

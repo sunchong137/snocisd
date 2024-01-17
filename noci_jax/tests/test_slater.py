@@ -14,9 +14,17 @@
 
 import numpy as np
 from scipy import linalg as sla
-from noci_jax import slater 
-from noci_jax.misc import pyscf_helper
-from pyscf import gto, scf, ci
+from noci_jax import slater, nocisd 
+from noci_jax.misc import pyscf_helper, basis_transform
+from pyscf import gto, ci, ao2mo
+
+mol = gto.Mole()
+mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
+mol.unit='angstrom'
+mol.basis = "sto6g"
+mol.build()
+mf = pyscf_helper.mf_with_ortho_ao(mol, spin_symm=False)
+mf.kernel(verbose=0, tol=1e-10)
 
 def test_tvecs_to_rmats():
     nocc = 2
@@ -54,14 +62,6 @@ def test_solve_lc():
 
 
 def test_rdm12_compare_mf():
-    # construct molecule
-    mol = gto.Mole()
-    mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
-    mol.unit='angstrom'
-    mol.basis = "sto6g"
-    mol.build()
-    mf = pyscf_helper.mf_with_ortho_ao(mol, spin_symm=False)
-    mf.kernel(verbose=0, tol=1e-10)
     h1e, h2e, _ = pyscf_helper.get_integrals(mf)
     norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
     Eelec_hf = mf.energy_elec()[0]
@@ -98,7 +98,48 @@ def test_rdm12s_compare_cisd():
     '''
     Compare to the CISD 
     '''
-    pass 
+    # mol = gto.Mole()
+    # mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
+    # mol.unit='angstrom'
+    # mol.basis = "sto6g"
+    # mol.build()
+    # mf = pyscf_helper.mf_with_ortho_ao(mol, spin_symm=False)
+    # mf.kernel(verbose=0, tol=1e-10)
+    h1e, h2e, _ = pyscf_helper.get_integrals(mf)
+    norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
+    c_mo2ao = np.linalg.inv(mo_coeff)
+    aa = (c_mo2ao[0], c_mo2ao[0], c_mo2ao[0], c_mo2ao[0])
+    ab = (c_mo2ao[0], c_mo2ao[0], c_mo2ao[1], c_mo2ao[1])
+    bb = (c_mo2ao[1], c_mo2ao[1], c_mo2ao[1], c_mo2ao[1])
+
+    myci = ci.UCISD(mf)
+    e_corr, civec = myci.kernel()
+    dt = 0.1
+    tmats, lc_coeff = nocisd.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)
+    rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
+    rdm1, rdm2 = slater.make_rdm12(rmats, mo_coeff, lc_coeff)
+    # check rdm1
+    rdm1_ci = np.array(myci.make_rdm1())
+    rdm1_ci[0] = basis_transform.basis_trans_mat(rdm1_ci[0], c_mo2ao[0])
+    rdm1_ci[1] = basis_transform.basis_trans_mat(rdm1_ci[1], c_mo2ao[1])
+    assert np.allclose(rdm1, rdm1_ci)
+    # check rdm2
+    rdm2_ci = np.array(myci.make_rdm2())
+    rdm2_ci[0] = ao2mo.incore.general(rdm2_ci[0], aa, compact=False).reshape(norb, norb, norb, norb)
+    rdm2_ci[1] = ao2mo.incore.general(rdm2_ci[1], ab, compact=False).reshape(norb, norb, norb, norb)
+    rdm2_ci[2] = ao2mo.incore.general(rdm2_ci[2], bb, compact=False).reshape(norb, norb, norb, norb)
+    assert np.allclose(rdm2_ci, rdm2)
+
+    # test diagonal
+    dm1_diag, dm2_ud_diag = slater.make_rdm12_diag(rmats, mo_coeff, lc_coeff) 
+    rdm2_ci_diag = np.zeros((norb, norb))
+    for i in range(norb):
+        for j in range(norb):
+            rdm2_ci_diag[i, j] = rdm2_ci[1][i,i,j,j]
+    assert np.allclose(dm1_diag[0], np.diag(rdm1[0]))
+    assert np.allclose(dm1_diag[1], np.diag(rdm1[1]))
+    assert np.allclose(dm2_ud_diag, rdm2_ci_diag)
+
 def test_orthonormal():
 
     nvir = 5
@@ -108,31 +149,31 @@ def test_orthonormal():
     r = slater.orthonormal_mos(tmats)
     I = np.eye(norb)
     assert np.allclose(np.dot(r.T, r), I)
-
-
     nt = 3
     spin = 2
     tmats = np.random.rand(nt, spin, nvir, nocc)
     rotm = slater.orthonormal_mos(tmats)
     x = np.moveaxis(rotm, -2, -1).conj() @ rotm
     I_all = np.tile(I, nt*spin).T.reshape(nt, spin, norb, norb)
-
     assert np.allclose(x, I_all)
 
 
 def test_spin_flip():
-    mol = gto.Mole()
-    mol.atom = "H 0 0 0; H 0 0 1.5; H 0 0 3.0; H 0 0 4.5"
-    mol.unit='angstrom'
-    mol.basis = "sto6g"
+    # mol = gto.Mole()
+    # mol.atom = "H 0 0 0; H 0 0 1.5; H 0 0 3.0; H 0 0 4.5"
+    # mol.unit='angstrom'
+    # mol.basis = "sto6g"
 
-    # mol.symmetry = True
-    mol.build()
-    norb = mol.nao
-    nocc = 2
-    mf = scf.UHF(mol)
-    pyscf_helper.run_stab_scf(mf)
-    Cmo = np.asarray(mf.mo_coeff)
+    # # mol.symmetry = True
+    # mol.build()
+    # norb = mol.nao
+    # nocc = 2
+    # mf = scf.UHF(mol)
+    # pyscf_helper.run_stab_scf(mf)
+    pyscf_helper.run_stab_scf_breaksymm(mf)
+    h1e, h2e, _ = pyscf_helper.get_integrals(mf)
+    norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
+    Cmo = np.asarray(mo_coeff)
     Ca = Cmo[0]
     Cb = Cmo[1]
     U = np.linalg.inv(Ca) @ Cb
