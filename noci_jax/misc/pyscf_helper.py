@@ -143,18 +143,6 @@ def run_stab_scf_breaksymm(mf):
     mf.kernel(init) 
 
 
-def ortho_ao_mat(mat, ao_ovlp):
-    '''
-    Given a matrix in the AO basis, orthogonalize AO and 
-    return the matrix in the basis of orthogonalized AO.
-    Args
-    '''
-    ortho_ao = sla.sqrtm(ao_ovlp)  
-    return ortho_ao.T @ mat @ ortho_ao
-
-
-
-
 # CISD helpers
 def cisd_energy_from_vec(vec, mf):
     '''
@@ -204,7 +192,6 @@ def sep_cisdvec(norb, nelec):
     loc = np.cumsum(size)
     
     return size, loc
-
 
 
 def spin_correlation(dm1_diag, dm2_diag, i, j):
