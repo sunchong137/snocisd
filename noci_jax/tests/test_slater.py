@@ -16,23 +16,19 @@ import numpy as np
 from scipy import linalg as sla
 from noci_jax import slater 
 from noci_jax.misc import pyscf_helper
-from pyscf import gto, scf
+from pyscf import gto, scf, ci
 
 def test_tvecs_to_rmats():
-    
     nocc = 2
     nvir = 3
     occ_mat = np.eye(2)/2
     occ_mat[0,1] = -0.1
     occ_mat += occ_mat.T
-
     tvecs = np.arange(nocc*nvir*2)
-
     rmats = slater.tvecs_to_rmats(tvecs, nvir, nocc, occ_mat=occ_mat)
     ref = np.array([[[[ 1.,  -0.1], [-0.1,  1. ], [ 0.,1. ],[ 2., 3. ], [ 4.,5. ]],
                      [[ 1.,-0.1],[-0.1,  1. ],[ 6., 7. ],[ 8., 9. ],[10.,  11. ]]]])
     assert np.allclose(rmats, ref)
-
 
 def test_solve_lc():
     n = 10
@@ -41,18 +37,14 @@ def test_solve_lc():
     smat = np.random.rand(n, n) * 0.1 
     smat = smat + smat.T 
     smat += np.eye(n)
-
     # use scipy
     e0, v0 = sla.eigh(hmat, b=smat)
     esla = e0[0] 
     vsla = v0[:, 0]
-
     hmat = np.array(hmat)
     smat = np.array(smat)
-
     e, v = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
     v = np.array(v)
-
     h = v.conj().T.dot(hmat).dot(v)
     s = v.conj().T.dot(smat).dot(v)
     e2 = h/s
@@ -61,87 +53,52 @@ def test_solve_lc():
     assert np.allclose(v, vsla)
 
 
-def test_make_rdm1():
+def test_rdm12_compare_mf():
     # construct molecule
     mol = gto.Mole()
     mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
     mol.unit='angstrom'
     mol.basis = "sto6g"
-
-    # mol.symmetry = True
     mol.build()
-
-    mf = scf.UHF(mol)
-
-    # Hartree-Fock
+    mf = pyscf_helper.mf_with_ortho_ao(mol, spin_symm=False)
     mf.kernel(verbose=0, tol=1e-10)
-    e_ref = mf.e_tot
-    
-    # orthogonalize ao overlap matrix
-    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=True)
-    mf.kernel(verbose=0, tol=1e-10)
-    
+    h1e, h2e, _ = pyscf_helper.get_integrals(mf)
     norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
+    Eelec_hf = mf.energy_elec()[0]
+    # first compare to HF
+    tvecs_hf = np.zeros((1, 2*nvir*nocc))
+    rmats = slater.tvecs_to_rmats(tvecs_hf, nvir, nocc)
+    c = np.array([1.])
+    rdm1s, rdm2s = slater.make_rdm12(rmats, mo_coeff, c)
+    dm1_hf = np.asarray(mf.make_rdm1())
+    dm2_hf = np.asarray(mf.make_rdm2())
+    assert np.allclose(rdm1s, dm1_hf) 
+    assert np.allclose(dm2_hf, rdm2s)
+    # test energy
+    E1 = np.einsum("ij, sji ->", h1e, rdm1s)
+    E2 = np.einsum("ijkl, sjilk ->", h2e, rdm2s)
+    E2 += np.einsum("ijkl, jilk ->", h2e, rdm2s[1].transpose(2,3,0,1))
+    E = E1 + 0.5*E2
+    assert np.allclose(E, Eelec_hf)
 
-    t_vecs = np.load("./data/h4_R1.5_sto3g_ndet1.npy")
-
-    rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
+    # test electron number
+    tvecs_n = np.random.rand(1, 2*nvir*nocc)
+    tvecs_all = np.vstack([tvecs_hf, tvecs_n])
+    rmats = slater.tvecs_to_rmats(tvecs_all, nvir, nocc)
     hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
     energy, c = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
     rdm1 = slater.make_rdm1(rmats, mo_coeff, c)
     ne_a = np.sum(np.diag(rdm1[0]))
     ne_b = np.sum(np.diag(rdm1[1]))
-
     assert np.allclose(ne_a, 2)
     assert np.allclose(ne_b, 2)
 
-def test_make_rdm12s():
-    # construct molecule
-    mol = gto.Mole()
-    mol.atom = "H 0 0 0; H 0 0 1.2; H 0 0 2.4; H 0 0 3.6"
-    mol.unit='angstrom'
-    mol.basis = "sto6g"
 
-    # mol.symmetry = True
-    mol.build()
-
-    mf = scf.UHF(mol)
-
-    # Hartree-Fock
-    mf.kernel(verbose=0, tol=1e-10)
-    e_ref = mf.e_tot
-    
-    # orthogonalize ao overlap matrix
-    h1e, h2e, e_nuc = pyscf_helper.get_integrals(mf, ortho_ao=True)
-    mf.kernel(verbose=0, tol=1e-10)
-    
-    norb, nocc, nvir, mo_coeff = pyscf_helper.get_mos(mf)
-
-    t_vecs = np.random.rand(1, 2*nvir*nocc)-0.5
-    t_vecs[0] = 0
-
-    rmats = slater.tvecs_to_rmats(t_vecs, nvir, nocc)
-
-    hmat, smat = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
-    energy, c = slater.solve_lc_coeffs(hmat, smat, return_vec=True)
-
-    rdm1s, rdm2s = slater.make_rdm12(rmats, mo_coeff, c)
-    # rdm1 = slater.make_rdm1(rmats, mo_coeff, c)
-    ne_a = np.sum(np.diag(rdm1s[0]))
-    ne_b = np.sum(np.diag(rdm1s[1]))
-
-    dm2_hf = mf.make_rdm2()
-
-    assert np.allclose(dm2_hf[0], rdm2s[0])
-    assert np.allclose(dm2_hf[1], rdm2s[1]) 
-    assert np.allclose(dm2_hf[2], rdm2s[3])
-
-    E1 = np.einsum("ij, sji ->", h1e, rdm1s)
-    E2 = np.einsum("ijkl, sjilk ->", h2e, rdm2s)
-    E = E1 + 0.5*E2
-
-    assert np.allclose(E, mf.energy_elec()[0])
-
+def test_rdm12s_compare_cisd():
+    '''
+    Compare to the CISD 
+    '''
+    pass 
 def test_orthonormal():
 
     nvir = 5
@@ -199,5 +156,3 @@ def test_spin_flip():
     e = slater.noci_energy(rmats_all, Cmo, h1e, h2e, e_nuc=e_nuc)
     print(e)
 
-
-test_spin_flip()

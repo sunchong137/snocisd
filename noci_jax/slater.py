@@ -235,9 +235,7 @@ def noci_matrices(rmats, mo_coeff, h1e, h2e):
     E2J = np.einsum("nmij, nmsji -> nm", J, trdms)
     K = np.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
     E2K = np.einsum("nmsij, nmsji ->nm", K, trdms)
-
     E2 = E2J - E2K
-
     hmat = (E1 + 0.5*E2) * smat
     return hmat, smat
 
@@ -252,7 +250,6 @@ def solve_lc_coeffs(hmat, smat, return_vec=False):
             1D array, linear combination coefficient
     '''
     energy, c = math_helpers.generalized_eigh(hmat, smat)
-
     if return_vec:
         return energy, c
     else:
@@ -291,8 +288,9 @@ def make_rdm1(rmats, mo_coeff, lc_coeff):
 def make_rdm12(rmats, mo_coeff, lc_coeff):
     '''
     Make 2RDM given an NOCI.
-    Return: (p,q,r,s) = <a^dag_p a_q a^_r a_s>
-    order: uuuu, uudd, dduu, dddd
+    Return: (p,q,r,s) = <a^dag_p a_q a^dag_r a_s>
+    Spin orders: [uuuu, uudd, dddd]
+    dduu can be evaluated by transposing uudd: uudd.transpose(2,3,0,1) 
     '''
     metrics_all = np.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = np.prod(np.linalg.det(metrics_all), axis=-1)
@@ -318,17 +316,16 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
     dm2s_dd = np.einsum("nmij, nmkl -> nmijkl", dm1_d, dm1_d) \
              - np.einsum("nmil, nmkj -> nmijkl", dm1_d, dm1_d)
     dm2s_ud = np.einsum("nmij, nmkl -> nmijkl", dm1_u, dm1_d)
-    dm2s_du = np.einsum("nmij, nmkl -> nmijkl", dm1_d, dm1_u)
-
-    dm2s = np.array([dm2s_uu, dm2s_ud, dm2s_du, dm2s_dd])
+    # dm2s_du = np.einsum("nmij, nmkl -> nmijkl", dm1_d, dm1_u)
+    # dm2s = np.array([dm2s_uu, dm2s_ud, dm2s_du, dm2s_dd])
+    dm2s = np.array([dm2s_uu, dm2s_ud, dm2s_dd])
     dm2s = np.einsum("snmijkl, nm -> snmijkl", dm2s, smat)
-
     dm1s = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
     dm2s = np.einsum("n, m, snmijkl -> sijkl", lc_coeff.conj(), lc_coeff, dm2s)
 
-
     phi_norm = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
     return dm1s/phi_norm, dm2s/phi_norm
+
 
 def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
     '''
@@ -348,25 +345,18 @@ def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
         sdets = np.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     else:
         sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
-
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
     trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
     dm1s = np.einsum("nmsij, nm -> nmsij", trdms, smat)
     dm1_u = trdms[:, :, 0]
     dm1_d = trdms[:, :, 1]
-
     dm2s_ud = np.einsum("nmii, nmjj -> nmij", dm1_u, dm1_d)
-
     dm2s_ud = np.einsum("nmij, nm -> nmij", dm2s_ud, smat)
-
     dm1s = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
     dm2s_ud = np.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, dm2s_ud)
-
     phi_norm = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
     return dm1s/phi_norm, dm2s_ud/phi_norm
-
-
 
 def get_smat(rmats):
     '''

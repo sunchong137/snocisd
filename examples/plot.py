@@ -27,4 +27,3 @@ def plot_no_crossing():
     plt.legend()
     plt.show() 
 
-plot_no_crossing()

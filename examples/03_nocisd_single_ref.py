@@ -35,8 +35,6 @@ e_cisd = e_hf + e_corr
 c0, c1, c2 = myci.cisdvec_to_amplitudes(civec)
 
 fcivec = myci.to_fcivec(civec, norb, nelec)
-print(fcivec)
-exit()
 
 dt = 0.1
 tmats, coeffs = nocisd.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)

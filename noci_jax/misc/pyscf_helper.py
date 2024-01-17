@@ -46,14 +46,13 @@ def mf_with_ortho_ao(mol, spin_symm=False, method="lowdin"):
     mf.get_ovlp = lambda *args: np.eye(norb)   
     return mf
 
-
 def get_integrals_lo(mf, ortho_ao=False):
     '''
     Return essential values needed for NOCI calculations.
     '''
     h1e = mf.get_hcore()
     norb = mf.mol.nao
-    h2e = mf.mol.intor('int2e')
+    h2e =  ao2mo.restore(1, mf._eri, norb)
     e_nuc = mf.energy_nuc()
 
     if ortho_ao:
@@ -66,9 +65,8 @@ def get_integrals_lo(mf, ortho_ao=False):
         h2e = ao2mo.incore.full(h2e, trans_m)
         # update the values 
         mf.get_hcore = lambda *args: h1e     
-        mf._eri = ao2mo.restore(8, h2e, norb)                             
+        mf._eri = ao2mo.restore(8, h2e, norb)                           
         mf.get_ovlp = lambda *args: np.eye(norb)                      
-
     return h1e, h2e, e_nuc
 
 def get_integrals(mf, ortho_ao=False):
@@ -77,7 +75,7 @@ def get_integrals(mf, ortho_ao=False):
     '''
     h1e = mf.get_hcore()
     norb = mf.mol.nao
-    h2e = mf.mol.intor('int2e')
+    h2e =  ao2mo.restore(1, mf._eri, norb)
     e_nuc = mf.energy_nuc()
 
     if ortho_ao:
@@ -90,7 +88,6 @@ def get_integrals(mf, ortho_ao=False):
         mf.get_hcore = lambda *args: h1e     
         mf._eri = ao2mo.restore(8, h2e, norb)                             
         mf.get_ovlp = lambda *args: np.eye(norb)                      
-
     return h1e, h2e, e_nuc
 
 
@@ -98,7 +95,6 @@ def get_mos(mf):
     '''
     This is wrong because the ortho_ao is not considered.
     '''
-
     norb = mf.mol.nao # number of orbitals
     occ = mf.get_occ()
     ndim = occ.ndim
