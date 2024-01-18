@@ -111,6 +111,33 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
 
     return r_cisd
 
+def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):
+    '''
+    Given one Thouless vector, generate the compressed 
+    non-orthogonal CISD from this SD.
+    Args:
+        tvec: (1, 2, nvir, nocc) or (2, nvir, nocc)array.
+        mf: the converged PySCF scf object.
+    Returns: 
+        (M, 2, norb, nocc) array, the rotation matrices
+        from the CISD expansion from this reference state.
+    '''
+    # print("#"*10 + " Multi-Ref NOCISD " + "#"*10)
+    # num_ref = len(tvecs_ref)
+    if nvir is None:
+        nvir, nocc = tvec.shape[-2:]
+    norb = nvir + nocc
+    U = slater.orthonormal_mos(tvec).reshape(2, norb, norb)
+    mo_coeff = mf.mo_coeff # HF MO coeffs
+    mo_ref = np.array([mo_coeff[0] @ U[0], mo_coeff[1] @ U[1]])
+    my_mf = copy.copy(mf)
+    my_mf.mo_coeff = mo_ref
+    my_ci = ci.UCISD(my_mf)
+    _, civec = my_ci.kernel()
+    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    r = slater.tvecs_to_rmats(t, nvir, nocc)
+    r = slater.rotate_rmats(r, U)
+    return r
 
 def gen_nocisd_multiref_hsp(mf, nvir, nocc, dt=0.1, tol2=1e-5, silent=False):
     '''
