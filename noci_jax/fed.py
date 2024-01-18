@@ -149,8 +149,9 @@ def optimize_sweep(h1e, h2e, mo_coeff, nocc, init_tvecs, MaxIter=100, nsweep=1, 
 
     return E, init_tvecs.reshape(nvecs, -1)
 
-def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=None, 
-                     MaxIter=100, print_step=1000, lrate=1e-2, schedule=False):
+def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, 
+                     hmat=None, smat=None, MaxIter=100, print_step=1000, 
+                     lrate=1e-2, schedule=False):
 
     '''
     Optimize one Thouless matrices while fixing the rest.
@@ -161,16 +162,13 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
 
     if hmat is None:
         hmat, smat = slater_jax.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=True)
-
     def cost_func(t): 
         # thouless to rotation
         r_n = slater_jax.tvecs_to_rmats(t, nvir, nocc)
         hm, sm = slater_jax.expand_hs(hmat, smat, r_n, rmats, h1e, h2e, mo_coeff)
         energy = slater_jax.solve_lc_coeffs(hm, sm)
         return energy  
-          
     init_params = jnp.array(tvec0)
-
 
     def fit(params: optax.Params, Niter: int, lrate) -> optax.Params:
 
@@ -186,10 +184,8 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
 
         for i in range(Niter):
             params, opt_state, loss_value = step(params, opt_state)
-
             if i % print_step == 0:
                 print(f'step {i+1}, Energy: {loss_value};')
-
         return loss_value, params
 
     if schedule:
@@ -206,8 +202,5 @@ def opt_one_thouless(tvec0, rmats, mo_coeff, h1e, h2e, tshape, hmat=None, smat=N
         # print(f"Energy lowered: {energy - energy0}")
     else:
         energy, vecs = fit(init_params, MaxIter, lrate)
-
-
     del fit # release memory
-
     return energy, vecs

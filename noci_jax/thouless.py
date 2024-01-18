@@ -48,6 +48,16 @@ def gen_init_singles(nocc, nvir, max_nt=1, zmax=5, zmin=0.1, spin=0):
             k += 1
     return tmats
 
+def gen_init_singles_onedet(nocc, nvir, idx, zmax=5, zmin=0.1, spin=0):
+    '''
+    Generate one quasi-single-excitation initial guess given a number.
+    '''
+    tmats = np.ones((1, 2, nvir, nocc)) * zmin
+    i = idx // nvir 
+    j = idx % nvir
+    tmats[0, spin, i, j] = zmax 
+    return tmats
+
 def gen_thouless_doubles_cross(nocc, nvir, max_nt=1, zmax=5, zmin=0.1):
     
     # pick the excitations closest to the Fermi level    
