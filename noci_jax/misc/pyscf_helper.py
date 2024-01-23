@@ -120,24 +120,40 @@ def get_mos(mf):
     return norb, nocc, nvir, mo_coeff
 
 
-def run_stab_scf(mf):
+def run_stab_scf(mf, tol=1E-14, max_iter=100, chkfname=None):
     '''
     Stabalized HF.
     '''
     mf.kernel()
     mo1 = mf.stability()[0]                                                             
-    init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
-    mf.kernel(init) 
+    init = mf.make_rdm1(mo1, mf.mo_occ) 
+    mf.max_cycle = max_iter        
+    mf.conv_tol = tol      
+    if chkfname is not None: # save mf information
+        mf.chkfile = chkfname                                   
+    mf.kernel(dm0=init) 
 
-def run_stab_scf_breaksymm(mf):
+def run_stab_scf_breaksymm(mf, tol=1E-14, max_iter=100, chkfname=None):
     init_guess = mf.get_init_guess()
     init_guess[0][0, 0] = 1
     init_guess[1][0, 0] = 0
     mf.kernel(init_guess)
     mo1 = mf.stability()[0]                                                             
-    init = mf.make_rdm1(mo1, mf.mo_occ)                                                 
-    mf.kernel(init) 
+    init = mf.make_rdm1(mo1, mf.mo_occ)
+    mf.max_cycle = max_iter    
+    mf.conv_tol = tol     
+    if chkfname is not None: # save mf information
+        mf.chkfile = chkfname                                     
+    mf.kernel(dm0=init) 
 
+def restart_scf_from_check(mf, chkname, tol=1E-14, max_iter=100):
+    '''
+    Restart SCF from a given chkfile.
+    '''
+    mf.conv_tol = tol 
+    mf.max_cycle = max_iter
+    mf.init_guess = mf.from_chk(chkname) 
+    mf.kernel()
 
 # CISD helpers
 def cisd_energy_from_vec(vec, mf):
