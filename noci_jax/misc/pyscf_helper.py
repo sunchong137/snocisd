@@ -52,6 +52,8 @@ def get_integrals_lo(mf, ortho_ao=False):
     '''
     h1e = mf.get_hcore()
     norb = mf.mol.nao
+    if mf._eri is None:
+        mf._eri = mf.mol.intor('int2e')
     h2e =  ao2mo.restore(1, mf._eri, norb)
     e_nuc = mf.energy_nuc()
 
@@ -75,6 +77,8 @@ def get_integrals(mf, ortho_ao=False):
     '''
     h1e = mf.get_hcore()
     norb = mf.mol.nao
+    if mf._eri is None:
+        mf._eri = mf.mol.intor('int2e')
     h2e =  ao2mo.restore(1, mf._eri, norb)
     e_nuc = mf.energy_nuc()
 
