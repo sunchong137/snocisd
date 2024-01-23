@@ -146,14 +146,22 @@ def run_stab_scf_breaksymm(mf, tol=1E-14, max_iter=100, chkfname=None):
         mf.chkfile = chkfname                                     
     mf.kernel(dm0=init) 
 
-def restart_scf_from_check(mf, chkname, tol=1E-14, max_iter=100):
+def restart_scf_from_check(mf, chkname, tol=1E-14, max_iter=100, save_chk=None, stab=False):
     '''
     Restart SCF from a given chkfile.
     '''
     mf.conv_tol = tol 
     mf.max_cycle = max_iter
+    if save_chk is not None:
+        mf.chkfile = save_chk
     mf.init_guess = mf.from_chk(chkname) 
+    print("# Restarting SCF from {}".format(chkname))
     mf.kernel()
+    if stab:
+        # stablize
+        mo1 = mf.stability()[0]                                                             
+        init = mf.make_rdm1(mo1, mf.mo_occ)
+        mf.kernel(dm0=init) 
 
 # CISD helpers
 def cisd_energy_from_vec(vec, mf):
