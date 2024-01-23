@@ -15,8 +15,11 @@
 Interface for solvers.
 '''
 from pyscf import scf, fci, ao2mo 
-from pyblock2._pyscf.ao2mo import integrals as itg
-from pyblock2.driver.core import DMRGDriver, SymmetryTypes
+try:
+    from pyblock2._pyscf.ao2mo import integrals as itg
+    from pyblock2.driver.core import DMRGDriver, SymmetryTypes
+except:
+    print("Warning: Block2 is not implemented!")
 
 def run_shci(mol, max_cycle=100, tol=1e-8):
     '''
