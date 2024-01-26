@@ -323,9 +323,7 @@ def noci_matrices(rmats, mo_coeff, h1e, h2e):
     E2J = jnp.einsum("nmij, nmsji -> nm", J, trdms)
     K = jnp.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
     E2K = jnp.einsum("nmsij, nmsji ->nm", K, trdms)
-
     E2 = E2J - E2K
-
     hmat = (E1 + 0.5*E2) * smat
     return hmat, smat
 

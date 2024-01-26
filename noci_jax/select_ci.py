@@ -359,6 +359,45 @@ def criteria_energy_single_det(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None,
     H_new = H_new + alpha.conj().T@hmat_fix@alpha
     E_new = H_new / sdiag_new
     R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(np.abs(T_part))**2) 
-    de_ratio = (E_new - E_fix - R_term/(sdiag_new * norm_fix)) / (2 * E_fix)
+    epsilon = (E_new - R_term/(sdiag_new * norm_fix))
+    # print("Check", epsilon, E_fix)
+    de_ratio = (E_fix - epsilon) / abs(E_fix)
 
     return de_ratio, hmat_all, smat_all
+
+def eval_epsilon(rmats_fix, r_new, mo_coeff, h1e, h2e, E_fix=None, 
+                   noci_vec=None, smat_fix=None, hmat_fix=None):
+    '''
+    Evaluate epsilon in the energy criteria.
+    |epsilon - E0|/|E_0| > h_0
+    '''
+
+    if smat_fix is None or hmat_fix is None:
+        rmats_all = np.vstack([rmats_fix, r_new[None, :]])
+        hmat_all, smat_all = slater.noci_matrices(rmats_all, mo_coeff, h1e, h2e)
+        smat_fix = smat_all[:-1, :-1]
+        hmat_fix = hmat_all[:-1, :-1]
+    else:
+        hmat_all, smat_all = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
+    
+    # calculate the residual 
+    smat_mix_l = smat_all[:-1, -1] # (nr0, 1)
+    s_new = smat_all[-1, -1]
+    inv_fix = np.linalg.inv(smat_fix)
+    proj_old = smat_mix_l.T.conj()@inv_fix@smat_mix_l
+    norm_new = s_new
+    sdiag_new = norm_new - proj_old
+
+    E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
+
+    norm_fix = np.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+    H_fix = E_fix * norm_fix
+    alpha = inv_fix @ smat_mix_l  # (nr0, 1) array 
+    hmat_mix_l = hmat_all[:-1, -1]
+    T_part = noci_vec.conj() @ (hmat_mix_l - hmat_fix @ alpha) # (nr,) array
+    H_new = hmat_all[-1, -1] - 2*np.real(alpha.conj().T@hmat_mix_l)
+    H_new = H_new + alpha.conj().T@hmat_fix@alpha
+    E_new = H_new / sdiag_new
+    R_term = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(np.abs(T_part))**2) 
+    epsilon = (E_new - R_term/(sdiag_new * norm_fix))
+    return epsilon
