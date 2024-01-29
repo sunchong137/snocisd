@@ -1,7 +1,4 @@
-<img src="logo.png" alt=" " width="200"/>
-
-SNOCISD
-=======
+<img src="logo.png" alt="" width="200"/>
 Selected Non-Orthogonal Configuration Interaction with Singles and Doubles.
 
 Author: Chong Sun [email](sunchong137@gmail.com)
