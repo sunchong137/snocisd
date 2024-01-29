@@ -8,6 +8,11 @@ Author: Chong Sun [email](sunchong137@gmail.com)
 [3] Selecting NOSDs based on metric and energy contributions.
 
 # Installation
+## Required packages
+[1] PySCF, interface to quantum chemistry.
+[2] Jax, Jaxlib, Optax, optimization and fast array algebra.
+
+## Installation from GitHub
 First get the Python package from GitHub by
 ```bash
 git clone https://github.com/sunchong137/noci_jax.git
