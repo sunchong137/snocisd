@@ -19,50 +19,34 @@ Following Dutta et. al., J. Chem. Phys. 154, 114112 (2021)
 import numpy as np
 from noci_jax import slater
 
-
 def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, 
-                 e_tol=5e-8, max_ndets=None):
-    '''
-    First select non-linearly dependant determinants, then energy contribution.
-    Note: the returned determinants include rmats_fix.
-    '''
-    n_fix = len(rmats_fix)
-    n_new = len(rmats_new)
-
-    if max_ndets is None:
-        max_ndets = n_new
-
-    r_select = select_rmats_ovlp(rmats_fix, rmats_new, m_tol=m_tol, max_ndets=n_new)
-    r_select = select_rmats_energy(rmats_fix, r_select[n_fix:], mo_coeff, h1e, h2e, 
-                                      e_tol=e_tol, max_ndets=max_ndets)
-    return r_select
-
-def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, 
                  e_tol=None, max_ndets=None):
     '''
     Select based on overlap and energy. 
     '''
-    print("***Selecting determinants based on overlap and energy contribution.")
+    print("#Selecting determinants based on overlap and energy contribution.")
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
     if e_tol is None:
-        print("Only using metric criterion.")
-        print("Metric Threshold: {:.1e}".format(m_tol))
+        print("# Only using metric criterion.")
+        print("# Metric Threshold: {:.1e}".format(m_tol))
     else:
-        print("Using both metric and hamiltonian criteria.")
-        print("Metric Threshold: {:.1e}".format(m_tol))
-        print("Energy Threshold: {:.1e}".format(e_tol))
+        print("# Using both metric and hamiltonian criteria.")
+        print("# Metric Threshold: {:.1e}".format(m_tol))
+        print("# Energy Threshold: {:.1e}".format(e_tol))
         E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
 
     n_new = len(rmats_new)
     n_fix = len(rmats_fix)
+    n_ref = n_fix
 
     if max_ndets is None:
         max_ndets = n_new
         
     count = 0
+    count_m = 0 # count the number that passed m_tol
     for i in range(n_new):
         if count == max_ndets:
-            print("Warning: maximum number of determinant exceeded!")
+            print("# Warning: maximum number of determinant exceeded!")
             break
         r_new = rmats_new[i]
         # first compute necessary values
@@ -82,7 +66,6 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
 
         if proj_new > m_tol:
             if e_tol is None: # only consider overlap
-
                 rmats_fix = np.vstack([rmats_fix, r_new[None, :]])
                 n_fix += 1
                 smat_all = np.zeros((n_fix, n_fix))
@@ -93,7 +76,7 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
                 smat_fix = smat_all
                 count += 1
             else: # consider hamitonian criterion 
-
+                count_m += 1
                 norm_fix = np.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
                 H_fix = E_fix * norm_fix 
                 b_p = inv_fix @ smat_left
@@ -111,10 +94,6 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
                 S_22[0, 0] = norm_fix
                 S_22[1, 1] = norm_new 
                 epsilon, vec = slater.solve_lc_coeffs(H_22, S_22, return_vec=True)
-                
-                # E_new = H_new / sdiag_new
-                # R = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(np.abs(T))**2) 
-                # epsilon = (E_new - R/(sdiag_new * norm_fix))
                 ratio = (E_fix - epsilon) / abs(E_fix)
 
                 if ratio > e_tol:
@@ -131,9 +110,34 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
         else:
             continue
     # num_added = len(selected_indices)
-    print("***Selected CI Summary:***")
-    print("Reduced {} determinants to {} determinants.".format(n_new, count))
+    print("###### Selected CI Summary ######")
+    if e_tol is None:
+        print("**Metric threshold**: Reduced {} determinants to {} determinants.".format(n_new, count))
+        print("Total number of determinants after Metric threshold: ", n_ref + count)
+    else:
+        print("**Metric threshold**: Reduced {} determinants to {} determinants.".format(n_new, count_m))
+        print("**Metric + Energy threshold**: Reduced {} determinants to {} determinants.".format(n_new, count))
+        print("Total number of determinants after Metric threshold: ", n_ref + count_m)
+        print("Total number of determinants after Metric and Energy threshold: ", n_ref + count)
     return rmats_fix
+
+
+def select_rmats_old(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, 
+                 e_tol=5e-8, max_ndets=None):
+    '''
+    First select non-linearly dependant determinants, then energy contribution.
+    Note: the returned determinants include rmats_fix.
+    '''
+    n_fix = len(rmats_fix)
+    n_new = len(rmats_new)
+
+    if max_ndets is None:
+        max_ndets = n_new
+
+    r_select = select_rmats_ovlp(rmats_fix, rmats_new, m_tol=m_tol, max_ndets=n_new)
+    r_select = select_rmats_energy(rmats_fix, r_select[n_fix:], mo_coeff, h1e, h2e, 
+                                      e_tol=e_tol, max_ndets=max_ndets)
+    return r_select
 
 
 def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_indices=False):

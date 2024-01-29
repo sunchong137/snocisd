@@ -60,15 +60,15 @@ def test_criteria():
 
 def test_select_slow():    
     # select with metric
-    m_tol = 1e-5
-    e_tol = 1e-7
-    r_select = select_ci.select_rmats_slow(rmats, r_n, mo_coeff, h1e, h2e, m_tol=m_tol, 
+    m_tol = 1e-6
+    e_tol = 1e-4
+    r_select = select_ci.select_rmats(rmats, r_n, mo_coeff, h1e, h2e, m_tol=m_tol, 
                                         e_tol=e_tol, max_ndets=None)
     e_old = slater.noci_energy(rmats, mo_coeff, h1e, h2e)
     e_new = slater.noci_energy(r_select, mo_coeff, h1e, h2e)
-    print(e_new, e_old)
-    # assert e_new <= e_old
-test_select_slow()
+    # print(e_new, e_old)
+    assert e_new <= e_old
+# test_select_slow()
 
 def test_energy():
 
