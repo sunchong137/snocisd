@@ -1,4 +1,4 @@
-<img src="logo" alt="" width="200"/>
+<img src="logo.png" alt=" " width="200"/>
 
 SNOCISD
 =======
