@@ -38,18 +38,14 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
     return r_select
 
 def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, 
-                 e_tol=5e-8, max_ndets=None):
+                 e_tol=None, max_ndets=None):
     '''
-    Similar to select_tvecs(), this function selects rotation 
-    matrices of size (N, 2, norb, nocc). One should use this function
-    when there is multi-reference, i.e. more than one set of MO 
-    coefficients.
-    TODO: Rewrite to save time. First evaluate overlap, then hmat, and energy.
+    Select based on overlap and energy. 
     '''
     print("***Selecting determinants based on overlap and energy contribution.")
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
     n_new = len(rmats_new)
-    # selected_indices = []
+    n_fix = len(rmats_fix)
 
     if max_ndets is None:
         max_ndets = n_new
@@ -57,26 +53,39 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
     count = 0
     for i in range(n_new):
         if count == max_ndets:
-            print("Maximum number of determinant exceeded, please try to increase the overlap threshold.")
+            print("Warning: maximum number of determinant exceeded!")
             break
+        r_new = rmats_new[i]
+        # first compute necessary values
+        metrics_mix = np.einsum('nsji, sjk -> nsik', rmats_fix.conj(), r_new)
+        smat_left = np.prod(np.linalg.det(metrics_mix), axis=-1)
+        s_new = np.einsum("sji, sjk -> sik", r_new.conj(), r_new)
+        s_new = np.prod(np.linalg.det(s_new), axis=-1)
+        inv_fix = np.linalg.inv(smat_fix)
+        proj_old = smat_left.T.conj() @ inv_fix @ smat_left
+        proj_new = 1.0 - proj_old/s_new
 
-        r_new = rmats_new[i][None, :]
-        m, e, h, s = criteria_all_single_det(rmats_fix, r_new[0], mo_coeff, h1e, h2e, 
-                                         smat_fix=smat_fix, hmat_fix=hmat_fix)
-        # print(m, e)
-        if m > m_tol and abs(e) > e_tol:
-            hmat_fix = h
-            smat_fix = s
-            rmats_fix = np.vstack([rmats_fix, r_new])
-            # selected_indices.append(i)
-            count += 1
+        if proj_new > m_tol:
+            if e_tol is None: # only consider overlap
+                print("Only using metric criterion.")
+                print("Metric Threshold: {:.1e}".format(m_tol))
+                rmats_fix = np.vstack([rmats_fix, r_new[None, :]])
+                n_fix += 1
+                smat_all = np.zeros((n_fix, n_fix))
+                smat_all[:-1, :-1] = smat_fix
+                smat_all[:-1, -1]  = smat_left
+                smat_all[-1, :-1]  = smat_left.conj().T
+                smat_all[-1, -1]   = s_new
+                smat_fix = smat_all
+                count += 1
+            else: # consider hamitonian criterion 
+                print("Using both metric and hamiltonian criteria.")
+                print("Metric Threshold: {:.1e}".format(m_tol))
+                print("Energy Threshold: {:.1e}".format(e_tol))
         else:
             continue
-
     # num_added = len(selected_indices)
     print("***Selected CI Summary:***")
-    print("Metric Threshold: {:.1e}".format(m_tol))
-    print("Energy Threshold: {:.1e}".format(e_tol))
     print("Reduced {} determinants to {} determinants.".format(n_new, count))
     return rmats_fix
 
