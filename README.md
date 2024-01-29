@@ -1,3 +1,4 @@
+![](logo.png)
 SNOCISD
 =======
 Selected Non-Orthogonal Configuration Interaction with Singles and Doubles.
