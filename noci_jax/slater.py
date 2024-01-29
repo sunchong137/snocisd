@@ -391,11 +391,11 @@ def expand_hs(hmat0, smat0, rmats_n, rmats_fix, h1e, h2e, mo_coeff):
 
 
     # generate hmat and smat for the lower left block and upper right block
-    h_new, s_new = _gen_hsmat(rmats_n, rmats_fix, mo_coeff, h1e, h2e)
-    hm[n_fix:, :n_fix] = h_new
-    hm[:n_fix, n_fix:] = h_new.T.conj()
-    sm[n_fix:, :n_fix] = s_new
-    sm[:n_fix, n_fix:] = s_new.T.conj()
+    h_left, s_left = _gen_hsmat(rmats_n, rmats_fix, mo_coeff, h1e, h2e)
+    hm[n_fix:, :n_fix] = h_left
+    hm[:n_fix, n_fix:] = h_left.T.conj()
+    sm[n_fix:, :n_fix] = s_left
+    sm[:n_fix, n_fix:] = s_left.T.conj()
 
     # generate hmat and smat for the lower diagonal block
     h_new, s_new = noci_energy(rmats_n, mo_coeff, h1e, h2e, return_mats=True)

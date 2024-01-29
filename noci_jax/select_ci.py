@@ -44,6 +44,15 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
     '''
     print("***Selecting determinants based on overlap and energy contribution.")
     hmat_fix, smat_fix = slater.noci_matrices(rmats_fix, mo_coeff, h1e, h2e)
+    if e_tol is None:
+        print("Only using metric criterion.")
+        print("Metric Threshold: {:.1e}".format(m_tol))
+    else:
+        print("Using both metric and hamiltonian criteria.")
+        print("Metric Threshold: {:.1e}".format(m_tol))
+        print("Energy Threshold: {:.1e}".format(e_tol))
+        E_fix, noci_vec = slater.solve_lc_coeffs(hmat_fix, smat_fix, return_vec=True)
+
     n_new = len(rmats_new)
     n_fix = len(rmats_fix)
 
@@ -58,17 +67,22 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
         r_new = rmats_new[i]
         # first compute necessary values
         metrics_mix = np.einsum('nsji, sjk -> nsik', rmats_fix.conj(), r_new)
-        smat_left = np.prod(np.linalg.det(metrics_mix), axis=-1)
-        s_new = np.einsum("sji, sjk -> sik", r_new.conj(), r_new)
-        s_new = np.prod(np.linalg.det(s_new), axis=-1)
         inv_fix = np.linalg.inv(smat_fix)
+        if e_tol is None:
+            smat_left = np.prod(np.linalg.det(metrics_mix), axis=-1)
+            s_new = np.einsum("sji, sjk -> sik", r_new.conj(), r_new)
+            s_new = np.prod(np.linalg.det(s_new), axis=-1)
+        else:
+            hmat_all, smat_all = slater.expand_hs(hmat_fix, smat_fix, r_new[None, :], rmats_fix, h1e, h2e, mo_coeff)
+            smat_left = smat_all[:-1, -1]
+            s_new = smat_all[-1, -1] 
+
         proj_old = smat_left.T.conj() @ inv_fix @ smat_left
         proj_new = 1.0 - proj_old/s_new
 
         if proj_new > m_tol:
             if e_tol is None: # only consider overlap
-                print("Only using metric criterion.")
-                print("Metric Threshold: {:.1e}".format(m_tol))
+
                 rmats_fix = np.vstack([rmats_fix, r_new[None, :]])
                 n_fix += 1
                 smat_all = np.zeros((n_fix, n_fix))
@@ -79,9 +93,41 @@ def select_rmats_slow(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
                 smat_fix = smat_all
                 count += 1
             else: # consider hamitonian criterion 
-                print("Using both metric and hamiltonian criteria.")
-                print("Metric Threshold: {:.1e}".format(m_tol))
-                print("Energy Threshold: {:.1e}".format(e_tol))
+
+                norm_fix = np.einsum("i, ij, j ->", noci_vec.conj(), smat_fix, noci_vec)
+                H_fix = E_fix * norm_fix 
+                b_p = inv_fix @ smat_left
+                hmat_left = hmat_all[:-1, -1]
+                T = noci_vec.conj() @ (hmat_left - hmat_fix @ b_p)
+                H_new = hmat_all[-1, -1] - 2*np.real(b_p.conj().T @ hmat_left) 
+                H_new = H_new + b_p.conj().T @ hmat_fix @ b_p
+                norm_new = proj_new * s_new
+                H_22 = np.zeros((2, 2))
+                S_22 = np.zeros((2, 2))
+                H_22[0, 0] = H_fix
+                H_22[0, 1] = T
+                H_22[1, 0] = T.conj()
+                H_22[1, 1] = H_new
+                S_22[0, 0] = norm_fix
+                S_22[1, 1] = norm_new 
+                epsilon, vec = slater.solve_lc_coeffs(H_22, S_22, return_vec=True)
+                
+                # E_new = H_new / sdiag_new
+                # R = np.sqrt((H_new*norm_fix - H_fix*sdiag_new)**2 + 4*sdiag_new*norm_fix*(np.abs(T))**2) 
+                # epsilon = (E_new - R/(sdiag_new * norm_fix))
+                ratio = (E_fix - epsilon) / abs(E_fix)
+
+                if ratio > e_tol:
+                    rmats_fix = np.vstack([rmats_fix, r_new[None, :]])
+                    n_fix += 1
+                    smat_fix = smat_all 
+                    hmat_fix = hmat_all
+                    E_fix = epsilon 
+                    c = np.zeros(n_fix)
+                    c[:-1] = vec[0] * noci_vec - vec[1] * b_p
+                    c[-1] = vec[1]
+                    noci_vec = c
+                    count += 1
         else:
             continue
     # num_added = len(selected_indices)
