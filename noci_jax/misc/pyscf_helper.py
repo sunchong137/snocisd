@@ -137,10 +137,11 @@ def run_stab_scf(mf, tol=1E-14, max_iter=100, chkfname=None):
         mf.chkfile = chkfname                                   
     mf.kernel(dm0=init) 
 
-def run_stab_scf_breaksymm(mf, tol=1E-14, max_iter=100, chkfname=None):
-    init_guess = mf.get_init_guess()
-    init_guess[0][0, 0] = 1
-    init_guess[1][0, 0] = 0
+def run_stab_scf_breaksymm(mf, tol=1E-14, max_iter=100, chkfname=None, init_guess=None):
+    if init_guess is None:
+        init_guess = mf.get_init_guess()
+        init_guess[0][0, 0] = 1
+        init_guess[1][0, 0] = 0
     mf.kernel(init_guess)
     mo1 = mf.stability()[0]                                                             
     init = mf.make_rdm1(mo1, mf.mo_occ)

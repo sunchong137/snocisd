@@ -168,7 +168,7 @@ def hubbard1d_dmrg(nsite, U, nelec=None, pbc=False, return_mps=False, filling=1.
     
 
 def hubbard2d_dmrg(nx, ny, U, nelec=None, pbc=False, filling=1.0, init_bdim=50, 
-                   max_bdim=600, nsweeps=10, cutoff=1e-8, max_noise=1e-5):
+                   max_bdim=600, nsweeps=10, cutoff=1e-8, max_noise=1e-5, return_pdms=False):
     
     nsite = nx * ny
     # set system
@@ -234,6 +234,11 @@ def hubbard2d_dmrg(nx, ny, U, nelec=None, pbc=False, filling=1.0, init_bdim=50,
     thrds = [1e-10] * nsweeps
     energy = driver.dmrg(ham_mpo, ket, n_sweeps=nsweeps, bond_dims=bdims, noises=noises,
              thrds=thrds, cutoff=cutoff, iprint=0)
-
     print('DMRG total energy = {:2.6f}, energy per site = {:2.6f}'.format(energy, energy/nsite))
-    return energy, ket, ham_mpo
+    if return_pdms:
+        pdm1 = driver.get_1pdm(ket)
+        pdm2 = driver.get_2pdm(ket)#.transpose(0, 3, 1, 2)
+        for i in range(len(pdm2)):
+            pdm2[i] = pdm2[i].transpose(0, 3, 1, 2)
+        return energy, ket, pdm1, pdm2
+    return energy, ket 

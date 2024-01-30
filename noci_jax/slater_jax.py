@@ -291,6 +291,33 @@ def noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs, e_nuc=0.0):
 
     return energy + e_nuc
 
+@jax.jit
+def noci_matrices_jit(rmats, mo_coeff, h1e, h2e):
+    # first calculate metric and thus overlap
+    metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
+    smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
+    try:
+        ndim = mo_coeff.ndim 
+    except:
+        ndim = 3
+        mo_coeff = jnp.asarray(mo_coeff)
+    if ndim > 2:
+        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    else:
+        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
+    # transition density matrices
+    inv_metrics = jnp.linalg.inv(metrics_all)
+    trdms = jnp.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
+
+    # transition hamiltonian
+    E1 = jnp.einsum("ij, nmsji -> nm", h1e, trdms)
+    J = jnp.einsum("ijkl, nmslk -> nmij", h2e, trdms)
+    E2J = jnp.einsum("nmij, nmsji -> nm", J, trdms)
+    K = jnp.einsum("ijkl, nmsjk -> nmsil", h2e, trdms)
+    E2K = jnp.einsum("nmsij, nmsji ->nm", K, trdms)
+    E2 = E2J - E2K
+    hmat = (E1 + 0.5*E2) * smat
+    return hmat, smat
 
 def noci_matrices(rmats, mo_coeff, h1e, h2e):
     # first calculate metric and thus overlap

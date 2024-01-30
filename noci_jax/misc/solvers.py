@@ -21,7 +21,7 @@ try:
 except:
     print("Warning: Block2 is not implemented!")
 
-def run_shci(mol, max_cycle=100, tol=1e-8):
+def run_shci(mol=None, max_cycle=100, tol=1e-8, mf=None):
     '''
     Interface to the selected CI in PySCF.
     We use the RHF instance because at this accuracy,
@@ -32,8 +32,10 @@ def run_shci(mol, max_cycle=100, tol=1e-8):
         mol: the PySCF datatype that stores the 
         information of the molecule.
     '''
-
-    mf = scf.RHF(mol) 
+    if mf is None:
+        mf = scf.RHF(mol) 
+    elif mol is None:
+        mol = mf.mol
     mf.kernel()
     norb = mol.nao
     nelec = mol.nelectron

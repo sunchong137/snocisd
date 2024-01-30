@@ -57,7 +57,8 @@ def optimize_fed(h1e, h2e, mo_coeff, nocc, nvecs=None, init_tvecs=None,
     init_tvecs = jnp.array(init_tvecs)
 
     rmats_new = slater_jax.gen_rmat_hf(nvir, nocc)
-    hmat, smat = slater_jax.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
+    # hmat, smat = slater_jax.noci_energy(rmats_new, mo_coeff, h1e, h2e, return_mats=True)
+    hmat, smat = slater_jax.noci_matrices(rmats_new, mo_coeff, h1e, h2e)
     e_hf = slater_jax.solve_lc_coeffs(hmat, smat)
     E0 = e_hf 
     if nvecs is None:
