@@ -23,8 +23,51 @@ from noci_jax import slater_jax
 import gc 
 import logging
 
-@jax.jit
-def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
+# @jax.jit
+def compress(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
+    '''
+    Approximate an orthogonal CISD expansion with the compressed non-orthogonal
+    expansion. 
+
+    Args:
+        myci: PySCF CISD object.
+    Kwargs:
+        civec: the coefficients of the CISD expansion
+        dt1: difference for the two-point derivative for the singles expansion.
+        dt2: difference for the two-point derivative for the doubles expansion.
+        tol2: tolerance to truncate the doubles expansion.
+    Returns:
+        t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
+        coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
+    '''
+    c0, c1, c2 = ci_amps
+    coeff0 = c0
+    # get the CIS thouless
+    t1s = jnp.array(c2t_singles(c1, dt=dt1))
+    coeff1 = jnp.array([1/dt1, -1/dt1]*2)
+
+    # get the CID thouless for same spin
+    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
+    t2s = jnp.vstack(t2s)
+    
+    coeff2 = jnp.concatenate([lam2s[0],]*2 + [lam2s[1],]*2 + [-lam2s[1],]*2 + [ lam2s[2],]*2)
+    coeff2 /= (dt2**2)
+
+    # CID also has the contribution of HF GS
+    nvir, nocc = t1s.shape[2:]
+    t0 = jnp.zeros((1, 2, nvir, nocc))
+    coeff2_0 = jnp.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt2**2)
+    coeff0 -= 2*jnp.sum(coeff2_0)
+    coeff0 = jnp.array([coeff0])
+
+    t_all = jnp.vstack([t0, t1s, t2s])
+    num_t = len(t_all) 
+    print("# Compressed CISD to {} NOSDs.".format(num_t))
+    coeff_all = jnp.concatenate([coeff0, coeff1, coeff2])
+    coeff_all /= jnp.linalg.norm(coeff_all)
+    return t_all, coeff_all
+
+def compress_old(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
     '''
     Approximate an orthogonal CISD expansion with the compressed non-orthogonal
     expansion. 
@@ -103,9 +146,10 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
     # first do HF
     my_ci = ci.UCISD(mf)
     _, civec = my_ci.kernel()
+    ci_amps = ucisd_amplitudes(my_ci, civec=civec, silent=silent)
     _t5 = time.time() 
     print("TIME: do CISD :", _t5 - _t4)
-    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    t, _ = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
     _t6 = time.time()
     print("TIME for compression", _t6 - _t5)
     r = slater_jax.tvecs_to_rmats(t, nvir, nocc)
@@ -119,9 +163,11 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         print("TIME: update MO to mf", _t9 - _t8)
         my_ci = ci.UCISD(my_mf)
         _, civec = my_ci.kernel()
+        ci_amps = ucisd_amplitudes(my_ci, civec=civec, silent=silent)
+
         _t10 = time.time() 
         print("TIME: do CISD :", _t10 - _t9)
-        t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+        t, _ = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
         _t11 = time.time() 
         print("TIME to compress: ", _t11 - _t10)
         r = slater_jax.tvecs_to_rmats(t, nvir, nocc)
@@ -324,8 +370,6 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
         nocc = c2.shape[2]
     
     c2 = c2.reshape(3, nvir*nocc, nvir*nocc)
-    # TODO make the following more efficient
-    # aaaa
     e_aa, v_aa = jnp.linalg.eigh(c2[0])
     idx_aa = jnp.where(jnp.abs(e_aa) > tol)
     z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
