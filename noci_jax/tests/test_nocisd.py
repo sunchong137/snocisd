@@ -4,7 +4,7 @@ np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd
 from noci_jax import slater, select_ci, slater_jax
 from noci_jax.misc import pyscf_helper
-
+import time
 
 
 # System set up
@@ -35,13 +35,9 @@ myci = ci.UCISD(mf)
 e_corr, civec = myci.kernel()
 e_cisd = e_hf + e_corr 
 
-
-# ccsd
-mycc = cc.UCCSD(mf)
-mycc.run()
-de = mycc.e_corr
-e_cc = e_hf + de
-
+np.random.seed(0)
+tvecs = np.random.rand(3, 2, nvir, nocc)
+tvecs[0] = 0
 
 
 def test_get_ci_coeff():
@@ -54,7 +50,8 @@ def test_get_ci_coeff():
 
 def test_compress():
     dt = 0.2
-    tmats, coeffs = nocisd.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)
+    ci_amps = nocisd.ucisd_amplitudes(myci, civec=civec, silent=True)
+    tmats, coeffs = nocisd.compress(ci_amps, dt1=dt, dt2=dt, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater.noci_energy(rmats, mo_coeff, h1e, h2e, return_mats=False, lc_coeffs=coeffs, e_nuc=e_nuc)
@@ -89,13 +86,17 @@ def test_given_mo():
 def test_c2t_doubles_truncate():
     t2 = nocisd.gen_nocid_truncate(mf, nocc, nroots=2, dt=0.1)
 
-def test_gen_nocisd_multiref_hsp():
+def test_gen_nocisd_multiref():
 
     m_tol = 1e-5
-    r_new, r_fix = nocisd.gen_nocisd_multiref_hsp(mf, nvir, nocc)
-    e_hsp = slater_jax.noci_energy_jit(r_fix, mo_coeff, h1e, h2e, e_nuc=e_nuc)
-    r_select = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol, max_ndets=1000)
+    t1 = time.time()
+    r_cisd = nocisd.gen_nocisd_multiref(tvecs, mf, nvir, nocc)
+    t2 = time.time()
+    print("TIME", t2 - t1)
+    r_fix = slater.tvecs_to_rmats(tvecs, nvir, nocc)
+    e_fix = slater_jax.noci_energy_jit(r_fix, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+    r_select = select_ci.select_rmats_ovlp(r_fix, r_cisd, m_tol=m_tol, max_ndets=1000)
     e_snoci = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
-    print(e_hsp, e_snoci)
+    assert e_snoci < e_fix
     
-test_gen_nocisd_multiref_hsp()
+test_gen_nocisd_multiref()

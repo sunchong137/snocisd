@@ -340,16 +340,6 @@ def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
         sdets = np.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
     # transition density matrices
     inv_metrics = np.linalg.inv(metrics_all)
-    # trdms = np.einsum("msij, nmsjk, nslk -> nmsil", sdets, inv_metrics, sdets.conj())
-    # dm1s = np.einsum("nmsij, nm -> nmsij", trdms, smat)
-    # dm1_u = trdms[:, :, 0]
-    # dm1_d = trdms[:, :, 1]
-    # dm2s_ud = np.einsum("nmii, nmjj -> nmij", dm1_u, dm1_d)
-    # dm2s_ud = np.einsum("nmij, nm -> nmij", dm2s_ud, smat)
-    # dm1s = np.einsum("n, m, nmsij -> sij", lc_coeff.conj(), lc_coeff, dm1s) 
-    # dm2s_ud = np.einsum("n, m, nmij -> ij", lc_coeff.conj(), lc_coeff, dm2s_ud)
-    # phi_norm = np.einsum("n, m, nm ->", lc_coeff.conj(), lc_coeff, smat)
-    # return dm1s/phi_norm, dm2s_ud/phi_norm
     trdms_diag = np.einsum("msij, nmsjk, nsik -> nmsi", sdets, inv_metrics, sdets.conj())
     dm1s_diag = np.einsum("nmsi, nm -> nmsi", trdms_diag, smat)
     dm1_u = trdms_diag[:, :, 0]
@@ -427,8 +417,7 @@ def expand_smat(smat_fix, rmats_fix, rmats_new):
 
     return smat
     
-
-
+    
 def _gen_hsmat(rmats1, rmats2, mo_coeff, h1e, h2e):
     '''
     Return the matrices of the Hamiltonian and overlap matrix with

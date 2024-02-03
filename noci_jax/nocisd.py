@@ -23,7 +23,7 @@ from noci_jax import slater
 import gc 
 import logging
 
-def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
+def compress(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
     '''
     Approximate an orthogonal CISD expansion with the compressed non-orthogonal
     expansion. 
@@ -39,7 +39,7 @@ def compress(myci, civec=None, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
         t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
         coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
     '''
-    c0, c1, c2 = ucisd_amplitudes(myci, civec=civec, silent=silent)
+    c0, c1, c2 = ci_amps
     coeff0 = c0
     # get the CIS thouless
     t1s = np.array(c2t_singles(c1, dt=dt1))
@@ -95,7 +95,8 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
     # first do HF
     my_ci = ci.UCISD(mf)
     _, civec = my_ci.kernel()
-    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    ci_amps = ucisd_amplitudes(my_ci, civec=civec, silent=silent)
+    t, _ = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
     r = slater.tvecs_to_rmats(t, nvir, nocc)
     r_cisd = r[1:] # only choose the singles and doubles 
 
@@ -103,12 +104,12 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         my_mf.mo_coeff = mo_ref[i+1]
         my_ci = ci.UCISD(my_mf)
         _, civec = my_ci.kernel()
-        t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+        ci_amps = ucisd_amplitudes(my_ci, civec=civec, silent=silent)
+        t, _ = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
         r = slater.tvecs_to_rmats(t, nvir, nocc)
         r = slater.rotate_rmats(r, U_on_ref[i+1])
         r_cisd = np.vstack([r_cisd, r[1:]])
         gc.collect()
-
     return r_cisd
 
 def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):

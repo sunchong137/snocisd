@@ -4,11 +4,11 @@ np.set_printoptions(edgeitems=30, linewidth=100000, precision=5)
 from noci_jax import nocisd_jax
 from noci_jax import slater, select_ci, slater_jax
 from noci_jax.misc import pyscf_helper
-
+import time
 
 
 # System set up
-nH = 8
+nH = 4
 bl = 1.5
 geom = []
 for i in range(nH):
@@ -35,7 +35,9 @@ myci = ci.UCISD(mf)
 e_corr, civec = myci.kernel()
 e_cisd = e_hf + e_corr 
 
-
+np.random.seed(0)
+tvecs = np.random.rand(3, 2, nvir, nocc)
+tvecs[0] = 0
 
 def test_get_ci_coeff():
 
@@ -47,7 +49,8 @@ def test_get_ci_coeff():
 
 def test_compress():
     dt = 0.2
-    tmats, coeffs = nocisd_jax.compress(myci, civec=civec, dt1=dt, dt2=dt, tol2=1e-5)
+    ci_amps = nocisd_jax.ucisd_amplitudes(myci, flatten_c2=False)
+    tmats, coeffs = nocisd_jax.compress(ci_amps, dt1=dt, dt2=dt, tol2=1e-5)
     nvir, nocc = tmats.shape[2:]
     rmats = slater_jax.tvecs_to_rmats(tmats, nvir, nocc)
     E = slater_jax.noci_energy_lc(rmats, mo_coeff, h1e, h2e, lc_coeffs=coeffs, e_nuc=e_nuc)
@@ -60,7 +63,6 @@ def test_multiref():
     r_cisd = nocisd_jax.gen_nocisd_multiref(tvecs, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=True)
     print(r_cisd.shape)
 
-test_multiref()
 
 def test_given_mo():
     mymf = scf.UHF(mol)
@@ -90,12 +92,15 @@ def test_given_mo():
 def test_c2t_doubles_truncate():
     t2 = nocisd_jax.gen_nocid_truncate(mf, nocc, nroots=2, dt=0.1)
 
-def test_gen_nocisd_multiref_hsp():
+def test_gen_nocisd_multiref():
 
     m_tol = 1e-5
-    r_new, r_fix = nocisd_jax.gen_nocisd_multiref_hsp(mf, nvir, nocc)
-    e_hsp = slater_jax.noci_energy_jit(r_fix, mo_coeff, h1e, h2e, e_nuc=e_nuc)
-    r_select = select_ci.select_rmats_ovlp(r_fix, r_new, m_tol=m_tol, max_ndets=1000)
+    t1 = time.time()
+    r_cisd = nocisd_jax.gen_nocisd_multiref(tvecs, mf, nvir, nocc)
+    t2 = time.time()
+    print("TIME...", t2 - t1)
+    r_fix = slater_jax.tvecs_to_rmats(tvecs, nvir, nocc)
+    e_fix = slater_jax.noci_energy_jit(r_fix, mo_coeff, h1e, h2e, e_nuc=e_nuc)
+    r_select = select_ci.select_rmats_ovlp(r_fix, r_cisd, m_tol=m_tol, max_ndets=1000)
     e_snoci = slater_jax.noci_energy_jit(r_select, mo_coeff, h1e, h2e, e_nuc=e_nuc)
-    print(e_hsp, e_snoci)
-    
+    assert e_snoci <  e_fix
