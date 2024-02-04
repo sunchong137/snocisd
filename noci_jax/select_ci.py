@@ -18,6 +18,7 @@ Following Dutta et. al., J. Chem. Phys. 154, 114112 (2021)
 '''
 import numpy as np
 from noci_jax import slater
+import gc
 
 def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5, 
                  e_tol=None, max_ndets=None):
@@ -108,7 +109,9 @@ def select_rmats(rmats_fix, rmats_new, mo_coeff, h1e, h2e, m_tol=1e-5,
                     noci_vec = c
                     count += 1
         else:
-            continue
+            count += 0
+        gc.collect()
+
     # num_added = len(selected_indices)
     print("###### Selected CI Summary ######")
     if e_tol is None:
@@ -169,7 +172,8 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_i
             idx_select.append(i)
             count += 1
         else:
-            continue
+            count += 0
+        gc.collect()
 
     # num_added = len(selected_indices)
     print("# Reduced {} determinants to {} determinants.".format(n_new, count))
