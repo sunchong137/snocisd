@@ -44,7 +44,7 @@ def compress(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True, return_coeff=Tru
     # get the CIS thouless
     t1s = np.array(c2t_singles(c1, dt=dt1))
     # get the CID thouless for same spin
-    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
+    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2, return_coeff=return_coeff)
     t2s = np.vstack(t2s)
 
     # CID also has the contribution of HF GS
@@ -66,50 +66,6 @@ def compress(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True, return_coeff=Tru
         return t_all, coeff_all
     else:
         return t_all
-
-
-def compress_half(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
-    '''
-    Approximate an orthogonal CISD expansion with the compressed non-orthogonal
-    expansion. 
-
-    Args:
-        myci: PySCF CISD object.
-    Kwargs:
-        civec: the coefficients of the CISD expansion
-        dt1: difference for the two-point derivative for the singles expansion.
-        dt2: difference for the two-point derivative for the doubles expansion.
-        tol2: tolerance to truncate the doubles expansion.
-    Returns:
-        t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
-        coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
-    '''
-    c0, c1, c2 = ci_amps
-    coeff0 = c0
-    # get the CIS thouless
-    t1s = np.array(c2t_singles(c1, dt=dt1))
-    coeff1 = np.array([1/dt1, -1/dt1]*2)
-
-    # get the CID thouless for same spin
-    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
-    t2s = np.vstack(t2s)
-    
-    coeff2 = np.concatenate([lam2s[0],]*2 + [lam2s[1],]*2 + [-lam2s[1],]*2 + [ lam2s[2],]*2)
-    coeff2 /= (dt2**2)
-
-    # CID also has the contribution of HF GS
-    nvir, nocc = t1s.shape[2:]
-    t0 = np.zeros((1, 2, nvir, nocc))
-    coeff2_0 = np.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt2**2)
-    coeff0 -= 2*np.sum(coeff2_0)
-    coeff0 = np.array([coeff0])
-
-    t_all = np.vstack([t0, t1s, t2s])
-    num_t = len(t_all) 
-    print("# Compressed CISD to {} NOSDs.".format(num_t))
-    coeff_all = np.concatenate([coeff0, coeff1, coeff2])
-    coeff_all /= np.linalg.norm(coeff_all)
-    return t_all, coeff_all
 
 def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):
     '''
@@ -157,6 +113,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         gc.collect()
     return r_cisd
 
+
 def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):
     '''
     Given one Thouless vector, generate the compressed 
@@ -185,6 +142,7 @@ def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=
     r = slater.tvecs_to_rmats(t, nvir, nocc)
     r = slater.rotate_rmats(r, U)
     return r
+
 
 def gen_nocisd_multiref_hsp(mf, nvir, nocc, dt=0.1, tol2=1e-5, silent=False):
     '''
@@ -224,7 +182,6 @@ def gen_nocisd_multiref_hsp(mf, nvir, nocc, dt=0.1, tol2=1e-5, silent=False):
     
     # next do hsp
     my_mf.mo_coeff = np.array([Cb, Ca])
-
     my_ci = ci.UCISD(my_mf)
     _, civec = my_ci.kernel()
     t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
@@ -245,7 +202,7 @@ def gen_nocid_truncate(mf, nocc, nroots=4, dt=0.1):
     nvir = norb - nocc
     my_ci = ci.UCISD(mf)
     c2 = ucisd_amplitudes_doubles(my_ci)
-    t2 = c2t_doubles_truncate(c2, num_roots=nroots, dt=dt, nvir=nvir, nocc=nocc)
+    t2 = _c2t_doubles_truncate(c2, num_roots=nroots, dt=dt, nvir=nvir, nocc=nocc)
     return t2
 
 
@@ -331,7 +288,7 @@ def c2t_singles(c1, dt=0.1):
     return [t1pa, t1ma, t1pb, t1mb]
     
 
-def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
+def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4, return_coeff=True):
     '''
     Generate NOSDs corresponding to the doubly excited states.
     same spin - 4 fold degeneracy 
@@ -351,14 +308,12 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
         nocc = c2.shape[2]
     
     c2 = c2.reshape(3, nvir*nocc, nvir*nocc)
-    # TODO make the following more efficient
     # aaaa
     e_aa, v_aa = np.linalg.eigh(c2[0])
     idx_aa = np.where(np.abs(e_aa) > tol)
     z_aa = v_aa[:, idx_aa].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     pad_aa = np.zeros_like(z_aa)
     t_aa = np.transpose(np.array([z_aa, pad_aa]), (1,0,2,3))
-    c_aa = e_aa[idx_aa]
 
     # aabb
     u_a, e_ab, v_bt = np.linalg.svd(c2[1])
@@ -368,7 +323,6 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     z_b = v_b[:, idx_ab].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     t_ab_p = np.transpose(np.array([z_a, z_b]), (1,0,2,3))
     t_ab_m = np.transpose(np.array([z_a, -z_b]), (1,0,2,3))
-    c_ab = e_ab[idx_ab]
  
     # bbbb
     e_bb, v_bb = np.linalg.eigh(c2[2])
@@ -376,16 +330,20 @@ def c2t_doubles(c2, dt=0.1, nvir=None, nocc=None, tol=5e-4):
     z_bb = v_bb[:, idx_bb].reshape(nvir*nocc, -1).T.reshape(-1, nvir, nocc)
     pad_bb = np.zeros_like(z_bb)
     t_bb = np.transpose(np.array([pad_bb, z_bb]), (1,0,2,3))
-    c_bb = e_bb[idx_bb]
 
     tmat_aa = np.vstack([t_aa, -t_aa])*dt
     tmat_ab = np.vstack([t_ab_p, -t_ab_p, t_ab_m, -t_ab_m])*dt/2.
     tmat_bb = np.vstack([t_bb, -t_bb])*dt
+    if return_coeff:
+        c_aa = e_aa[idx_aa]
+        c_ab = e_ab[idx_ab]
+        c_bb = e_bb[idx_bb]
+        return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]
+    else:
+        return [tmat_aa, tmat_ab, tmat_bb], None
 
-    return [tmat_aa, tmat_ab, tmat_bb], [c_aa, c_ab, c_bb]
 
-
-def c2t_doubles_truncate(c2, num_roots=4, dt=0.1, nvir=None, nocc=None):
+def _c2t_doubles_truncate(c2, num_roots=4, dt=0.1, nvir=None, nocc=None):
     '''
     Generate NOSDs corresponding to the doubly excited states.
     Pick num_dets determinants with largest impact.
