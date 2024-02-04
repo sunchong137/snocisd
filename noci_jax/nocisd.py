@@ -23,7 +23,52 @@ from noci_jax import slater
 import gc 
 import logging
 
-def compress(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
+def compress(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True, return_coeff=True):
+    '''
+    Approximate an orthogonal CISD expansion with the compressed non-orthogonal
+    expansion. 
+
+    Args:
+        myci: PySCF CISD object.
+    Kwargs:
+        civec: the coefficients of the CISD expansion
+        dt1: difference for the two-point derivative for the singles expansion.
+        dt2: difference for the two-point derivative for the doubles expansion.
+        tol2: tolerance to truncate the doubles expansion.
+    Returns:
+        t_all: (N, 2, nvir, nocc) array, where N is the number of NO determinants (including the ground state).
+        coeff_all: the corresponding coefficients to recover the CISD wavefunction with NOSDs.
+    '''
+    c0, c1, c2 = ci_amps
+
+    # get the CIS thouless
+    t1s = np.array(c2t_singles(c1, dt=dt1))
+    # get the CID thouless for same spin
+    t2s, lam2s = c2t_doubles(c2, dt=dt2, tol=tol2)
+    t2s = np.vstack(t2s)
+
+    # CID also has the contribution of HF GS
+    nvir, nocc = t1s.shape[2:]
+    t0 = np.zeros((1, 2, nvir, nocc))
+    t_all = np.vstack([t0, t1s, t2s])
+    num_t = len(t_all) 
+    print("# Compressed CISD to {} NOSDs.".format(num_t))
+    if return_coeff:
+        coeff0 = c0
+        coeff1 = np.array([1/dt1, -1/dt1]*2)
+        coeff2 = np.concatenate([lam2s[0],]*2 + [lam2s[1],]*2 + [-lam2s[1],]*2 + [ lam2s[2],]*2)
+        coeff2 /= (dt2**2)
+        coeff2_0 = np.concatenate([lam2s[0],]*2 + [lam2s[2],]*2)/(dt2**2)
+        coeff0 -= 2*np.sum(coeff2_0)
+        coeff0 = np.array([coeff0])
+        coeff_all = np.concatenate([coeff0, coeff1, coeff2])
+        coeff_all /= np.linalg.norm(coeff_all)
+        return t_all, coeff_all
+    else:
+        return t_all
+
+
+def compress_half(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
     '''
     Approximate an orthogonal CISD expansion with the compressed non-orthogonal
     expansion. 
@@ -66,7 +111,6 @@ def compress(ci_amps, dt1=0.1, dt2=0.1, tol2=1e-5, silent=True):
     coeff_all /= np.linalg.norm(coeff_all)
     return t_all, coeff_all
 
-
 def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):
     '''
     Given a set of non-orthogonal SDs, generate the compressed 
@@ -96,7 +140,8 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
     my_ci = ci.UCISD(mf)
     _, civec = my_ci.kernel()
     ci_amps = ucisd_amplitudes(my_ci, civec=civec, silent=silent)
-    t, _ = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    t = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, 
+                 silent=silent, return_coeff=False)
     r = slater.tvecs_to_rmats(t, nvir, nocc)
     r_cisd = r[1:] # only choose the singles and doubles 
 
@@ -105,7 +150,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         my_ci = ci.UCISD(my_mf)
         _, civec = my_ci.kernel()
         ci_amps = ucisd_amplitudes(my_ci, civec=civec, silent=silent)
-        t, _ = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+        t = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, silent=silent, return_coeff=False)
         r = slater.tvecs_to_rmats(t, nvir, nocc)
         r = slater.rotate_rmats(r, U_on_ref[i+1])
         r_cisd = np.vstack([r_cisd, r[1:]])
@@ -135,7 +180,8 @@ def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=
     my_mf.mo_coeff = mo_ref
     my_ci = ci.UCISD(my_mf)
     _, civec = my_ci.kernel()
-    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    t = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, 
+                 silent=silent, return_coeff=False)
     r = slater.tvecs_to_rmats(t, nvir, nocc)
     r = slater.rotate_rmats(r, U)
     return r
@@ -162,7 +208,8 @@ def gen_nocisd_multiref_hsp(mf, nvir, nocc, dt=0.1, tol2=1e-5, silent=False):
     # first do HF 
     my_ci = ci.UCISD(mf)
     _, civec = my_ci.kernel()
-    t, _ = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, silent=silent)
+    t = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, 
+                 silent=silent, return_coeff=False)
     r = slater.tvecs_to_rmats(t, nvir, nocc)
     r_cisd = r[1:] # only choose the singles and doubles 
     r_ref = np.array([r[0]])
