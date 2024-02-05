@@ -113,7 +113,6 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         gc.collect()
     return r_cisd
 
-
 def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):
     '''
     Given one Thouless vector, generate the compressed 
