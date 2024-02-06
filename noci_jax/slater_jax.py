@@ -434,7 +434,7 @@ def make_rdm12(rmats, mo_coeff, lc_coeff):
 
     return dm1s/phi_norm, dm2s/phi_norm
 
-
+@jax.jit
 def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
     '''
     Only make the diagonal term of the 2RDM of <up+ up dn+ dn>.
@@ -443,16 +443,17 @@ def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
     '''
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
     smat = jnp.prod(np.linalg.det(metrics_all), axis=-1)
-
-    try:
-        ndim = mo_coeff.ndim 
-    except:
-        ndim = 3
-        mo_coeff = jnp.asarray(mo_coeff)
-    if ndim > 2:
-        sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
-    else:
-        sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
+    mo_coeff = jnp.asarray(mo_coeff)
+    sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    # try:
+    #     ndim = mo_coeff.ndim 
+    # except:
+    #     ndim = 3
+    #     mo_coeff = jnp.asarray(mo_coeff)
+    # if ndim > 2:
+    #     sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
+    # else:
+    #     sdets = jnp.einsum("ij, nsjk -> nsik", mo_coeff, rmats)
 
     # transition density matrices
     inv_metrics = jnp.linalg.inv(metrics_all)
