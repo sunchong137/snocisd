@@ -442,7 +442,7 @@ def make_rdm12_diag(rmats, mo_coeff, lc_coeff):
     Return: (p,q) = <a^dag_p a_p a^_q a_q>
     '''
     metrics_all = jnp.einsum('nsji, msjk -> nmsik', rmats.conj(), rmats)
-    smat = jnp.prod(np.linalg.det(metrics_all), axis=-1)
+    smat = jnp.prod(jnp.linalg.det(metrics_all), axis=-1)
     mo_coeff = jnp.asarray(mo_coeff)
     sdets = jnp.einsum("sij, nsjk -> nsik", mo_coeff, rmats)
     # try:
