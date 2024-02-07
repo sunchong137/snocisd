@@ -113,7 +113,8 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         gc.collect()
     return r_cisd
 
-def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=False):
+def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, 
+                      tol2=1e-5, silent=False):
     '''
     Given one Thouless vector, generate the compressed 
     non-orthogonal CISD from this SD.
@@ -136,7 +137,8 @@ def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, silent=
     my_mf.mo_coeff = mo_ref
     my_ci = ci.UCISD(my_mf)
     _, civec = my_ci.kernel()
-    t = compress(my_ci, civec=civec, dt1=dt, dt2=dt, tol2=tol2, 
+    ci_amps = ucisd_amplitudes(my_ci, civec=civec, silent=silent)
+    t = compress(ci_amps, dt1=dt, dt2=dt, tol2=tol2, 
                  silent=silent, return_coeff=False)
     r = slater.tvecs_to_rmats(t, nvir, nocc)
     r = slater.rotate_rmats(r, U)
