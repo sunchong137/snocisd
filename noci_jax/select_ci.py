@@ -147,6 +147,8 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_i
     Much faster than the select_rmat, and serve the same purpose.
     '''
     smat_fix = slater.get_smat(rmats_fix)
+    n_fix = len(rmats_fix)
+    n_ref = n_fix
     n_new = len(rmats_new)
     if max_ndets is None:
         max_ndets = n_new
@@ -163,13 +165,26 @@ def select_rmats_ovlp(rmats_fix, rmats_new, m_tol=1e-5, max_ndets=None, return_i
         if count == max_ndets:
             print("# Maximum number of determinant exceeded, please try to increase the overlap threshold.")
             break
-        r_new = rmats_new[i][None, :]
-        m, s = _criterial_ovlp_single_det(rmats_fix, r_new[0], smat_fix=smat_fix, m_tol=m_tol)
+        r_new = rmats_new[i]
+        # first compute necessary values
+        metrics_mix = np.einsum('nsji, sjk -> nsik', rmats_fix.conj(), r_new)
+        inv_fix = np.linalg.inv(smat_fix)
+
+        smat_left = np.prod(np.linalg.det(metrics_mix), axis=-1)
+        s_new = np.einsum("sji, sjk -> sik", r_new.conj(), r_new)
+        s_new = np.prod(np.linalg.det(s_new), axis=-1)
+        proj_old = smat_left.T.conj() @ inv_fix @ smat_left
+        proj_new = 1.0 - proj_old/s_new
         # print(m)
-        if m > m_tol:
-            smat_fix = s
-            rmats_fix = np.vstack([rmats_fix, r_new])
-            idx_select.append(i)
+        if proj_new > m_tol:
+            rmats_fix = np.vstack([rmats_fix, r_new[None, :]])
+            n_fix += 1
+            smat_all = np.zeros((n_fix, n_fix))
+            smat_all[:-1, :-1] = smat_fix
+            smat_all[:-1, -1]  = smat_left
+            smat_all[-1, :-1]  = smat_left.conj().T
+            smat_all[-1, -1]   = s_new
+            smat_fix = smat_all
             count += 1
         else:
             count += 0
