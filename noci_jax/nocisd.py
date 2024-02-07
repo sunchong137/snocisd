@@ -81,6 +81,7 @@ def gen_nocisd_multiref(tvecs_ref, mf, nvir=None, nocc=None, dt=0.1, tol2=1e-5, 
         All the Thouless matrices are based on the HF state.
     '''
     print("#"*10 + " Multi-Ref NOCISD " + "#"*10)
+    print("# Parameters: dt={:0.2f}, tol2={:0.1e}".format(dt, tol2))
     num_ref = len(tvecs_ref)
     if nvir is None:
         nvir, nocc = tvecs_ref.shape[-2:]
@@ -127,6 +128,7 @@ def gen_nocisd_onevec(tvec, mf, nvir=None, nocc=None, dt=0.1,
     '''
     # print("#"*10 + " Multi-Ref NOCISD " + "#"*10)
     # num_ref = len(tvecs_ref)
+    print("# Parameters: dt={:0.2f}, tol2={:0.1e}".format(dt, tol2))
     if nvir is None:
         nvir, nocc = tvec.shape[-2:]
     norb = nvir + nocc
