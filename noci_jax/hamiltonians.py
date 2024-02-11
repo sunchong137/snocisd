@@ -143,6 +143,7 @@ def gen_scf_hubbard2D(nx, ny, U, nelec=None, pbc=True, filling=None, spin=1):
     |_|_|_|
     |_|_|_| ny
     |_|_|_|
+    site index: top to bottom then left to right. 
     Returns:
         PySCF scf object for Hubbard model.
     '''
