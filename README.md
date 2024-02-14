@@ -9,8 +9,12 @@ Author: Chong Sun [email](sunchong137@gmail.com)
 
 # Installation
 ## Required packages
-1. PySCF, interface to quantum chemistry.
-2. Jax, Jaxlib, Optax, optimization and fast array algebra.
+1. The package is written with Python3.9. It is advisable to create a conda environment by
+```bash
+conda create -n env_name python=3.9
+```
+2. PySCF, interface to quantum chemistry.
+3. Jax, Jaxlib, Optax, optimization and fast array algebra.
 
 ## Installation from GitHub
 First get the Python package from GitHub by
