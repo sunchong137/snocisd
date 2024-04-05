@@ -15,7 +15,7 @@
 import numpy as np
 import jax, optax
 import jax.numpy as jnp
-from jax.config import config
+from jax import config
 config.update("jax_debug_nans", True)
 config.update("jax_enable_x64", True)
 from noci_jax import slater_jax
