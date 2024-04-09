@@ -15,6 +15,21 @@
 import numpy as np
 from noci_jax.jw import hartreefock 
 
+
+def test_jw_hams():
+    norb = 6
+    Sz = 0
+    nelec = int(norb/2 + Sz + 1e-10)
+    
+    # create a random determinant 
+    frand = np.random.rand(norb, norb)
+    frand += frand.T 
+    M = frand 
+    V = frand 
+    w = np.random.rand(norb)
+    h = hartreefock.jw_ham(M, V)
+    print(h)
+test_jw_hams(); exit()
 def test_energy():
     norb = 6
     Sz = 0

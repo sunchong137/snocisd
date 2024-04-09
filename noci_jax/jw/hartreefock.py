@@ -18,7 +18,7 @@ on the JW-transformed Hamiltonian.
 '''
 import numpy as np
 
-def jw_ham(M, V, w=0):
+def jw_ham(M, V, w=0, no_tol=1e-8):
     '''
     Given a spin Hamiltonian, transfer it into two parts: with string and without string.
     The spin Hamiltonian is defined as:
@@ -35,27 +35,34 @@ def jw_ham(M, V, w=0):
         V: (L, L) array, symmetric, coeffs for Z_p Z_q.
         w: (L, ) array, coeffs of Z_p
     Returns:
-        ho: (L, L) array, the one-body Hamiltonian without string.
-        vo: (L, L) array, the two-body Hamiltonian, only acts on n_p n_q
-        hno: 0 or 1D array of size (L-1)(L-2)/2, flattened the top triangle 
-            after removing tridiagonal terms. 
+        h1o: (L, L) array, the one-body Hamiltonian without string.
+        g2o: (L, L) array, the two-body Hamiltonian, only acts on n_p n_q
         e0: the constant term.
+        h1no: 0 or 1D array of size (L-1)(L-2)/2, flattened the top triangle 
+            after removing tridiagonal terms.
     '''
-    norb = M.shape[-1]
+    L = M.shape[-1]
+    # initialize
+    h1o = np.zeros((L, L)) 
     # get orthogonal Hamiltonian 
-
+    v = np.sum(V, axis=1)
+    np.fill_diagonal(h1o, np.diag(M) + w - v)
+    for i in range(L - 1):
+        h1o[i, i+1] = M[i, i+1] 
+        h1o[i+1, i] = M[i+1, i]
+    g2o = V
+    e0 = np.sum(V)/4 - np.sum(w)/2
     # get non-orthogonal part 
-    pass
+    tri_ind = np.triu_indices(L, k=2, m=L)
+    h1no = M[tri_ind] 
+    val_h1 = np.linalg.norm(h1no)
+    if val_h1 < no_tol:
+        h1no = 0
+    return h1o, g2o, e0, h1no
 
-def eval_energy(det, M, V, w=0, e0=0):
+def eval_energy(det, h1o, g2o, h1no):
     '''
-    TODO: change the ham forms
-    Calculate the expectation value of a given spin Hamiltonian H for a Fermionic 
-    Slater determinant |Phi>. We first use JW transformation to convert the spin 
-    Hamiltonian into a fermionic Hamiltonian, and then evaluate  <Phi|H|Phi>.
-
-    
-
+    Calculate the expectation value of a Fermionic Hamiltonian with strings.
     Parameters:
         det (np.ndarray): Molecular orbital (MO) coefficients of the occupied orbitals,
                           with the shape (L, N_occ), where L is the total number of orbitals,
