@@ -33,5 +33,17 @@ pip install -e .
 In the `examples` folder, various examples are provided. 
 
 # Citing SNOCISD
-To be added.
+If you use this package, please cite our [paper](https://pubs.acs.org/doi/full/10.1021/acs.jctc.4c00240).
+```
+@article{sun2024snocisd,
+author = {Sun, Chong and Gao, Fei and Scuseria, Gustavo E.},
+title = {Selected Nonorthogonal Configuration Interaction with Compressed Single and Double Excitations},
+journal = {Journal of Chemical Theory and Computation},
+volume = {20},
+number = {9},
+pages = {3741-3748},
+year = {2024},
+doi = {10.1021/acs.jctc.4c00240},
+}
+```
 
